@@ -5,6 +5,8 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
 import java.util.*;
 import java.util.stream.Stream;
+import javax.imageio.ImageIO;
+import java.awt.image.BufferedImage;
 
 /** Desktop-only converter. Editable inputs never enter the MIDlet resource tree. */
 public final class AssetConverter {
@@ -28,6 +30,8 @@ public final class AssetConverter {
                 writeLevel(input, output.resolve(replaceSuffix(relative, ".level", ".lvl")));
             } else if (name.endsWith(".obj")) {
                 writeModel(input, output.resolve(replaceSuffix(relative, ".obj", ".mesh")));
+            } else if (name.equals("textures.png")) {
+                writeTexture(input, output.resolve(replaceSuffix(relative, ".png", ".tex")));
             }
             // Editor metadata and every unknown source format are intentionally ignored.
         } catch (IOException e) {
@@ -54,18 +58,26 @@ public final class AssetConverter {
     }
 
     private static void writeModel(Path input, Path output) throws IOException {
-        List<String> vertices = new ArrayList<String>();
-        List<String> faces = new ArrayList<String>();
+        List<float[]> vertices = new ArrayList<float[]>();
+        List<int[]> faces = new ArrayList<int[]>();
         for (String line : Files.readAllLines(input, StandardCharsets.US_ASCII)) {
             line = line.trim();
-            if (line.startsWith("v ")) vertices.add(line.substring(2).trim());
-            else if (line.startsWith("f ")) faces.add(line.substring(2).trim().replace('/', ' '));
+            if (line.startsWith("v ")) {String[] p=line.substring(2).trim().split("\\s+");vertices.add(new float[]{Float.parseFloat(p[0]),Float.parseFloat(p[1]),Float.parseFloat(p[2])});}
+            else if (line.startsWith("f ")) {String[] p=line.substring(2).trim().split("\\s+");if(p.length>=3)faces.add(new int[]{objIndex(p[0]),objIndex(p[1]),objIndex(p[2])});}
         }
         Files.createDirectories(output.getParent());
-        try (BufferedWriter writer = Files.newBufferedWriter(output, StandardCharsets.US_ASCII)) {
-            writer.write("MXM1 " + vertices.size() + " " + faces.size()); writer.newLine();
-            for (String vertex : vertices) { writer.write("v " + vertex); writer.newLine(); }
-            for (String face : faces) { writer.write("f " + face); writer.newLine(); }
+        try (DataOutputStream out=new DataOutputStream(Files.newOutputStream(output))) {
+            out.writeInt(0x4d584d32);out.writeShort(1);out.writeShort(0);out.writeShort(0);out.writeShort(vertices.size());out.writeShort(faces.size());
+            for(float[] v:vertices){out.writeInt((int)(v[0]*65536.0f));out.writeInt((int)(v[1]*65536.0f));out.writeInt((int)(v[2]*65536.0f));}
+            for(int i=0;i<vertices.size();i++){out.writeInt(0);out.writeInt(0);}
+            for(int[] face:faces)for(int index:face)out.writeShort(index);
         }
+    }
+
+    private static int objIndex(String token){int slash=token.indexOf('/');return Integer.parseInt(slash<0?token:token.substring(0,slash))-1;}
+
+    private static void writeTexture(Path input,Path output)throws IOException{
+        BufferedImage image=ImageIO.read(input.toFile());if(image==null||image.getWidth()>256||image.getHeight()>256)throw new IOException("Invalid texture atlas: "+input);
+        Files.createDirectories(output.getParent());try(DataOutputStream out=new DataOutputStream(Files.newOutputStream(output))){out.writeInt(0x4d585432);out.writeShort(1);out.writeShort(image.getWidth());out.writeShort(image.getHeight());for(int y=0;y<image.getHeight();y++)for(int x=0;x<image.getWidth();x++)out.writeInt(image.getRGB(x,y)&0xffffff);}
     }
 }
