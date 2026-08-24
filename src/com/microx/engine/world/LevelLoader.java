@@ -1,16 +1,171 @@
 package com.microx.engine.world;
-import java.io.DataInputStream;import java.io.IOException;import java.io.InputStream;
+import java.io.DataInputStream;
+import java.io.IOException;
+import java.io.InputStream;
 
 /** Streaming loader for the versioned MXL2 binary resource. Publishes only complete levels. */
 public final class LevelLoader {
- public static final int MAGIC=0x4d584c32,VERSION=1;
- public PortalWorld world;public Collision collision;public EntityPool entities;public int startX,startY,startZ,startYaw;
- public int[] transitionId,transitionSpawn,spawnId,spawnX,spawnY,spawnZ,spawnYaw;public String[] transitionLocation;
- public boolean load(String path){InputStream in=getClass().getResourceAsStream(path);if(in==null)return false;return load(in);}
- public boolean load(InputStream stream){try{DataInputStream in=new DataInputStream(stream);if(in.readInt()!=MAGIC||in.readUnsignedShort()!=VERSION)return false;int rooms=count(in,1,256),floors=count(in,1,1024),ceilings=count(in,1,1024),edges=count(in,0,2048),portals=count(in,0,1024),spawns=count(in,1,256),transitions=count(in,0,256),entityCount=count(in,0,1024),capacity=count(in,1,1024);if(entityCount>capacity)return false;PortalWorld w=new PortalWorld(rooms,portals);Collision c=new Collision(edges,floors,ceilings);EntityPool e=new EntityPool(capacity);int i;for(i=0;i<rooms;i++){int a=in.readInt(),b=in.readInt(),d=in.readInt(),f=in.readInt();if(a>b||d>f)return false;w.room(i,a,b,d,f);}for(i=0;i<floors;i++){int r=index(in,rooms),a=in.readInt(),b=in.readInt(),d=in.readInt(),f=in.readInt(),y=in.readInt();if(a>b||d>f)return false;c.floor(i,r,a,b,d,f,y);}for(i=0;i<ceilings;i++){int r=index(in,rooms),a=in.readInt(),b=in.readInt(),d=in.readInt(),f=in.readInt(),y=in.readInt();if(a>b||d>f)return false;c.ceiling(i,r,a,b,d,f,y);}for(i=0;i<edges;i++)c.edge(i,index(in,rooms),in.readInt(),in.readInt(),in.readInt(),in.readInt(),in.readInt(),in.readInt());for(i=0;i<portals;i++){int id=in.readUnsignedShort(),from=index(in,rooms),to=index(in,rooms),a=in.readInt(),b=in.readInt(),d=in.readInt(),f=in.readInt(),g=in.readInt(),h=in.readInt(),reverse=in.readShort(),transition=in.readShort();if(a>b||d>f||g>h||reverse>=portals||transition>=transitions)return false;w.portal(i,id,from,to,a,b,d,f,g,h,reverse,transition);}int sx=0,sy=0,sz=0,syaw=0;int[] si=new int[spawns],sxx=new int[spawns],syy=new int[spawns],szz=new int[spawns],sya=new int[spawns];for(i=0;i<spawns;i++){int id=in.readUnsignedShort();index(in,rooms);int x=in.readInt(),y=in.readInt(),z=in.readInt(),yaw=in.readShort();si[i]=id;sxx[i]=x;syy[i]=y;szz[i]=z;sya[i]=yaw;if(id==0){sx=x;sy=y;sz=z;syaw=yaw;}}int[] ti=new int[transitions],ts=new int[transitions];String[] tl=new String[transitions];for(i=0;i<transitions;i++){ti[i]=in.readUnsignedShort();ts[i]=in.readUnsignedShort();tl[i]=in.readUTF();if(tl[i].length()==0||tl[i].length()>64)return false;}for(i=0;i<entityCount;i++)if(e.spawn(in.readUnsignedShort(),in.readInt(),in.readInt(),in.readInt(),in.readUnsignedShort())<0)return false;if(in.read()!=-1)return false;world=w;collision=c;entities=e;startX=sx;startY=sy;startZ=sz;startYaw=syaw;transitionId=ti;transitionSpawn=ts;transitionLocation=tl;spawnId=si;spawnX=sxx;spawnY=syy;spawnZ=szz;spawnYaw=sya;return true;}catch(IOException ex){return false;}catch(RuntimeException ex){return false;}finally{try{stream.close();}catch(IOException ignored){}}}
- private static int count(DataInputStream in,int min,int max)throws IOException{int n=in.readUnsignedShort();if(n<min||n>max)throw new IOException("invalid count");return n;}
- private static int index(DataInputStream in,int count)throws IOException{int i=in.readUnsignedShort();if(i>=count)throw new IOException("invalid index");return i;}
- public boolean selectSpawn(int id){if(spawnId!=null)for(int i=0;i<spawnId.length;i++)if(spawnId[i]==id){startX=spawnX[i];startY=spawnY[i];startZ=spawnZ[i];startYaw=spawnYaw[i];return true;}return false;}
- public int findTransition(int id){if(transitionId!=null)for(int i=0;i<transitionId.length;i++)if(transitionId[i]==id)return i;return-1;}
- public void clear(){world=null;collision=null;entities=null;transitionId=null;transitionSpawn=null;transitionLocation=null;spawnId=spawnX=spawnY=spawnZ=spawnYaw=null;}
+    public static final int MAGIC = 0x4d584c32, VERSION = 1;
+    public PortalWorld world;
+    public Collision collision;
+    public EntityPool entities;
+    public int startX, startY, startZ, startYaw;
+    public int[] transitionId, transitionSpawn, spawnId, spawnX, spawnY, spawnZ, spawnYaw;
+    public String[] transitionLocation;
+    public boolean load(String path) {
+        InputStream in = getClass().getResourceAsStream(path);
+        if (in == null)
+            return false;
+        return load(in);
+    }
+    public boolean load(InputStream stream) {
+        try {
+            DataInputStream in = new DataInputStream(stream);
+            if (in.readInt() != MAGIC || in.readUnsignedShort() != VERSION)
+                return false;
+            int rooms = count(in, 1, 256), floors = count(in, 1, 1024),
+                ceilings = count(in, 1, 1024), edges = count(in, 0, 2048),
+                portals = count(in, 0, 1024), spawns = count(in, 1, 256),
+                transitions = count(in, 0, 256), entityCount = count(in, 0, 1024),
+                capacity = count(in, 1, 1024);
+            if (entityCount > capacity)
+                return false;
+            PortalWorld w = new PortalWorld(rooms, portals);
+            Collision c = new Collision(edges, floors, ceilings);
+            EntityPool e = new EntityPool(capacity);
+            int i;
+            for (i = 0; i < rooms; i++) {
+                int a = in.readInt(), b = in.readInt(), d = in.readInt(), f = in.readInt();
+                if (a > b || d > f)
+                    return false;
+                w.room(i, a, b, d, f);
+            }
+            for (i = 0; i < floors; i++) {
+                int r = index(in, rooms), a = in.readInt(), b = in.readInt(), d = in.readInt(),
+                    f = in.readInt(), y = in.readInt();
+                if (a > b || d > f)
+                    return false;
+                c.floor(i, r, a, b, d, f, y);
+            }
+            for (i = 0; i < ceilings; i++) {
+                int r = index(in, rooms), a = in.readInt(), b = in.readInt(), d = in.readInt(),
+                    f = in.readInt(), y = in.readInt();
+                if (a > b || d > f)
+                    return false;
+                c.ceiling(i, r, a, b, d, f, y);
+            }
+            for (i = 0; i < edges; i++)
+                c.edge(i, index(in, rooms), in.readInt(), in.readInt(), in.readInt(), in.readInt(),
+                        in.readInt(), in.readInt());
+            for (i = 0; i < portals; i++) {
+                int id = in.readUnsignedShort(), from = index(in, rooms), to = index(in, rooms),
+                    a = in.readInt(), b = in.readInt(), d = in.readInt(), f = in.readInt(),
+                    g = in.readInt(), h = in.readInt(), reverse = in.readShort(),
+                    transition = in.readShort();
+                if (a > b || d > f || g > h || reverse >= portals || transition >= transitions)
+                    return false;
+                w.portal(i, id, from, to, a, b, d, f, g, h, reverse, transition);
+            }
+            int sx = 0, sy = 0, sz = 0, syaw = 0;
+            int[] si = new int[spawns], sxx = new int[spawns], syy = new int[spawns],
+                  szz = new int[spawns], sya = new int[spawns];
+            for (i = 0; i < spawns; i++) {
+                int id = in.readUnsignedShort();
+                index(in, rooms);
+                int x = in.readInt(), y = in.readInt(), z = in.readInt(), yaw = in.readShort();
+                si[i] = id;
+                sxx[i] = x;
+                syy[i] = y;
+                szz[i] = z;
+                sya[i] = yaw;
+                if (id == 0) {
+                    sx = x;
+                    sy = y;
+                    sz = z;
+                    syaw = yaw;
+                }
+            }
+            int[] ti = new int[transitions], ts = new int[transitions];
+            String[] tl = new String[transitions];
+            for (i = 0; i < transitions; i++) {
+                ti[i] = in.readUnsignedShort();
+                ts[i] = in.readUnsignedShort();
+                tl[i] = in.readUTF();
+                if (tl[i].length() == 0 || tl[i].length() > 64)
+                    return false;
+            }
+            for (i = 0; i < entityCount; i++)
+                if (e.spawn(in.readUnsignedShort(), in.readInt(), in.readInt(), in.readInt(),
+                            in.readUnsignedShort())
+                        < 0)
+                    return false;
+            if (in.read() != -1)
+                return false;
+            world = w;
+            collision = c;
+            entities = e;
+            startX = sx;
+            startY = sy;
+            startZ = sz;
+            startYaw = syaw;
+            transitionId = ti;
+            transitionSpawn = ts;
+            transitionLocation = tl;
+            spawnId = si;
+            spawnX = sxx;
+            spawnY = syy;
+            spawnZ = szz;
+            spawnYaw = sya;
+            return true;
+        } catch (IOException ex) {
+            return false;
+        } catch (RuntimeException ex) {
+            return false;
+        } finally {
+            try {
+                stream.close();
+            } catch (IOException ignored) {
+            }
+        }
+    }
+    private static int count(DataInputStream in, int min, int max) throws IOException {
+        int n = in.readUnsignedShort();
+        if (n < min || n > max)
+            throw new IOException("invalid count");
+        return n;
+    }
+    private static int index(DataInputStream in, int count) throws IOException {
+        int i = in.readUnsignedShort();
+        if (i >= count)
+            throw new IOException("invalid index");
+        return i;
+    }
+    public boolean selectSpawn(int id) {
+        if (spawnId != null)
+            for (int i = 0; i < spawnId.length; i++)
+                if (spawnId[i] == id) {
+                    startX = spawnX[i];
+                    startY = spawnY[i];
+                    startZ = spawnZ[i];
+                    startYaw = spawnYaw[i];
+                    return true;
+                }
+        return false;
+    }
+    public int findTransition(int id) {
+        if (transitionId != null)
+            for (int i = 0; i < transitionId.length; i++)
+                if (transitionId[i] == id)
+                    return i;
+        return -1;
+    }
+    public void clear() {
+        world = null;
+        collision = null;
+        entities = null;
+        transitionId = null;
+        transitionSpawn = null;
+        transitionLocation = null;
+        spawnId = spawnX = spawnY = spawnZ = spawnYaw = null;
+    }
 }

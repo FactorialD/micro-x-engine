@@ -1,0 +1,15 @@
+---
+Language: Java
+BasedOnStyle: Google
+ColumnLimit: 100
+IndentWidth: 4
+ContinuationIndentWidth: 8
+TabWidth: 4
+UseTab: Never
+SortIncludes: Never
+InsertBraces: false
+RemoveBracesLLVM: false
+ReflowComments: false
+BreakStringLiterals: false
+InsertNewlineAtEOF: true
+...

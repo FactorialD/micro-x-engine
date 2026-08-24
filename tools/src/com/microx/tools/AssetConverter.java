@@ -1,47 +1,599 @@
 package com.microx.tools;
-import java.io.*;import java.nio.charset.StandardCharsets;import java.nio.file.*;import java.util.*;import java.util.stream.Stream;import javax.imageio.ImageIO;import java.awt.image.BufferedImage;
+import java.io.*;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.*;
+import java.util.*;
+import java.util.stream.Stream;
+import javax.imageio.ImageIO;
+import java.awt.image.BufferedImage;
 
 /** Desktop converter and strict validator for editable assets. */
 public final class AssetConverter {
- private static final int MAGIC=0x4d584c32,VERSION=1,MAX_FIXED=32767;
- private AssetConverter(){}
- public static void main(String[] args)throws Exception{if(args.length!=2)throw new IllegalArgumentException("usage: AssetConverter <source-dir> <output-dir>");final Path source=Paths.get(args[0]).toAbsolutePath().normalize(),output=Paths.get(args[1]).toAbsolutePath().normalize();Files.createDirectories(output);Path data=source.resolve("data");if(Files.isDirectory(data))writeGameplayData(data,output.resolve("data/gameplay.dat"));try(Stream<Path> paths=Files.walk(source)){paths.filter(Files::isRegularFile).sorted().forEach(path->convert(source,output,path));}}
- private static void convert(Path root,Path output,Path input){try{Path relative=root.relativize(input);String name=relative.getFileName().toString();if(name.endsWith(".level"))writeLevel(input,output.resolve(replaceSuffix(relative,".level",".lvl")));else if(name.endsWith(".obj"))writeModel(input,output.resolve(replaceSuffix(relative,".obj",".mesh")));else if(name.equals("textures.png"))writeTexture(input,output.resolve(replaceSuffix(relative,".png",".tex")));}catch(IOException e){throw new UncheckedIOException(e);}}
- private static Path replaceSuffix(Path p,String old,String n){String v=p.toString();return Paths.get(v.substring(0,v.length()-old.length())+n);}
- /** Validates and packs stable-id description tables. Source rows are id|key|description. */
- public static void writeGameplayData(Path data,Path output)throws IOException{Map<String,List<DataRow>> tables=readData(data);validateReferences(tables);validateStringSizes(tables);validateDialogCycles(tables);validateQuestPrerequisites(tables);validateRecordStoreLimits(tables);Files.createDirectories(output.getParent());try(DataOutputStream out=new DataOutputStream(Files.newOutputStream(output))){out.writeInt(0x4d584731);out.writeByte(tables.size());for(Map.Entry<String,List<DataRow>> e:tables.entrySet()){out.writeUTF(e.getKey());out.writeShort(e.getValue().size());for(DataRow r:e.getValue()){out.writeShort(r.id);out.writeUTF(r.key);out.writeUTF(r.text);}}}}
- private static Map<String,List<DataRow>> readData(Path root)throws IOException{Map<String,List<DataRow>> result=new TreeMap<String,List<DataRow>>();try(Stream<Path> paths=Files.walk(root)){for(Iterator<Path> it=paths.filter(p->Files.isRegularFile(p)&&p.toString().endsWith(".data")).sorted().iterator();it.hasNext();){Path p=it.next();String table=p.getFileName().toString().replace(".data","");List<DataRow> rows=new ArrayList<DataRow>();int line=0;Set<Integer> ids=new HashSet<Integer>();for(String raw:Files.readAllLines(p,StandardCharsets.UTF_8)){line++;if(raw.trim().length()==0||raw.trim().startsWith("#"))continue;String[] q=raw.split("\\|",-1);if(q.length<3)throw new IOException(p+":"+line+": expected id|key|description");int id=parseInt(q[0],p,line,"id");if(id<=0||id>65535||!ids.add(Integer.valueOf(id)))throw new IOException(p+":"+line+": duplicate or invalid stable id");rows.add(new DataRow(id,q[1],q[2],q.length>3?q[3]:"",p,line));}result.put(table,rows);}}return result;}
- public static void validateReferences(Map<String,List<DataRow>> t)throws IOException{Set<String> all=new HashSet<String>();for(Map.Entry<String,List<DataRow>> e:t.entrySet())for(DataRow r:e.getValue())all.add(e.getKey()+":"+r.id);for(List<DataRow> rows:t.values())for(DataRow r:rows)for(String token:r.meta.split(","))if(token.startsWith("ref=")){String ref=token.substring(4);if(!all.contains(ref))throw r.error("unknown reference "+ref);}}
- public static void validateStringSizes(Map<String,List<DataRow>> t)throws IOException{for(List<DataRow> rows:t.values())for(DataRow r:rows){if(r.key.length()<1||r.key.length()>32)throw r.error("key exceeds 32 characters");if(r.text.getBytes(StandardCharsets.UTF_8).length>240)throw r.error("description exceeds 240 UTF-8 bytes");}}
- public static void validateDialogCycles(Map<String,List<DataRow>> t)throws IOException{List<DataRow> rows=t.get("dialogs");if(rows==null)return;Map<Integer,Integer> next=new HashMap<Integer,Integer>();for(DataRow r:rows){int n=metaInt(r,"next",-1);if(n>=0)next.put(Integer.valueOf(r.id),Integer.valueOf(n));}for(DataRow start:rows){Set<Integer> seen=new HashSet<Integer>();int n=start.id;while(next.containsKey(Integer.valueOf(n))){if(!seen.add(Integer.valueOf(n)))throw start.error("unconditional dialog cycle");n=next.get(Integer.valueOf(n)).intValue();}}}
- public static void validateQuestPrerequisites(Map<String,List<DataRow>> t)throws IOException{List<DataRow> rows=t.get("quests");if(rows==null)return;Map<Integer,DataRow> byId=new HashMap<Integer,DataRow>();for(DataRow r:rows)byId.put(Integer.valueOf(r.id),r);for(DataRow start:rows){Set<Integer> seen=new HashSet<Integer>();int n=start.id;while(n>0){if(!seen.add(Integer.valueOf(n)))throw start.error("quest prerequisite cycle");DataRow r=byId.get(Integer.valueOf(n));if(r==null)throw start.error("unknown quest prerequisite "+n);n=metaInt(r,"requires",-1);}}}
- public static void validateRecordStoreLimits(Map<String,List<DataRow>> t)throws IOException{long bytes=16;for(List<DataRow> rows:t.values())for(DataRow r:rows)bytes+=8+r.key.getBytes(StandardCharsets.UTF_8).length+r.text.getBytes(StandardCharsets.UTF_8).length;if(bytes>32768)throw new IOException("gameplay tables exceed 32768-byte RecordStore budget");}
- private static int metaInt(DataRow r,String name,int fallback)throws IOException{for(String s:r.meta.split(","))if(s.startsWith(name+"="))return parseInt(s.substring(name.length()+1),r.file,r.line,name);return fallback;}
- public static final class DataRow{public final int id,line;public final String key,text,meta;public final Path file;DataRow(int i,String k,String x,String m,Path f,int l){id=i;key=k;text=x;meta=m;file=f;line=l;}IOException error(String s){return new IOException(file+":"+line+": "+s);}}
- public static void writeLevel(Path input,Path output)throws IOException{Tokens t=new Tokens(input);t.expect("MXL2");t.expect("counts");int rooms=t.count(1,256),floors=t.count(1,1024),ceilings=t.count(1,1024),edges=t.count(0,2048),portals=t.count(0,1024),spawns=t.count(1,256),transitions=t.count(0,256),entities=t.count(0,1024),capacity=t.count(1,1024);if(entities>capacity)t.fail("entity pool capacity exceeded");ByteArrayOutputStream bytes=new ByteArrayOutputStream();DataOutputStream out=new DataOutputStream(bytes);out.writeInt(MAGIC);out.writeShort(VERSION);int[] counts={rooms,floors,ceilings,edges,portals,spawns,transitions,entities,capacity};for(int n:counts)out.writeShort(n);int i;for(i=0;i<rooms;i++){t.expect("room");int a=t.fixed(),b=t.fixed(),c=t.fixed(),d=t.fixed();ordered(t,a,b,c,d);out.writeInt(a);out.writeInt(b);out.writeInt(c);out.writeInt(d);}for(i=0;i<floors;i++){t.expect("floor");out.writeShort(t.index(rooms));bounds(t,out);out.writeInt(t.fixed());}for(i=0;i<ceilings;i++){t.expect("ceiling");out.writeShort(t.index(rooms));bounds(t,out);out.writeInt(t.fixed());}for(i=0;i<edges;i++){t.expect("edge");out.writeShort(t.index(rooms));for(int q=0;q<6;q++)out.writeInt(t.fixed());}int[] reverse=new int[portals],portalTransition=new int[portals];for(i=0;i<portals;i++){t.expect("portal");out.writeShort(t.id());out.writeShort(t.index(rooms));out.writeShort(t.index(rooms));int a=t.fixed(),b=t.fixed(),c=t.fixed(),d=t.fixed(),e=t.fixed(),f=t.fixed();if(a>b||c>d||e>f)t.fail("unordered portal bounds");out.writeInt(a);out.writeInt(b);out.writeInt(c);out.writeInt(d);out.writeInt(e);out.writeInt(f);reverse[i]=t.signedIndex(portals);portalTransition[i]=t.signedIndex(transitions);out.writeShort(reverse[i]);out.writeShort(portalTransition[i]);}for(i=0;i<portals;i++)if(reverse[i]>=0&&reverse[reverse[i]]!=i)t.fail("portal reverse link is not bidirectional");for(i=0;i<spawns;i++){t.expect("spawn");out.writeShort(t.id());out.writeShort(t.index(rooms));out.writeInt(t.fixed());out.writeInt(t.fixed());out.writeInt(t.fixed());out.writeShort(t.range(-32768,32767));}for(i=0;i<transitions;i++){t.expect("transition");out.writeShort(t.id());out.writeShort(t.id());String location=t.next();if(!location.matches("[A-Za-z0-9_-]{1,64}"))t.fail("invalid location identifier");out.writeUTF(location);}for(i=0;i<entities;i++){t.expect("entity");out.writeShort(t.id());out.writeInt(t.fixed());out.writeInt(t.fixed());out.writeInt(t.fixed());out.writeShort(t.id());}if(t.hasNext())t.fail("unexpected token "+t.next());out.close();Files.createDirectories(output.getParent());Files.write(output,bytes.toByteArray());}
- private static void bounds(Tokens t,DataOutputStream out)throws IOException{int a=t.fixed(),b=t.fixed(),c=t.fixed(),d=t.fixed();ordered(t,a,b,c,d);out.writeInt(a);out.writeInt(b);out.writeInt(c);out.writeInt(d);}private static void ordered(Tokens t,int a,int b,int c,int d)throws IOException{if(a>b||c>d)t.fail("unordered bounds");}
- public static void writeModel(Path input,Path output)throws IOException{
-  List<float[]> positions=new ArrayList<float[]>(),texcoords=new ArrayList<float[]>();
-  Map<String,Integer> materials=new HashMap<String,Integer>();Map<String,Section> sections=new LinkedHashMap<String,Section>();
-  int room=0,texture=0,lineNo=0;String material="default";materials.put(material,Integer.valueOf(0));
-  for(String raw:Files.readAllLines(input,StandardCharsets.US_ASCII)){lineNo++;String line=raw.trim();
-   if(line.startsWith("# microx room ")){room=parseNonNegative(line.substring(14).trim(),input,lineNo,"room");continue;}
-   if(line.startsWith("# microx material ")){String[] p=line.substring(18).trim().split("\\s+");if(p.length!=2)throw objError(input,lineNo,"material metadata must be: name texture-id");materials.put(p[0],Integer.valueOf(parseSignedShort(p[1],input,lineNo,"texture")));continue;}
-   int comment=line.indexOf('#');if(comment>=0)line=line.substring(0,comment).trim();if(line.length()==0)continue;
-   String[] p=line.split("\\s+");
-   if("v".equals(p[0])){if(p.length<4)throw objError(input,lineNo,"vertex needs x y z");positions.add(new float[]{finite(p[1],input,lineNo),finite(p[2],input,lineNo),finite(p[3],input,lineNo)});}
-   else if("vt".equals(p[0])){if(p.length<3)throw objError(input,lineNo,"texture coordinate needs u v");texcoords.add(new float[]{finite(p[1],input,lineNo),finite(p[2],input,lineNo)});}
-   else if("usemtl".equals(p[0])){if(p.length!=2)throw objError(input,lineNo,"usemtl needs one name");material=p[1];Integer id=materials.get(material);if(id==null){id=Integer.valueOf(materialTexture(material,input,lineNo));materials.put(material,id);}texture=id.intValue();}
-   else if("o".equals(p[0])||"g".equals(p[0])){if(p.length>1&&p[1].startsWith("room_"))room=parseNonNegative(p[1].substring(5),input,lineNo,"room");}
-   else if("f".equals(p[0])){if(p.length<4)throw objError(input,lineNo,"face needs at least three corners");String key=room+"/"+texture;Section section=sections.get(key);if(section==null){section=new Section(room,texture);sections.put(key,section);}int[] polygon=new int[p.length-1];for(int i=1;i<p.length;i++){String[] q=p[i].split("/",-1);if(q.length<2||q[0].length()==0||q[1].length()==0)throw objError(input,lineNo,"faces require v/vt corners");int vi=resolveObj(q[0],positions.size(),input,lineNo),ti=resolveObj(q[1],texcoords.size(),input,lineNo);polygon[i-1]=section.vertex(positions.get(vi),texcoords.get(ti),input,lineNo);}for(int i=1;i<polygon.length-1;i++){int ia=polygon[0],ib=polygon[i],ic=polygon[i+1];if(section.degenerate(ia,ib,ic))throw objError(input,lineNo,"degenerate triangle/winding");section.indices.add(Integer.valueOf(ia));section.indices.add(Integer.valueOf(ib));section.indices.add(Integer.valueOf(ic));}}
-  }
-  if(positions.size()==0||sections.size()==0)throw new IOException(input+": OBJ has no renderable faces");if(sections.size()>65535)throw new IOException(input+": too many mesh sections");
-  Files.createDirectories(output.getParent());try(DataOutputStream out=new DataOutputStream(Files.newOutputStream(output))){out.writeInt(0x4d584d32);out.writeShort(2);out.writeShort(sections.size());for(Section x:sections.values()){out.writeShort(x.room);out.writeShort(x.texture);out.writeShort(x.xyz.size()/3);out.writeShort(x.indices.size()/3);for(Integer n:x.xyz)out.writeInt(n.intValue());for(Integer n:x.uv)out.writeInt(n.intValue());for(Integer n:x.indices)out.writeShort(n.intValue());}}
- }
- private static final class Section{final int room,texture;final List<Integer> xyz=new ArrayList<Integer>(),uv=new ArrayList<Integer>(),indices=new ArrayList<Integer>();final Map<String,Integer> vertices=new LinkedHashMap<String,Integer>();Section(int r,int t){room=r;texture=t;}int vertex(float[] p,float[] t,Path file,int line)throws IOException{int x=fixed(p[0],file,line),y=fixed(p[1],file,line),z=fixed(p[2],file,line),u=fixed(t[0],file,line),v=fixed(t[1],file,line);String key=x+","+y+","+z+","+u+","+v;Integer old=vertices.get(key);if(old!=null)return old.intValue();int n=vertices.size();if(n>=65535)throw objError(file,line,"section has more than 65535 vertices");vertices.put(key,Integer.valueOf(n));xyz.add(Integer.valueOf(x));xyz.add(Integer.valueOf(y));xyz.add(Integer.valueOf(z));uv.add(Integer.valueOf(u));uv.add(Integer.valueOf(v));return n;}boolean degenerate(int a,int b,int c){long ax=xyz.get(a*3),ay=xyz.get(a*3+1),az=xyz.get(a*3+2),bx=xyz.get(b*3),by=xyz.get(b*3+1),bz=xyz.get(b*3+2),cx=xyz.get(c*3),cy=xyz.get(c*3+1),cz=xyz.get(c*3+2);long ux=bx-ax,uy=by-ay,uz=bz-az,vx=cx-ax,vy=cy-ay,vz=cz-az;return uy*vz-uz*vy==0&&uz*vx-ux*vz==0&&ux*vy-uy*vx==0;}}
- private static int resolveObj(String value,int size,Path file,int line)throws IOException{int n;try{n=Integer.parseInt(value);}catch(NumberFormatException e){throw objError(file,line,"invalid OBJ index");}if(n==0)throw objError(file,line,"OBJ indices are never zero");int result=n>0?n-1:size+n;if(result<0||result>=size)throw objError(file,line,"OBJ index out of range");return result;}
- private static int materialTexture(String name,Path file,int line)throws IOException{int split=name.lastIndexOf('_');if(split<0)throw objError(file,line,"unknown material; declare '# microx material NAME TEXTURE_ID'");return parseSignedShort(name.substring(split+1),file,line,"texture");}
- private static int parseNonNegative(String s,Path f,int l,String what)throws IOException{int n=parseInt(s,f,l,what);if(n<0||n>65535)throw objError(f,l,what+" out of range");return n;}private static int parseSignedShort(String s,Path f,int l,String what)throws IOException{int n=parseInt(s,f,l,what);if(n<-32768||n>32767)throw objError(f,l,what+" out of range");return n;}private static int parseInt(String s,Path f,int l,String what)throws IOException{try{return Integer.parseInt(s);}catch(NumberFormatException e){throw objError(f,l,"invalid "+what);}}private static float finite(String s,Path f,int l)throws IOException{try{float n=Float.parseFloat(s);if(Float.isNaN(n)||Float.isInfinite(n))throw objError(f,l,"non-finite number");return n;}catch(NumberFormatException e){throw objError(f,l,"invalid number");}}private static int fixed(float n,Path f,int l)throws IOException{double q=Math.rint(n*65536.0);if(q<Integer.MIN_VALUE||q>Integer.MAX_VALUE)throw objError(f,l,"fixed-point overflow");return(int)q;}private static IOException objError(Path f,int l,String m){return new IOException(f+":"+l+": "+m);}
- public static void writeTexture(Path input,Path output)throws IOException{BufferedImage im=ImageIO.read(input.toFile());if(im==null)throw new IOException("Unreadable texture atlas: "+input);int w=im.getWidth(),h=im.getHeight();if(w<=0||h<=0||w>256||h>256||(long)w*h>65536)throw new IOException("Texture atlas dimensions exceed 256x256: "+input);LinkedHashMap<Integer,Integer> colors=new LinkedHashMap<Integer,Integer>();byte[] pixels=new byte[w*h];for(int y=0;y<h;y++)for(int x=0;x<w;x++){Integer rgb=Integer.valueOf(im.getRGB(x,y)&0xffffff),index=colors.get(rgb);if(index==null){if(colors.size()==256)throw new IOException("Texture atlas has more than 256 colors: "+input);index=Integer.valueOf(colors.size());colors.put(rgb,index);}pixels[y*w+x]=(byte)index.intValue();}long footprint=16L+colors.size()*4L+pixels.length;if(footprint>96*1024L)throw new IOException("Texture atlas runtime footprint exceeds 96 KiB: "+input);Files.createDirectories(output.getParent());try(DataOutputStream out=new DataOutputStream(Files.newOutputStream(output))){out.writeInt(0x4d585432);out.writeShort(2);out.writeShort(1);out.writeShort(w);out.writeShort(h);out.writeShort(colors.size());for(Integer rgb:colors.keySet()){int c=rgb.intValue();out.writeByte(c>>16);out.writeByte(c>>8);out.writeByte(c);}out.write(pixels);}}
- private static final class Tokens{final List<String> v=new ArrayList<String>();int p;final Path file;Tokens(Path f)throws IOException{file=f;for(String line:Files.readAllLines(f,StandardCharsets.UTF_8)){int c=line.indexOf('#');if(c>=0)line=line.substring(0,c);for(String s:line.trim().split("\\s+"))if(s.length()>0)v.add(s);}}String next()throws IOException{if(p>=v.size())fail("unexpected end");return v.get(p++);}boolean hasNext(){return p<v.size();}void expect(String s)throws IOException{if(!s.equals(next()))fail("expected "+s);}int number()throws IOException{try{return Integer.parseInt(next());}catch(NumberFormatException e){fail("invalid integer");return 0;}}int range(int a,int b)throws IOException{int n=number();if(n<a||n>b)fail("value out of range");return n;}int count(int a,int b)throws IOException{return range(a,b);}int index(int n)throws IOException{return range(0,n-1);}int signedIndex(int n)throws IOException{return range(-1,n-1);}int id()throws IOException{return range(0,65535);}int fixed()throws IOException{int n=range(-MAX_FIXED,MAX_FIXED);return n*65536;}void fail(String m)throws IOException{throw new IOException(file+": "+m+" at token "+p);}}
+    private static final int MAGIC = 0x4d584c32, VERSION = 1, MAX_FIXED = 32767;
+    private AssetConverter() {}
+    public static void main(String[] args) throws Exception {
+        if (args.length != 2)
+            throw new IllegalArgumentException("usage: AssetConverter <source-dir> <output-dir>");
+        final Path source = Paths.get(args[0]).toAbsolutePath().normalize(),
+                   output = Paths.get(args[1]).toAbsolutePath().normalize();
+        Files.createDirectories(output);
+        Path data = source.resolve("data");
+        if (Files.isDirectory(data))
+            writeGameplayData(data, output.resolve("data/gameplay.dat"));
+        try (Stream<Path> paths = Files.walk(source)) {
+            paths.filter(Files::isRegularFile)
+                    .sorted()
+                    .forEach(path -> convert(source, output, path));
+        }
+    }
+    private static void convert(Path root, Path output, Path input) {
+        try {
+            Path relative = root.relativize(input);
+            String name = relative.getFileName().toString();
+            if (name.endsWith(".level"))
+                writeLevel(input, output.resolve(replaceSuffix(relative, ".level", ".lvl")));
+            else if (name.endsWith(".obj"))
+                writeModel(input, output.resolve(replaceSuffix(relative, ".obj", ".mesh")));
+            else if (name.equals("textures.png"))
+                writeTexture(input, output.resolve(replaceSuffix(relative, ".png", ".tex")));
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
+    }
+    private static Path replaceSuffix(Path p, String old, String n) {
+        String v = p.toString();
+        return Paths.get(v.substring(0, v.length() - old.length()) + n);
+    }
+    /** Validates and packs stable-id description tables. Source rows are id|key|description. */
+    public static void writeGameplayData(Path data, Path output) throws IOException {
+        Map<String, List<DataRow>> tables = readData(data);
+        validateReferences(tables);
+        validateStringSizes(tables);
+        validateDialogCycles(tables);
+        validateQuestPrerequisites(tables);
+        validateRecordStoreLimits(tables);
+        Files.createDirectories(output.getParent());
+        try (DataOutputStream out = new DataOutputStream(Files.newOutputStream(output))) {
+            out.writeInt(0x4d584731);
+            out.writeByte(tables.size());
+            for (Map.Entry<String, List<DataRow>> e : tables.entrySet()) {
+                out.writeUTF(e.getKey());
+                out.writeShort(e.getValue().size());
+                for (DataRow r : e.getValue()) {
+                    out.writeShort(r.id);
+                    out.writeUTF(r.key);
+                    out.writeUTF(r.text);
+                }
+            }
+        }
+    }
+    private static Map<String, List<DataRow>> readData(Path root) throws IOException {
+        Map<String, List<DataRow>> result = new TreeMap<String, List<DataRow>>();
+        try (Stream<Path> paths = Files.walk(root)) {
+            for (Iterator<Path> it = paths
+                            .filter(p -> Files.isRegularFile(p) && p.toString().endsWith(".data"))
+                            .sorted()
+                            .iterator();
+                    it.hasNext();) {
+                Path p = it.next();
+                String table = p.getFileName().toString().replace(".data", "");
+                List<DataRow> rows = new ArrayList<DataRow>();
+                int line = 0;
+                Set<Integer> ids = new HashSet<Integer>();
+                for (String raw : Files.readAllLines(p, StandardCharsets.UTF_8)) {
+                    line++;
+                    if (raw.trim().length() == 0 || raw.trim().startsWith("#"))
+                        continue;
+                    String[] q = raw.split("\\|", -1);
+                    if (q.length < 3)
+                        throw new IOException(p + ":" + line + ": expected id|key|description");
+                    int id = parseInt(q[0], p, line, "id");
+                    if (id <= 0 || id > 65535 || !ids.add(Integer.valueOf(id)))
+                        throw new IOException(p + ":" + line + ": duplicate or invalid stable id");
+                    rows.add(new DataRow(id, q[1], q[2], q.length > 3 ? q[3] : "", p, line));
+                }
+                result.put(table, rows);
+            }
+        }
+        return result;
+    }
+    public static void validateReferences(Map<String, List<DataRow>> t) throws IOException {
+        Set<String> all = new HashSet<String>();
+        for (Map.Entry<String, List<DataRow>> e : t.entrySet())
+            for (DataRow r : e.getValue()) all.add(e.getKey() + ":" + r.id);
+        for (List<DataRow> rows : t.values())
+            for (DataRow r : rows)
+                for (String token : r.meta.split(","))
+                    if (token.startsWith("ref=")) {
+                        String ref = token.substring(4);
+                        if (!all.contains(ref))
+                            throw r.error("unknown reference " + ref);
+                    }
+    }
+    public static void validateStringSizes(Map<String, List<DataRow>> t) throws IOException {
+        for (List<DataRow> rows : t.values())
+            for (DataRow r : rows) {
+                if (r.key.length() < 1 || r.key.length() > 32)
+                    throw r.error("key exceeds 32 characters");
+                if (r.text.getBytes(StandardCharsets.UTF_8).length > 240)
+                    throw r.error("description exceeds 240 UTF-8 bytes");
+            }
+    }
+    public static void validateDialogCycles(Map<String, List<DataRow>> t) throws IOException {
+        List<DataRow> rows = t.get("dialogs");
+        if (rows == null)
+            return;
+        Map<Integer, Integer> next = new HashMap<Integer, Integer>();
+        for (DataRow r : rows) {
+            int n = metaInt(r, "next", -1);
+            if (n >= 0)
+                next.put(Integer.valueOf(r.id), Integer.valueOf(n));
+        }
+        for (DataRow start : rows) {
+            Set<Integer> seen = new HashSet<Integer>();
+            int n = start.id;
+            while (next.containsKey(Integer.valueOf(n))) {
+                if (!seen.add(Integer.valueOf(n)))
+                    throw start.error("unconditional dialog cycle");
+                n = next.get(Integer.valueOf(n)).intValue();
+            }
+        }
+    }
+    public static void validateQuestPrerequisites(Map<String, List<DataRow>> t) throws IOException {
+        List<DataRow> rows = t.get("quests");
+        if (rows == null)
+            return;
+        Map<Integer, DataRow> byId = new HashMap<Integer, DataRow>();
+        for (DataRow r : rows) byId.put(Integer.valueOf(r.id), r);
+        for (DataRow start : rows) {
+            Set<Integer> seen = new HashSet<Integer>();
+            int n = start.id;
+            while (n > 0) {
+                if (!seen.add(Integer.valueOf(n)))
+                    throw start.error("quest prerequisite cycle");
+                DataRow r = byId.get(Integer.valueOf(n));
+                if (r == null)
+                    throw start.error("unknown quest prerequisite " + n);
+                n = metaInt(r, "requires", -1);
+            }
+        }
+    }
+    public static void validateRecordStoreLimits(Map<String, List<DataRow>> t) throws IOException {
+        long bytes = 16;
+        for (List<DataRow> rows : t.values())
+            for (DataRow r : rows)
+                bytes += 8 + r.key.getBytes(StandardCharsets.UTF_8).length
+                        + r.text.getBytes(StandardCharsets.UTF_8).length;
+        if (bytes > 32768)
+            throw new IOException("gameplay tables exceed 32768-byte RecordStore budget");
+    }
+    private static int metaInt(DataRow r, String name, int fallback) throws IOException {
+        for (String s : r.meta.split(","))
+            if (s.startsWith(name + "="))
+                return parseInt(s.substring(name.length() + 1), r.file, r.line, name);
+        return fallback;
+    }
+    public static final class DataRow {
+        public final int id, line;
+        public final String key, text, meta;
+        public final Path file;
+        DataRow(int i, String k, String x, String m, Path f, int l) {
+            id = i;
+            key = k;
+            text = x;
+            meta = m;
+            file = f;
+            line = l;
+        }
+        IOException error(String s) {
+            return new IOException(file + ":" + line + ": " + s);
+        }
+    }
+    public static void writeLevel(Path input, Path output) throws IOException {
+        Tokens t = new Tokens(input);
+        t.expect("MXL2");
+        t.expect("counts");
+        int rooms = t.count(1, 256), floors = t.count(1, 1024), ceilings = t.count(1, 1024),
+            edges = t.count(0, 2048), portals = t.count(0, 1024), spawns = t.count(1, 256),
+            transitions = t.count(0, 256), entities = t.count(0, 1024), capacity = t.count(1, 1024);
+        if (entities > capacity)
+            t.fail("entity pool capacity exceeded");
+        ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+        DataOutputStream out = new DataOutputStream(bytes);
+        out.writeInt(MAGIC);
+        out.writeShort(VERSION);
+        int[] counts = {
+                rooms, floors, ceilings, edges, portals, spawns, transitions, entities, capacity};
+        for (int n : counts) out.writeShort(n);
+        int i;
+        for (i = 0; i < rooms; i++) {
+            t.expect("room");
+            int a = t.fixed(), b = t.fixed(), c = t.fixed(), d = t.fixed();
+            ordered(t, a, b, c, d);
+            out.writeInt(a);
+            out.writeInt(b);
+            out.writeInt(c);
+            out.writeInt(d);
+        }
+        for (i = 0; i < floors; i++) {
+            t.expect("floor");
+            out.writeShort(t.index(rooms));
+            bounds(t, out);
+            out.writeInt(t.fixed());
+        }
+        for (i = 0; i < ceilings; i++) {
+            t.expect("ceiling");
+            out.writeShort(t.index(rooms));
+            bounds(t, out);
+            out.writeInt(t.fixed());
+        }
+        for (i = 0; i < edges; i++) {
+            t.expect("edge");
+            out.writeShort(t.index(rooms));
+            for (int q = 0; q < 6; q++) out.writeInt(t.fixed());
+        }
+        int[] reverse = new int[portals], portalTransition = new int[portals];
+        for (i = 0; i < portals; i++) {
+            t.expect("portal");
+            out.writeShort(t.id());
+            out.writeShort(t.index(rooms));
+            out.writeShort(t.index(rooms));
+            int a = t.fixed(), b = t.fixed(), c = t.fixed(), d = t.fixed(), e = t.fixed(),
+                f = t.fixed();
+            if (a > b || c > d || e > f)
+                t.fail("unordered portal bounds");
+            out.writeInt(a);
+            out.writeInt(b);
+            out.writeInt(c);
+            out.writeInt(d);
+            out.writeInt(e);
+            out.writeInt(f);
+            reverse[i] = t.signedIndex(portals);
+            portalTransition[i] = t.signedIndex(transitions);
+            out.writeShort(reverse[i]);
+            out.writeShort(portalTransition[i]);
+        }
+        for (i = 0; i < portals; i++)
+            if (reverse[i] >= 0 && reverse[reverse[i]] != i)
+                t.fail("portal reverse link is not bidirectional");
+        for (i = 0; i < spawns; i++) {
+            t.expect("spawn");
+            out.writeShort(t.id());
+            out.writeShort(t.index(rooms));
+            out.writeInt(t.fixed());
+            out.writeInt(t.fixed());
+            out.writeInt(t.fixed());
+            out.writeShort(t.range(-32768, 32767));
+        }
+        for (i = 0; i < transitions; i++) {
+            t.expect("transition");
+            out.writeShort(t.id());
+            out.writeShort(t.id());
+            String location = t.next();
+            if (!location.matches("[A-Za-z0-9_-]{1,64}"))
+                t.fail("invalid location identifier");
+            out.writeUTF(location);
+        }
+        for (i = 0; i < entities; i++) {
+            t.expect("entity");
+            out.writeShort(t.id());
+            out.writeInt(t.fixed());
+            out.writeInt(t.fixed());
+            out.writeInt(t.fixed());
+            out.writeShort(t.id());
+        }
+        if (t.hasNext())
+            t.fail("unexpected token " + t.next());
+        out.close();
+        Files.createDirectories(output.getParent());
+        Files.write(output, bytes.toByteArray());
+    }
+    private static void bounds(Tokens t, DataOutputStream out) throws IOException {
+        int a = t.fixed(), b = t.fixed(), c = t.fixed(), d = t.fixed();
+        ordered(t, a, b, c, d);
+        out.writeInt(a);
+        out.writeInt(b);
+        out.writeInt(c);
+        out.writeInt(d);
+    }
+    private static void ordered(Tokens t, int a, int b, int c, int d) throws IOException {
+        if (a > b || c > d)
+            t.fail("unordered bounds");
+    }
+    public static void writeModel(Path input, Path output) throws IOException {
+        List<float[]> positions = new ArrayList<float[]>(), texcoords = new ArrayList<float[]>();
+        Map<String, Integer> materials = new HashMap<String, Integer>();
+        Map<String, Section> sections = new LinkedHashMap<String, Section>();
+        int room = 0, texture = 0, lineNo = 0;
+        String material = "default";
+        materials.put(material, Integer.valueOf(0));
+        for (String raw : Files.readAllLines(input, StandardCharsets.US_ASCII)) {
+            lineNo++;
+            String line = raw.trim();
+            if (line.startsWith("# microx room ")) {
+                room = parseNonNegative(line.substring(14).trim(), input, lineNo, "room");
+                continue;
+            }
+            if (line.startsWith("# microx material ")) {
+                String[] p = line.substring(18).trim().split("\\s+");
+                if (p.length != 2)
+                    throw objError(input, lineNo, "material metadata must be: name texture-id");
+                materials.put(
+                        p[0], Integer.valueOf(parseSignedShort(p[1], input, lineNo, "texture")));
+                continue;
+            }
+            int comment = line.indexOf('#');
+            if (comment >= 0)
+                line = line.substring(0, comment).trim();
+            if (line.length() == 0)
+                continue;
+            String[] p = line.split("\\s+");
+            if ("v".equals(p[0])) {
+                if (p.length < 4)
+                    throw objError(input, lineNo, "vertex needs x y z");
+                positions.add(new float[] {finite(p[1], input, lineNo), finite(p[2], input, lineNo),
+                        finite(p[3], input, lineNo)});
+            } else if ("vt".equals(p[0])) {
+                if (p.length < 3)
+                    throw objError(input, lineNo, "texture coordinate needs u v");
+                texcoords.add(
+                        new float[] {finite(p[1], input, lineNo), finite(p[2], input, lineNo)});
+            } else if ("usemtl".equals(p[0])) {
+                if (p.length != 2)
+                    throw objError(input, lineNo, "usemtl needs one name");
+                material = p[1];
+                Integer id = materials.get(material);
+                if (id == null) {
+                    id = Integer.valueOf(materialTexture(material, input, lineNo));
+                    materials.put(material, id);
+                }
+                texture = id.intValue();
+            } else if ("o".equals(p[0]) || "g".equals(p[0])) {
+                if (p.length > 1 && p[1].startsWith("room_"))
+                    room = parseNonNegative(p[1].substring(5), input, lineNo, "room");
+            } else if ("f".equals(p[0])) {
+                if (p.length < 4)
+                    throw objError(input, lineNo, "face needs at least three corners");
+                String key = room + "/" + texture;
+                Section section = sections.get(key);
+                if (section == null) {
+                    section = new Section(room, texture);
+                    sections.put(key, section);
+                }
+                int[] polygon = new int[p.length - 1];
+                for (int i = 1; i < p.length; i++) {
+                    String[] q = p[i].split("/", -1);
+                    if (q.length < 2 || q[0].length() == 0 || q[1].length() == 0)
+                        throw objError(input, lineNo, "faces require v/vt corners");
+                    int vi = resolveObj(q[0], positions.size(), input, lineNo),
+                        ti = resolveObj(q[1], texcoords.size(), input, lineNo);
+                    polygon[i - 1] =
+                            section.vertex(positions.get(vi), texcoords.get(ti), input, lineNo);
+                }
+                for (int i = 1; i < polygon.length - 1; i++) {
+                    int ia = polygon[0], ib = polygon[i], ic = polygon[i + 1];
+                    if (section.degenerate(ia, ib, ic))
+                        throw objError(input, lineNo, "degenerate triangle/winding");
+                    section.indices.add(Integer.valueOf(ia));
+                    section.indices.add(Integer.valueOf(ib));
+                    section.indices.add(Integer.valueOf(ic));
+                }
+            }
+        }
+        if (positions.size() == 0 || sections.size() == 0)
+            throw new IOException(input + ": OBJ has no renderable faces");
+        if (sections.size() > 65535)
+            throw new IOException(input + ": too many mesh sections");
+        Files.createDirectories(output.getParent());
+        try (DataOutputStream out = new DataOutputStream(Files.newOutputStream(output))) {
+            out.writeInt(0x4d584d32);
+            out.writeShort(2);
+            out.writeShort(sections.size());
+            for (Section x : sections.values()) {
+                out.writeShort(x.room);
+                out.writeShort(x.texture);
+                out.writeShort(x.xyz.size() / 3);
+                out.writeShort(x.indices.size() / 3);
+                for (Integer n : x.xyz) out.writeInt(n.intValue());
+                for (Integer n : x.uv) out.writeInt(n.intValue());
+                for (Integer n : x.indices) out.writeShort(n.intValue());
+            }
+        }
+    }
+    private static final class Section {
+        final int room, texture;
+        final List<Integer> xyz = new ArrayList<Integer>(), uv = new ArrayList<Integer>(),
+                            indices = new ArrayList<Integer>();
+        final Map<String, Integer> vertices = new LinkedHashMap<String, Integer>();
+        Section(int r, int t) {
+            room = r;
+            texture = t;
+        }
+        int vertex(float[] p, float[] t, Path file, int line) throws IOException {
+            int x = fixed(p[0], file, line), y = fixed(p[1], file, line),
+                z = fixed(p[2], file, line), u = fixed(t[0], file, line),
+                v = fixed(t[1], file, line);
+            String key = x + "," + y + "," + z + "," + u + "," + v;
+            Integer old = vertices.get(key);
+            if (old != null)
+                return old.intValue();
+            int n = vertices.size();
+            if (n >= 65535)
+                throw objError(file, line, "section has more than 65535 vertices");
+            vertices.put(key, Integer.valueOf(n));
+            xyz.add(Integer.valueOf(x));
+            xyz.add(Integer.valueOf(y));
+            xyz.add(Integer.valueOf(z));
+            uv.add(Integer.valueOf(u));
+            uv.add(Integer.valueOf(v));
+            return n;
+        }
+        boolean degenerate(int a, int b, int c) {
+            long ax = xyz.get(a * 3), ay = xyz.get(a * 3 + 1), az = xyz.get(a * 3 + 2),
+                 bx = xyz.get(b * 3), by = xyz.get(b * 3 + 1), bz = xyz.get(b * 3 + 2),
+                 cx = xyz.get(c * 3), cy = xyz.get(c * 3 + 1), cz = xyz.get(c * 3 + 2);
+            long ux = bx - ax, uy = by - ay, uz = bz - az, vx = cx - ax, vy = cy - ay, vz = cz - az;
+            return uy * vz - uz * vy == 0 && uz * vx - ux * vz == 0 && ux * vy - uy * vx == 0;
+        }
+    }
+    private static int resolveObj(String value, int size, Path file, int line) throws IOException {
+        int n;
+        try {
+            n = Integer.parseInt(value);
+        } catch (NumberFormatException e) {
+            throw objError(file, line, "invalid OBJ index");
+        }
+        if (n == 0)
+            throw objError(file, line, "OBJ indices are never zero");
+        int result = n > 0 ? n - 1 : size + n;
+        if (result < 0 || result >= size)
+            throw objError(file, line, "OBJ index out of range");
+        return result;
+    }
+    private static int materialTexture(String name, Path file, int line) throws IOException {
+        int split = name.lastIndexOf('_');
+        if (split < 0)
+            throw objError(
+                    file, line, "unknown material; declare '# microx material NAME TEXTURE_ID'");
+        return parseSignedShort(name.substring(split + 1), file, line, "texture");
+    }
+    private static int parseNonNegative(String s, Path f, int l, String what) throws IOException {
+        int n = parseInt(s, f, l, what);
+        if (n < 0 || n > 65535)
+            throw objError(f, l, what + " out of range");
+        return n;
+    }
+    private static int parseSignedShort(String s, Path f, int l, String what) throws IOException {
+        int n = parseInt(s, f, l, what);
+        if (n < -32768 || n > 32767)
+            throw objError(f, l, what + " out of range");
+        return n;
+    }
+    private static int parseInt(String s, Path f, int l, String what) throws IOException {
+        try {
+            return Integer.parseInt(s);
+        } catch (NumberFormatException e) {
+            throw objError(f, l, "invalid " + what);
+        }
+    }
+    private static float finite(String s, Path f, int l) throws IOException {
+        try {
+            float n = Float.parseFloat(s);
+            if (Float.isNaN(n) || Float.isInfinite(n))
+                throw objError(f, l, "non-finite number");
+            return n;
+        } catch (NumberFormatException e) {
+            throw objError(f, l, "invalid number");
+        }
+    }
+    private static int fixed(float n, Path f, int l) throws IOException {
+        double q = Math.rint(n * 65536.0);
+        if (q < Integer.MIN_VALUE || q > Integer.MAX_VALUE)
+            throw objError(f, l, "fixed-point overflow");
+        return (int) q;
+    }
+    private static IOException objError(Path f, int l, String m) {
+        return new IOException(f + ":" + l + ": " + m);
+    }
+    public static void writeTexture(Path input, Path output) throws IOException {
+        BufferedImage im = ImageIO.read(input.toFile());
+        if (im == null)
+            throw new IOException("Unreadable texture atlas: " + input);
+        int w = im.getWidth(), h = im.getHeight();
+        if (w <= 0 || h <= 0 || w > 256 || h > 256 || (long) w * h > 65536)
+            throw new IOException("Texture atlas dimensions exceed 256x256: " + input);
+        LinkedHashMap<Integer, Integer> colors = new LinkedHashMap<Integer, Integer>();
+        byte[] pixels = new byte[w * h];
+        for (int y = 0; y < h; y++)
+            for (int x = 0; x < w; x++) {
+                Integer rgb = Integer.valueOf(im.getRGB(x, y) & 0xffffff), index = colors.get(rgb);
+                if (index == null) {
+                    if (colors.size() == 256)
+                        throw new IOException("Texture atlas has more than 256 colors: " + input);
+                    index = Integer.valueOf(colors.size());
+                    colors.put(rgb, index);
+                }
+                pixels[y * w + x] = (byte) index.intValue();
+            }
+        long footprint = 16L + colors.size() * 4L + pixels.length;
+        if (footprint > 96 * 1024L)
+            throw new IOException("Texture atlas runtime footprint exceeds 96 KiB: " + input);
+        Files.createDirectories(output.getParent());
+        try (DataOutputStream out = new DataOutputStream(Files.newOutputStream(output))) {
+            out.writeInt(0x4d585432);
+            out.writeShort(2);
+            out.writeShort(1);
+            out.writeShort(w);
+            out.writeShort(h);
+            out.writeShort(colors.size());
+            for (Integer rgb : colors.keySet()) {
+                int c = rgb.intValue();
+                out.writeByte(c >> 16);
+                out.writeByte(c >> 8);
+                out.writeByte(c);
+            }
+            out.write(pixels);
+        }
+    }
+    private static final class Tokens {
+        final List<String> v = new ArrayList<String>();
+        int p;
+        final Path file;
+        Tokens(Path f) throws IOException {
+            file = f;
+            for (String line : Files.readAllLines(f, StandardCharsets.UTF_8)) {
+                int c = line.indexOf('#');
+                if (c >= 0)
+                    line = line.substring(0, c);
+                for (String s : line.trim().split("\\s+"))
+                    if (s.length() > 0)
+                        v.add(s);
+            }
+        }
+        String next() throws IOException {
+            if (p >= v.size())
+                fail("unexpected end");
+            return v.get(p++);
+        }
+        boolean hasNext() {
+            return p < v.size();
+        }
+        void expect(String s) throws IOException {
+            if (!s.equals(next()))
+                fail("expected " + s);
+        }
+        int number() throws IOException {
+            try {
+                return Integer.parseInt(next());
+            } catch (NumberFormatException e) {
+                fail("invalid integer");
+                return 0;
+            }
+        }
+        int range(int a, int b) throws IOException {
+            int n = number();
+            if (n < a || n > b)
+                fail("value out of range");
+            return n;
+        }
+        int count(int a, int b) throws IOException {
+            return range(a, b);
+        }
+        int index(int n) throws IOException {
+            return range(0, n - 1);
+        }
+        int signedIndex(int n) throws IOException {
+            return range(-1, n - 1);
+        }
+        int id() throws IOException {
+            return range(0, 65535);
+        }
+        int fixed() throws IOException {
+            int n = range(-MAX_FIXED, MAX_FIXED);
+            return n * 65536;
+        }
+        void fail(String m) throws IOException {
+            throw new IOException(file + ": " + m + " at token " + p);
+        }
+    }
 }
