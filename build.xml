@@ -40,6 +40,19 @@
            source="8" target="8" includeantruntime="false" debug="false"/>
   </target>
 
+  <target name="desktop-test" description="Run allocation-free fixed math reference tests on the host JDK">
+    <delete dir="${desktop.test.classes.dir}"/>
+    <mkdir dir="${desktop.test.classes.dir}"/>
+    <javac destdir="${desktop.test.classes.dir}" source="8" target="8"
+           includeantruntime="false" debug="true">
+      <src path="src"/><src path="test"/>
+      <include name="com/microx/engine/math/**"/>
+    </javac>
+    <java classname="com.microx.engine.math.FixedMathTest" fork="true" failonerror="true">
+      <classpath><pathelement location="${desktop.test.classes.dir}"/></classpath>
+    </java>
+  </target>
+
   <target name="convert-assets" depends="compile-tools" description="Convert editable levels and OBJ models to compact runtime resources">
     <delete dir="${generated.resources.dir}"/>
     <mkdir dir="${generated.resources.dir}"/>
