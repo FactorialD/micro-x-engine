@@ -1,0 +1,7 @@
+package com.microx.engine.world;
+import com.microx.engine.Input; import com.microx.engine.math.Fixed;
+public final class Player {
+ public int x,y,z,vx,vy,vz,yaw,health=100,armor=25,stamina=100,ammo=30; public boolean grounded=true;
+ public void reset(int px,int py,int pz){x=px;y=py;z=pz;vx=vy=vz=0;yaw=0;grounded=true;}
+ public void update(int dt,Input in,Collision c){int keys=in.down(), speed=Fixed.fromInt(3);boolean run=((in.doubleTapped()|in.held())&Input.FORWARD)!=0&&stamina>0;if(run){speed=Fixed.fromInt(5);stamina-=dt/100;}else if(stamina<100)stamina+=dt/250;int f=0,s=0;if((keys&Input.FORWARD)!=0)f++;if((keys&Input.BACK)!=0)f--;if((keys&Input.STRAFE_RIGHT)!=0)s++;if((keys&Input.STRAFE_LEFT)!=0)s--;int turn=90*dt/1000;if((keys&Input.LEFT)!=0)yaw-=turn;if((keys&Input.RIGHT)!=0)yaw+=turn;int step=Fixed.mul(speed,Fixed.div(Fixed.fromInt(dt),Fixed.fromInt(1000)));vx=Fixed.mul(Fixed.cos(yaw),f*step)-Fixed.mul(Fixed.sin(yaw),s*step);vz=Fixed.mul(Fixed.sin(yaw),f*step)+Fixed.mul(Fixed.cos(yaw),s*step);x=c.clipX(x+vx);z=c.clipZ(z+vz);int floor=c.floorHeight(x,z);if((in.pressed()&Input.JUMP)!=0&&grounded){vy=Fixed.fromInt(5);grounded=false;}if(!grounded){y+=Fixed.mul(vy,Fixed.div(Fixed.fromInt(dt),Fixed.fromInt(1000)));vy-=Fixed.mul(Fixed.fromInt(10),Fixed.div(Fixed.fromInt(dt),Fixed.fromInt(1000)));if(y<=floor){y=floor;vy=0;grounded=true;}}else y=floor;if((keys&Input.CROUCH)!=0)y-=Fixed.ONE/2;stamina=Fixed.clamp(stamina,0,100);}
+}

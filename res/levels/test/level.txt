@@ -1,0 +1,21 @@
+# Micro X text level format, version 1
+MXL1
+
+rooms 2
+portals 2
+capacity 8
+
+# minX maxX minZ maxZ
+room -5 5 -5 5
+room 5 15 -5 5
+
+# Bidirectional doorway between the rooms.
+portal 0 1
+portal 1 0
+
+# x y z; room two has a raised floor for x > 4.
+start 0 0 0
+
+entities 1
+# type x y z health
+entity 1 10 1 0 100
