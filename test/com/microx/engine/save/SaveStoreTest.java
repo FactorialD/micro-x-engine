@@ -30,6 +30,9 @@ public final class SaveStoreTest {
         s.seed = 42;
         s.x = 100;
         s.gameplay.inventory.add(1, 1, 88);
+        s.gameplay.inventory.add(2, 1, 70);
+        s.gameplay.equipment.equip(s.gameplay.inventory, 2, 0);
+        s.reserveAmmo[1] = 120;
         s.gameplay.quests.setFlag(7, true);
         s.gameplay.reputation.set(1, -20);
         s.gameplay.containers.put(99, 1, -1);
@@ -38,7 +41,10 @@ public final class SaveStoreTest {
         s.sequence = 2;
         s.x = 200;
         store.save(s);
-        eq(200, store.load(0).x, "newest");
+        SaveData newest = store.load(0);
+        eq(200, newest.x, "newest");
+        eq(2, newest.gameplay.equipment.weapon(0), "equipment restored");
+        eq(120, newest.reserveAmmo[1], "reserve ammo restored");
         m.corrupt(3);
         eq(100, store.load(0).x, "fallback after corrupt prepared record");
         int before = m.data.size();

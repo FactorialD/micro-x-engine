@@ -2,9 +2,9 @@ package com.microx.engine.save;
 import java.io.*;
 import com.microx.engine.gameplay.*;
 
-/** Versioned, checksummed content format. Version 1 is the only explicit compatibility policy. */
+/** Versioned, checksummed content format. */
 public final class SaveCodec {
-    public static final int MAGIC = 0x4d585356, FORMAT_VERSION = 1, CONTENT_VERSION = 1;
+    public static final int MAGIC = 0x4d585356, FORMAT_VERSION = 2, CONTENT_VERSION = 1;
     private static final int MAX_BYTES = 32768;
     public byte[] encode(SaveData s) throws SaveException {
         try {
@@ -31,6 +31,8 @@ public final class SaveCodec {
             out.writeShort(s.radiation);
             out.writeByte(s.weapon);
             out.writeShort(s.magazine);
+            out.writeByte(s.reserveAmmo.length);
+            for (int i = 0; i < s.reserveAmmo.length; i++) out.writeShort(s.reserveAmmo[i]);
             writeGameplay(out, s.gameplay);
             out.writeByte(s.entityCount);
             for (int i = 0; i < s.entityCount; i++) {
@@ -87,6 +89,10 @@ public final class SaveCodec {
             s.radiation = in.readShort();
             s.weapon = in.readUnsignedByte();
             s.magazine = in.readUnsignedShort();
+            int ammo = in.readUnsignedByte();
+            if (ammo > s.reserveAmmo.length)
+                throw new SaveException("too many reserve ammo entries");
+            for (int i = 0; i < ammo; i++) s.reserveAmmo[i] = in.readUnsignedShort();
             readGameplay(in, s.gameplay);
             s.entityCount = in.readUnsignedByte();
             if (s.entityCount > SaveData.MAX_ENTITY_DELTAS)
@@ -111,6 +117,11 @@ public final class SaveCodec {
             out.writeShort(b.countAt(i));
             out.writeByte(b.durabilityAt(i));
         }
+        Equipment e = g.equipment;
+        out.writeShort(e.weapon(0));
+        out.writeShort(e.weapon(1));
+        out.writeShort(e.armor());
+        for (int i = 0; i < 5; i++) out.writeShort(e.artifact(i));
         QuestState q = g.quests;
         out.writeByte(q.questCapacity());
         for (int i = 1; i <= q.questCapacity(); i++) out.writeByte(q.state(i));
@@ -145,6 +156,12 @@ public final class SaveCodec {
             if (id != 0 && !g.inventory.add(id, count, condition))
                 throw new SaveException("invalid inventory item");
         }
+        Equipment e = g.equipment;
+        e.clear();
+        e.restore(0, 0, in.readUnsignedShort());
+        e.restore(0, 1, in.readUnsignedShort());
+        e.restore(1, 0, in.readUnsignedShort());
+        for (int i = 0; i < 5; i++) e.restore(2, i, in.readUnsignedShort());
         QuestState q = g.quests;
         q.clear();
         int quests = in.readUnsignedByte();

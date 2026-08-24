@@ -32,5 +32,5 @@ spawn 1 1 7 1 0 180
 # transition-id target-spawn target-location
 transition 100 1 test
 
-# type x y z health
-entity 1 10 1 0 100
+# stable-id type x y z health
+entity 1001 1 10 1 0 100

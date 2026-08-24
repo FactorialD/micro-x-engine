@@ -4,6 +4,25 @@ package com.microx.engine.gameplay;
 public final class Equipment {
     private final short[] weapon = new short[2], artifact = new short[5];
     private short armor;
+    public void clear() {
+        armor = 0;
+        for (int i = 0; i < weapon.length; i++) weapon[i] = 0;
+        for (int i = 0; i < artifact.length; i++) artifact[i] = 0;
+    }
+    /** Save-game restore path; unlike equip this does not mutate the inventory. */
+    public boolean restore(int kind, int slot, int id) {
+        if (id != 0 && !ItemCatalog.valid(id))
+            return false;
+        if (kind == 0 && slot >= 0 && slot < weapon.length)
+            weapon[slot] = (short) id;
+        else if (kind == 1 && slot == 0)
+            armor = (short) id;
+        else if (kind == 2 && slot >= 0 && slot < artifact.length)
+            artifact[slot] = (short) id;
+        else
+            return false;
+        return true;
+    }
     public int weapon(int slot) {
         return weapon[slot] & 65535;
     }

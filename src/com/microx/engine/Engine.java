@@ -3,6 +3,7 @@ import com.microx.engine.assets.*;
 import com.microx.engine.audio.*;
 import com.microx.engine.combat.*;
 import com.microx.engine.render.*;
+import com.microx.engine.gameplay.*;
 import com.microx.engine.save.*;
 import com.microx.engine.ui.*;
 import com.microx.engine.world.*;
@@ -18,6 +19,7 @@ public final class Engine implements Runnable {
     public final Hud hud = new Hud();
     public final SoftwareRenderer renderer = new SoftwareRenderer();
     public SaveData persistent = new SaveData();
+    public final GameplayState gameplay = new GameplayState();
     private final AssetManager assets = new AssetManager();
     private final AudioManager audio = new AudioManager();
     private final HitScan hit = new HitScan();
@@ -66,7 +68,9 @@ public final class Engine implements Runnable {
             if (!loadLocation(loaded.location, loaded.spawn, false))
                 return false;
             persistent = loaded;
+            gameplay.copyPersistentFrom(loaded.gameplay);
             restorePlayer(loaded);
+            applyEntityDeltas(loaded);
             return true;
         } catch (SaveException invalid) {
             return false;
@@ -100,6 +104,33 @@ public final class Engine implements Runnable {
         persistent.radiation = player.radiation;
         persistent.weapon = player.combat.weapon;
         persistent.magazine = player.combat.magazine;
+        for (int i = 0; i < persistent.reserveAmmo.length; i++)
+            persistent.reserveAmmo[i] = player.reserveAmmo[i];
+        persistent.spawn = level.nearestSpawn(player.x, player.z);
+        persistent.gameplay.copyPersistentFrom(gameplay);
+        persistent.clearEntities();
+        for (int i = 0; i < level.entities.capacity(); i++)
+            if (level.entities.stableId[i] > 0
+                    && (!level.entities.active[i]
+                            || level.entities.state[i] != EntityPool.STATE_IDLE
+                            || (level.entities.flags[i] & EntityPool.FLAG_DEAD) != 0))
+                persistent.addEntityDelta(level.entities.stableId[i],
+                        (!level.entities.active[i] ? Integer.MIN_VALUE
+                                                   : (level.entities.state[i] << 16)
+                                                | (level.entities.flags[i] & 65535)));
+    }
+    private void applyEntityDeltas(SaveData s) {
+        for (int n = 0; n < s.entityCount; n++) {
+            int i = level.entities.findStableAny(s.entityId[n]);
+            if (i >= 0) {
+                if (s.entityFlags[n] == Integer.MIN_VALUE) {
+                    level.entities.remove(i);
+                    continue;
+                }
+                level.entities.flags[i] = s.entityFlags[n] & 65535;
+                level.entities.state[i] = s.entityFlags[n] >>> 16;
+            }
+        }
     }
     private void restorePlayer(SaveData s) {
         player.x = s.x;
@@ -114,6 +145,7 @@ public final class Engine implements Runnable {
         player.radiation = s.radiation;
         player.combat.equip(s.weapon);
         player.combat.magazine = s.magazine;
+        for (int i = 0; i < s.reserveAmmo.length; i++) player.reserveAmmo[i] = s.reserveAmmo[i];
         player.ammo = s.magazine;
         level.world.updateVisibility(player.x, player.z);
     }
@@ -255,6 +287,7 @@ public final class Engine implements Runnable {
         hud.setInteraction(selected >= 0);
         if ((input.pressed() & Input.FIRE) != 0) {
             if (selected >= 0) {
+                interact(selected);
             } else if (player.combat.state == CombatState.JAMMED)
                 player.combat.clearJam();
             else if (player.combat.trigger())
@@ -269,6 +302,75 @@ public final class Engine implements Runnable {
         player.ammo = player.combat.magazine;
         stats.entities = level.entities.activeCount();
         input.endUpdate();
+    }
+    private void interact(int i) {
+        EntityPool e = level.entities;
+        int type = e.type[i], stable = e.stableId[i], content = e.aux[i];
+        if (type == EntityPool.HUMAN) {
+            gameplay.actorId = content == 0 ? GameIds.NPC_SIDOROVICH : content;
+            short[] rows = {(short) GameIds.DIALOG_INTRO, (short) GameIds.DIALOG_TRADE};
+            canvas.ui.fillList(rows, rows.length);
+            canvas.ui.show(UIStateMachine.DIALOGUE);
+        } else if (type == EntityPool.CORPSE || type == EntityPool.CONTAINER) {
+            gameplay.containerId = stable;
+            gameplay.loot.clear();
+            if (content != 0 && gameplay.containers.get(stable, content) >= 0)
+                gameplay.loot.add(content, 1, 100);
+            fillInventory(canvas.ui, gameplay.loot);
+            canvas.ui.show(UIStateMachine.LOOT);
+        } else if (type == EntityPool.ITEM) {
+            int item = content == 0 ? GameIds.ITEM_STONE : content;
+            if (gameplay.inventory.add(item, 1, 100)) {
+                gameplay.containers.put(stable, item, -1);
+                e.remove(i);
+            }
+        } else if (type == EntityPool.DOOR) {
+            e.state[i] = e.state[i] == EntityPool.STATE_IDLE ? EntityPool.STATE_ALERT
+                                                             : EntityPool.STATE_IDLE;
+        }
+    }
+    private static void fillInventory(UIStateMachine ui, Inventory bag) {
+        short[] rows = new short[bag.slots()];
+        int n = 0;
+        for (int i = 0; i < bag.slots(); i++)
+            if (bag.idAt(i) != 0)
+                rows[n++] = (short) bag.idAt(i);
+        ui.fillList(rows, n);
+    }
+    public void uiAction(int screen, int selection, boolean alternate) {
+        short[] list = canvas.ui.listBuffer();
+        int id = selection < canvas.ui.listSize() ? list[selection] & 65535 : 0;
+        if (screen == UIStateMachine.DIALOGUE) {
+            if (id == GameIds.DIALOG_INTRO) {
+                if (gameplay.quests.state(GameIds.QUEST_FIND_STASH) == 0)
+                    gameplay.acceptFindStash();
+                else
+                    gameplay.rewardFindStash();
+            } else {
+                gameplay.trader.clear();
+                gameplay.trader.setMoney(5000);
+                gameplay.trader.add(GameIds.ITEM_MEDKIT, 2, 100);
+                fillInventory(canvas.ui, gameplay.trader);
+                canvas.ui.show(UIStateMachine.TRADE);
+            }
+        } else if (screen == UIStateMachine.TRADE && id != 0) {
+            if (alternate && gameplay.actorId == GameIds.NPC_TECHNICIAN)
+                TradeSystem.repair(gameplay.inventory, id, 100);
+            else if (alternate)
+                TradeSystem.sell(
+                        gameplay.inventory, gameplay.trader, id, 1, 1, gameplay.reputation);
+            else
+                TradeSystem.buy(gameplay.inventory, gameplay.trader, id, 1, 1, gameplay.reputation);
+        } else if (screen == UIStateMachine.LOOT && id != 0
+                && gameplay.loot.moveTo(gameplay.inventory, id, 1)) {
+            gameplay.containers.put(gameplay.containerId, id, -1);
+            fillInventory(canvas.ui, gameplay.loot);
+        } else if (screen == UIStateMachine.INVENTORY && id != 0) {
+            if (ItemCatalog.TYPE[id] == ItemCatalog.TYPE_CONSUMABLE)
+                gameplay.equipment.use(gameplay.inventory, id, gameplay.stats);
+            else
+                gameplay.equipment.equip(gameplay.inventory, id, alternate ? 1 : 0);
+        }
     }
     public int state() {
         return state;

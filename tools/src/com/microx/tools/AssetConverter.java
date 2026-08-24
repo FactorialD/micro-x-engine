@@ -9,7 +9,7 @@ import java.awt.image.BufferedImage;
 
 /** Desktop converter and strict validator for editable assets. */
 public final class AssetConverter {
-    private static final int MAGIC = 0x4d584c32, VERSION = 1, MAX_FIXED = 32767;
+    private static final int MAGIC = 0x4d584c32, VERSION = 2, MAX_FIXED = 32767;
     private AssetConverter() {}
     public static void main(String[] args) throws Exception {
         if (args.length != 2)
@@ -54,7 +54,7 @@ public final class AssetConverter {
         validateRecordStoreLimits(tables);
         Files.createDirectories(output.getParent());
         try (DataOutputStream out = new DataOutputStream(Files.newOutputStream(output))) {
-            out.writeInt(0x4d584731);
+            out.writeInt(0x4d584732);
             out.writeByte(tables.size());
             for (Map.Entry<String, List<DataRow>> e : tables.entrySet()) {
                 out.writeUTF(e.getKey());
@@ -63,6 +63,7 @@ public final class AssetConverter {
                     out.writeShort(r.id);
                     out.writeUTF(r.key);
                     out.writeUTF(r.text);
+                    out.writeUTF(r.meta);
                 }
             }
         }
@@ -276,6 +277,7 @@ public final class AssetConverter {
         }
         for (i = 0; i < entities; i++) {
             t.expect("entity");
+            out.writeInt(t.id());
             out.writeShort(t.id());
             out.writeInt(t.fixed());
             out.writeInt(t.fixed());

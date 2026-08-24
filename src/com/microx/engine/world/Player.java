@@ -11,6 +11,7 @@ public final class Player {
     public int bleedTimer, radiationTimer;
     public boolean grounded = true, crouched, aiming, sprinting;
     public final CombatState combat = new CombatState();
+    public final int[] reserveAmmo = new int[8];
     /** Compatibility mirror; combat.magazine is authoritative. */ public int ammo = 30;
     public void reset(int px, int py, int pz) {
         x = px;
@@ -25,6 +26,7 @@ public final class Player {
         grounded = true;
         crouched = aiming = sprinting = false;
         combat.equip(ItemTypes.PISTOL);
+        for (int i = 0; i < reserveAmmo.length; i++) reserveAmmo[i] = 0;
         ammo = combat.magazine;
     }
     public void update(int dt, Input in, Collision c) {

@@ -18,9 +18,14 @@ public final class UIView {
         g.setColor(0xe0d080);
         g.drawString(TITLES[ui.state()], w / 2, 22, Graphics.TOP | Graphics.HCENTER);
         String[] items = items(ui.state());
-        for (int i = 0; i < items.length; i++) {
+        int dynamic = ui.listSize();
+        int count = dynamic > 0 && items == EMPTY ? dynamic : items.length;
+        for (int i = 0; i < count; i++) {
             g.setColor(i == ui.selection() ? 0xffffff : 0x809090);
-            g.drawString(items[i], w / 2, 62 + i * 24, Graphics.TOP | Graphics.HCENTER);
+            if (dynamic > 0 && items == EMPTY)
+                drawNumber(g, ui.listBuffer()[i] & 65535, w / 2, 62 + i * 18);
+            else
+                g.drawString(items[i], w / 2, 62 + i * 24, Graphics.TOP | Graphics.HCENTER);
         }
         if (ui.state() == UIStateMachine.SETTINGS) {
             value(g, settings.volume, 190, 62);
@@ -28,6 +33,16 @@ public final class UIView {
             value(g, settings.debug ? 1 : 0, 190, 110);
             value(g, settings.controls, 190, 134);
         }
+    }
+    private void drawNumber(Graphics g, int value, int x, int y) {
+        int divisor = 1;
+        while (value / divisor >= 10) divisor *= 10;
+        int left = x - 4;
+        do {
+            g.drawChar((char) ('0' + value / divisor % 10), left, y, Graphics.TOP | Graphics.LEFT);
+            left += 8;
+            divisor /= 10;
+        } while (divisor > 0);
     }
     private String[] items(int state) {
         if (state == UIStateMachine.MAIN_MENU)

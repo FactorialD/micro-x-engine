@@ -2,6 +2,18 @@ package com.microx.engine.gameplay;
 
 /** Numeric flags/counters plus data-driven quest transitions and dialog predicates. */
 public final class QuestState {
+    public void copyFrom(QuestState source) {
+        clear();
+        int qn = Math.min(questCapacity(), source.questCapacity());
+        for (int i = 1; i <= qn; i++) restoreState(i, source.state(i));
+        setObjective(source.objective());
+        int fn = Math.min(flagCapacity(), source.flagCapacity());
+        for (int i = 0; i < fn; i++)
+            if (source.flag(i))
+                setFlag(i, true);
+        int cn = Math.min(counterCapacity(), source.counterCapacity());
+        for (int i = 0; i < cn; i++) restoreCounter(i, source.counter(i));
+    }
     public static final int LOCKED = 0, ACTIVE = 1, COMPLETE = 2, FAILED = 3;
     private final byte[] states;
     private final int[] flags;
