@@ -6,6 +6,32 @@
 **Технічний таргет (RAM):** Строгий ліміт до 2 МБ Heap-пам'яті (запуск на реальному залізі та емуляторах)
 **Движок:** soft-render 3D.
 
+## Відтворюване складання MIDlet
+
+Збірка навмисно не використовує JSR-184/M3G. Для неї потрібні Sun/Oracle JDK 6
+або 7 (компілятор, що ще підтримує `-source 1.3 -target 1.3`) і Java ME Wireless
+Toolkit 2.5.2 з MIDP 2.0, CLDC 1.1 та `preverify`. Сучасний `javac` (зокрема
+JDK 21) більше не вміє створювати bytecode target 1.3, тому він не є прихованим
+fallback: у `build.properties` явно задані `toolchain.jdk.home` і `wtk.home`, а
+ціль `check-toolchain` перевіряє executable, API JAR-и та пробну компіляцію.
+Локальні шляхи можна перевизначити через `ant -Dtoolchain.jdk.home=... \
+-Dwtk.home=... package`.
+
+Основні Ant-цілі:
+
+* `compile-tools` компілює desktop-конвертер поточним host JDK;
+* `convert-assets` перетворює `.level` на `.lvl`, а `.obj` на `.mesh`;
+* `copy-runtime-resources` готує лише згенеровані й явно runtime-ресурси;
+* `compile` і `preverify` збирають та перевіряють CLDC-класи;
+* `create-jar`, `create-jad` і `check-jar-size` створюють дистрибутив та
+  перевіряють ліміт `max.jar.bytes`; `package` запускає весь pipeline.
+
+Редаговані моделі, рівні та службові файли зберігаються лише в `assets-src/`.
+Конвертер пише результат у `build/generated-resources/`, а статичні готові
+ресурси беруться з `runtime-resources/`. Жодна з цих цілей не копіює
+`assets-src/` до JAR, тому OBJ, коментарі вихідних рівнів і editor metadata не
+потрапляють у дистрибутив.
+
 ---
 
 ## РОЗДІЛ 1. КОНЦЕПЦІЯ ГРИ (GAME CONCEPT)

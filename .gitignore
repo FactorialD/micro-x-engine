@@ -12,6 +12,8 @@
 
 # Package Files #
 *.jar
+build/
+micro-x-engine.jad
 *.war
 *.nar
 *.ear
