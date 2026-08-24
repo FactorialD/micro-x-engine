@@ -65,6 +65,9 @@
     <java classname="com.microx.engine.render.RenderingTest" fork="true" failonerror="true">
       <classpath><pathelement location="${desktop.test.classes.dir}"/></classpath>
     </java>
+    <java classname="com.microx.engine.world.SimulationTest" fork="true" failonerror="true">
+      <classpath><pathelement location="${desktop.test.classes.dir}"/></classpath>
+    </java>
   </target>
 
   <target name="convert-assets" depends="compile-tools" description="Convert editable levels and OBJ models to compact runtime resources">

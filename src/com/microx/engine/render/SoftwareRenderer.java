@@ -20,10 +20,10 @@ public final class SoftwareRenderer {
     /** Finalizes frame scratch after the location assets have been loaded. */
     public void load() { frame.prepareAssets(); }
     public void setAssets(AssetManager assets) { frame.setAssets(assets); }
-    public void render(Graphics g, Player player, PortalWorld portals) {
+    public void render(Graphics g, Player player, PortalWorld portals, com.microx.engine.world.EntityPool entities) {
         int w = g.getClipWidth(), h = g.getClipHeight();
         if (w != requestedWidth || h != requestedHeight) configure(w, h, memoryBudget);
-        frame.render(g, player, portals);
+        frame.render(g, player, portals, entities);
     }
     public int submittedTriangles() { return frame.submittedTriangles; }
     public int clippedTriangles() { return frame.clippedTriangles; }
