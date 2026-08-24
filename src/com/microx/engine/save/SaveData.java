@@ -11,6 +11,8 @@ public final class SaveData {
     public String location = "test";
     public int spawn;
     public int x, y, z, yaw, pitch, health, armor, stamina, bleeding, radiation, weapon, magazine;
+    /** Reserve ammunition by runtime weapon/ammunition family. */
+    public final int[] reserveAmmo = new int[8];
     public int entityCount;
     public final int[] entityId = new int[MAX_ENTITY_DELTAS],
                        entityFlags = new int[MAX_ENTITY_DELTAS];

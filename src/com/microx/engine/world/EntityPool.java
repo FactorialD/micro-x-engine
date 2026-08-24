@@ -10,12 +10,13 @@ public final class EntityPool {
                             STATE_LEAP = 4, STATE_INVISIBLE = 5, STATE_PSI = 6, STATE_AOE = 7;
     public static final int FLAG_VISIBLE = 1, FLAG_PERCEIVES_PLAYER = 2, FLAG_INTERACTABLE = 4,
                             FLAG_DEAD = 8, FLAG_UPDATE = 16;
-    public final int[] x, y, z, type, health, state, roomId, direction, radius, faction, timer,
-            target, flags, spriteId, aux;
+    public final int[] stableId, x, y, z, type, health, state, roomId, direction, radius, faction,
+            timer, target, flags, spriteId, aux;
     public final boolean[] active;
     private int count;
     private final int[] kinds = new int[8];
     public EntityPool(int capacity) {
+        stableId = new int[capacity];
         x = new int[capacity];
         y = new int[capacity];
         z = new int[capacity];
@@ -34,11 +35,17 @@ public final class EntityPool {
         active = new boolean[capacity];
     }
     public int spawn(int t, int px, int py, int pz, int hp) {
+        return spawn(0, t, px, py, pz, hp);
+    }
+    public int spawn(int id, int t, int px, int py, int pz, int hp) {
+        if (id < 0 || (id != 0 && findStable(id) >= 0))
+            return -1;
         if (limitReached(t))
             return -1;
         for (int i = 0; i < active.length; i++)
             if (!active[i]) {
                 active[i] = true;
+                stableId[i] = id;
                 type[i] = t;
                 x[i] = px;
                 y[i] = py;
@@ -59,6 +66,22 @@ public final class EntityPool {
                     kinds[t]++;
                 return i;
             }
+        return -1;
+    }
+    public int findStable(int id) {
+        if (id <= 0)
+            return -1;
+        for (int i = 0; i < active.length; i++)
+            if (active[i] && stableId[i] == id)
+                return i;
+        return -1;
+    }
+    public int findStableAny(int id) {
+        if (id <= 0)
+            return -1;
+        for (int i = 0; i < active.length; i++)
+            if (stableId[i] == id)
+                return i;
         return -1;
     }
     private boolean limitReached(int t) {

@@ -68,6 +68,10 @@ public final class GameCanvas3D extends GameCanvas {
             engine.applySettings();
         else if (action == UIStateMachine.ACTION_QUIT)
             engine.shutdown();
+        else if (action == UIStateMachine.ACTION_LIST_ACCEPT)
+            engine.uiAction(ui.state(), ui.selection(), false);
+        else if (action == UIStateMachine.ACTION_LIST_ALT)
+            engine.uiAction(ui.state(), ui.selection(), true);
     }
     public boolean gameplayBlocked() {
         return ui.modal();

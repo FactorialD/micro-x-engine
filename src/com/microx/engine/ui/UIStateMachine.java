@@ -7,7 +7,8 @@ public final class UIStateMachine {
                             QUESTS = 6, DIALOGUE = 7, TRADE = 8, LOOT = 9, SETTINGS = 10,
                             ERROR = 11;
     public static final int ACTION_NONE = 0, ACTION_START = 1, ACTION_QUIT = 2,
-                            ACTION_APPLY_SETTINGS = 3, ACTION_LOAD = 4, ACTION_SAVE = 5;
+                            ACTION_APPLY_SETTINGS = 3, ACTION_LOAD = 4, ACTION_SAVE = 5,
+                            ACTION_LIST_ACCEPT = 6, ACTION_LIST_ALT = 7;
     private static final byte[] MODAL = {1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1};
     private int state = MAIN_MENU, previous = GAMEPLAY, selection, action;
     private final short[] list = new short[32];
@@ -71,6 +72,8 @@ public final class UIStateMachine {
             back();
         else if (command == Input.ACCEPT)
             accept();
+        else if (command == Input.FIRE && (state == TRADE || state == LOOT || state == INVENTORY))
+            action = ACTION_LIST_ALT;
     }
     private void back() {
         if (state == MAIN_MENU || state == ERROR)
@@ -112,6 +115,9 @@ public final class UIStateMachine {
             action = ACTION_APPLY_SETTINGS;
         else if (state == ERROR)
             state = MAIN_MENU;
+        else if (state == DIALOGUE || state == TRADE || state == LOOT || state == INVENTORY
+                || state == QUESTS)
+            action = ACTION_LIST_ACCEPT;
     }
     private int itemCount() {
         if (state == MAIN_MENU)

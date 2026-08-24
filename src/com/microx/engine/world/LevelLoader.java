@@ -5,7 +5,7 @@ import java.io.InputStream;
 
 /** Streaming loader for the versioned MXL2 binary resource. Publishes only complete levels. */
 public final class LevelLoader {
-    public static final int MAGIC = 0x4d584c32, VERSION = 1;
+    public static final int MAGIC = 0x4d584c32, VERSION = 2;
     public PortalWorld world;
     public Collision collision;
     public EntityPool entities;
@@ -95,8 +95,8 @@ public final class LevelLoader {
                     return false;
             }
             for (i = 0; i < entityCount; i++)
-                if (e.spawn(in.readUnsignedShort(), in.readInt(), in.readInt(), in.readInt(),
-                            in.readUnsignedShort())
+                if (e.spawn(in.readInt(), in.readUnsignedShort(), in.readInt(), in.readInt(),
+                            in.readInt(), in.readUnsignedShort())
                         < 0)
                     return false;
             if (in.read() != -1)
@@ -158,6 +158,18 @@ public final class LevelLoader {
                 if (transitionId[i] == id)
                     return i;
         return -1;
+    }
+    public int nearestSpawn(int x, int z) {
+        int best = 0;
+        long distance = Long.MAX_VALUE;
+        for (int i = 0; spawnId != null && i < spawnId.length; i++) {
+            long dx = spawnX[i] - x, dz = spawnZ[i] - z, d = dx * dx + dz * dz;
+            if (d < distance) {
+                distance = d;
+                best = spawnId[i];
+            }
+        }
+        return best;
     }
     public void clear() {
         world = null;

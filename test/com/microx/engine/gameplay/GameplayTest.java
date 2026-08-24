@@ -7,7 +7,24 @@ public final class GameplayTest {
         loot();
         trade();
         quests();
+        verticalSlice();
         System.out.println("GameplayTest OK");
+    }
+    private static void verticalSlice() {
+        GameplayState g = new GameplayState();
+        g.inventory.setMoney(1000);
+        ok(g.acceptFindStash());
+        g.foundStash();
+        ok(g.rewardFindStash());
+        eq(2, g.quests.state(GameIds.QUEST_FIND_STASH));
+        g.trader.add(GameIds.ITEM_BANDAGE, 1, 100);
+        g.trader.setMoney(1000);
+        ok(TradeSystem.buy(g.inventory, g.trader, GameIds.ITEM_BANDAGE, 1, GameIds.FACTION_LONER,
+                g.reputation));
+        ok(TradeSystem.sell(g.inventory, g.trader, GameIds.ITEM_MEDKIT, 1, GameIds.FACTION_LONER,
+                g.reputation));
+        g.inventory.add(GameIds.ITEM_PISTOL, 1, 40);
+        ok(TradeSystem.repair(g.inventory, GameIds.ITEM_PISTOL, 100));
     }
     private static void inventory() {
         Inventory a = new Inventory(2, 2);

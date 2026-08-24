@@ -19,6 +19,9 @@ public final class UIStateMachineTest {
         ui.command(Input.TAB_RIGHT);
         eq(UIStateMachine.QUESTS, ui.state(), "quests");
         ui.show(UIStateMachine.DIALOGUE);
+        ui.fillList(new short[] {1, 2}, 2);
+        ui.command(Input.ACCEPT);
+        eq(UIStateMachine.ACTION_LIST_ACCEPT, ui.action(), "dialogue command");
         check(ui.modal(), "dialogue modal");
         ui.show(UIStateMachine.TRADE);
         check(ui.modal(), "trade modal");
