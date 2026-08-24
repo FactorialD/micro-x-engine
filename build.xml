@@ -48,6 +48,7 @@
       <src path="src"/><src path="tools/src"/><src path="test"/>
       <include name="com/microx/engine/math/**"/>
       <include name="com/microx/engine/world/**"/>
+      <include name="com/microx/engine/combat/**"/>
       <include name="com/microx/engine/Input.java"/>
       <include name="com/microx/tools/AssetConverter.java"/>
       <include name="com/microx/engine/assets/MeshSection.java"/>
@@ -66,6 +67,9 @@
       <classpath><pathelement location="${desktop.test.classes.dir}"/></classpath>
     </java>
     <java classname="com.microx.engine.world.SimulationTest" fork="true" failonerror="true">
+      <classpath><pathelement location="${desktop.test.classes.dir}"/></classpath>
+    </java>
+    <java classname="com.microx.engine.combat.CombatTest" fork="true" failonerror="true">
       <classpath><pathelement location="${desktop.test.classes.dir}"/></classpath>
     </java>
   </target>
