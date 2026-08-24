@@ -7,15 +7,15 @@ import com.microx.engine.world.*;
 
 /** Executes clear, portal selection, transform, clipping, culling, raster and presentation. */
 public final class FrameCoordinator {
-    private int[] rgb; private short[] depth; private int width,height,outputWidth,outputHeight,memoryBudget;
+    private int[] rgb; private short[] depth; private int width,height,outputWidth,outputHeight,memoryBudget,resolutionMode;
     private AssetManager assets; private final RenderCamera camera=new RenderCamera();
     private final VertexTransformer transformer=new VertexTransformer(); private final Clipper clipper=new Clipper();
     private final Rasterizer rasterizer=new Rasterizer(); private final EntityBillboardRenderer entities=new EntityBillboardRenderer();
     int submittedTriangles,clippedTriangles,drawnTriangles;
     void setAssets(AssetManager value){assets=value;}
-    void prepareAssets(){if(assets!=null){if((long)assets.maximumLocationVertices()*12L>memoryBudget*10L/100L)throw new OutOfMemoryError("transform scratch exceeds 10% renderer budget");configure(outputWidth,outputHeight,memoryBudget);transformer.reserve(assets.maximumLocationVertices());}}
-    void configure(int w,int h,int budget){
-        outputWidth=w;outputHeight=h;memoryBudget=budget;if(w<=0||h<=0)return;
+    void prepareAssets(){if(assets!=null){if((long)assets.maximumLocationVertices()*12L>memoryBudget*10L/100L)throw new OutOfMemoryError("transform scratch exceeds 10% renderer budget");configure(outputWidth,outputHeight,memoryBudget,resolutionMode);transformer.reserve(assets.maximumLocationVertices());}}
+    void configure(int w,int h,int budget,int mode){
+        outputWidth=w;outputHeight=h;memoryBudget=budget;resolutionMode=mode;if(w<=0||h<=0)return;w=(w+(1<<mode)-1)>>mode;h=(h+(1<<mode)-1)>>mode;
         int assetBytes=assets==null?0:assets.residentBytes(),frameBudget=budget*45/100,scratchBudget=budget*10/100;if(assetBytes>budget*40/100)throw new OutOfMemoryError("asset pack exceeds 40% renderer budget");while((long)w*h*6L>frameBudget){w=(w+1)/2;h=(h+1)/2;}if((long)w*h*6L+assetBytes+scratchBudget>budget)throw new OutOfMemoryError("2 MiB renderer budget exceeded");
         if(w==width&&h==height&&rgb!=null)return;
         try{rgb=new int[w*h];depth=new short[w*h];}catch(OutOfMemoryError e){w=(w+1)/2;h=(h+1)/2;rgb=new int[w*h];depth=new short[w*h];}
@@ -44,5 +44,5 @@ public final class FrameCoordinator {
         if(rasterizer.draw(x0,y0,z0,clipper.value(a,3),clipper.value(a,4),x1,y1,z1,clipper.value(b,3),clipper.value(b,4),x2,y2,z2,clipper.value(c,3),clipper.value(c,4),texture))drawnTriangles++;
     }
     private int project(int value,int focal,int z,int center){long n=center+(long)value*focal/z;return n<-32768?-32768:(n>32767?32767:(int)n);}
-    int width(){return width;}int height(){return height;}void release(){rgb=null;depth=null;assets=null;width=height=0;}
+    int width(){return width;}int height(){return height;}void releaseBuffers(){rgb=null;depth=null;width=height=0;}void release(){releaseBuffers();assets=null;}
 }
