@@ -10,7 +10,7 @@ public final class FrameCoordinator {
     private int[] rgb; private short[] depth; private int width,height,outputWidth,outputHeight,memoryBudget;
     private AssetManager assets; private final RenderCamera camera=new RenderCamera();
     private final VertexTransformer transformer=new VertexTransformer(); private final Clipper clipper=new Clipper();
-    private final Rasterizer rasterizer=new Rasterizer();
+    private final Rasterizer rasterizer=new Rasterizer(); private final EntityBillboardRenderer entities=new EntityBillboardRenderer();
     int submittedTriangles,clippedTriangles,drawnTriangles;
     void setAssets(AssetManager value){assets=value;}
     void prepareAssets(){if(assets!=null){if((long)assets.maximumLocationVertices()*12L>memoryBudget*10L/100L)throw new OutOfMemoryError("transform scratch exceeds 10% renderer budget");configure(outputWidth,outputHeight,memoryBudget);transformer.reserve(assets.maximumLocationVertices());}}
@@ -21,9 +21,10 @@ public final class FrameCoordinator {
         try{rgb=new int[w*h];depth=new short[w*h];}catch(OutOfMemoryError e){w=(w+1)/2;h=(h+1)/2;rgb=new int[w*h];depth=new short[w*h];}
         width=w;height=h;rasterizer.target(rgb,depth,w,h);
     }
-    void render(Graphics g,Player player,PortalWorld world){
+    void render(Graphics g,Player player,PortalWorld world,EntityPool pool){
         if(rgb==null)return;submittedTriangles=clippedTriangles=drawnTriangles=0;rasterizer.clear(0x182030);camera.update(player,width,height);
         if(assets!=null){world.updateVisibility(camera.x,camera.y,camera.z,camera.sin,camera.cos,camera.focalX,camera.focalY,width,height);int rooms=world.visibleCount(),r,s;for(r=0;r<rooms;r++){rasterizer.clip(world.visibleLeft(r),world.visibleTop(r),world.visibleRight(r),world.visibleBottom(r));int room=world.visibleRoom(r);for(s=0;s<assets.locationSectionCount();s++){MeshSection mesh=assets.locationSection(s);if(mesh.room()==room)draw(mesh,assets.texture(mesh.texture()));}}}
+        if(pool!=null)entities.render(rgb,depth,width,height,camera,pool);
         if(width!=outputWidth||height!=outputHeight){g.setColor(0);g.fillRect(0,0,outputWidth,outputHeight);}
         g.drawRGB(rgb,0,width,(outputWidth-width)/2,(outputHeight-height)/2,width,height,false);
     }
