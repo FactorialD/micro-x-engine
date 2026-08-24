@@ -93,6 +93,16 @@
     </fail>
   </target>
 
+  <target name="format-check" description="Check Java formatting without modifying source files">
+    <apply executable="${clang.format}" failonerror="true" parallel="true">
+      <arg value="--dry-run"/>
+      <arg value="--Werror"/>
+      <fileset dir="src" includes="**/*.java"/>
+      <fileset dir="test" includes="**/*.java"/>
+      <fileset dir="tools/src" includes="**/*.java"/>
+    </apply>
+  </target>
+
   <target name="convert-assets" depends="compile-tools" description="Convert editable levels and OBJ models to compact runtime resources">
     <delete dir="${generated.resources.dir}"/>
     <mkdir dir="${generated.resources.dir}"/>

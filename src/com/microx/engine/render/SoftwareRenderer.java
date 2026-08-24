@@ -9,29 +9,56 @@ import com.microx.engine.world.PortalWorld;
 public final class SoftwareRenderer {
     private static final int DEFAULT_BUDGET = 2 * 1024 * 1024;
     private final FrameCoordinator frame = new FrameCoordinator();
-    private int requestedWidth, requestedHeight, memoryBudget = DEFAULT_BUDGET,resolutionMode;
+    private int requestedWidth, requestedHeight, memoryBudget = DEFAULT_BUDGET, resolutionMode;
 
-    public void configure(int width, int height) { configure(width, height, DEFAULT_BUDGET); }
+    public void configure(int width, int height) {
+        configure(width, height, DEFAULT_BUDGET);
+    }
     public void configure(int width, int height, int bytes) {
-        requestedWidth = width; requestedHeight = height;
+        requestedWidth = width;
+        requestedHeight = height;
         memoryBudget = bytes < 32768 ? 32768 : bytes;
-        frame.configure(width, height, memoryBudget,resolutionMode);
+        frame.configure(width, height, memoryBudget, resolutionMode);
     }
     /** Finalizes frame scratch after the location assets have been loaded. */
-    public void load() { frame.prepareAssets(); }
-    public void setAssets(AssetManager assets) { frame.setAssets(assets); }
+    public void load() {
+        frame.prepareAssets();
+    }
+    public void setAssets(AssetManager assets) {
+        frame.setAssets(assets);
+    }
     /** Recreates buffers at full, half or quarter internal resolution. */
-    public void setResolutionMode(int mode){resolutionMode=mode<0?0:mode>2?2:mode;frame.releaseBuffers();frame.configure(requestedWidth,requestedHeight,memoryBudget,resolutionMode);}
-    public void render(Graphics g, Player player, PortalWorld portals, com.microx.engine.world.EntityPool entities) {
+    public void setResolutionMode(int mode) {
+        resolutionMode = mode < 0 ? 0 : mode > 2 ? 2 : mode;
+        frame.releaseBuffers();
+        frame.configure(requestedWidth, requestedHeight, memoryBudget, resolutionMode);
+    }
+    public void render(Graphics g, Player player, PortalWorld portals,
+            com.microx.engine.world.EntityPool entities) {
         int w = g.getClipWidth(), h = g.getClipHeight();
-        if (w != requestedWidth || h != requestedHeight) configure(w, h, memoryBudget);
+        if (w != requestedWidth || h != requestedHeight)
+            configure(w, h, memoryBudget);
         frame.render(g, player, portals, entities);
     }
-    public int submittedTriangles() { return frame.submittedTriangles; }
-    public int clippedTriangles() { return frame.clippedTriangles; }
-    public int drawnTriangles() { return frame.drawnTriangles; }
-    public int internalWidth() { return frame.width(); }
-    public int internalHeight() { return frame.height(); }
-    public int memoryBudget(){return memoryBudget;}
-    public void release() { frame.release(); }
+    public int submittedTriangles() {
+        return frame.submittedTriangles;
+    }
+    public int clippedTriangles() {
+        return frame.clippedTriangles;
+    }
+    public int drawnTriangles() {
+        return frame.drawnTriangles;
+    }
+    public int internalWidth() {
+        return frame.width();
+    }
+    public int internalHeight() {
+        return frame.height();
+    }
+    public int memoryBudget() {
+        return memoryBudget;
+    }
+    public void release() {
+        frame.release();
+    }
 }

@@ -9,8 +9,11 @@ public final class RenderCamera {
     final int near = Fixed.ONE / 8;
 
     void update(Player player, int width, int height) {
-        x = player.x; y = player.y + (Fixed.ONE * 3 / 2); z = player.z;
-        sin = Fixed.sin(player.yaw); cos = Fixed.cos(player.yaw);
+        x = player.x;
+        y = player.y + (Fixed.ONE * 3 / 2);
+        z = player.z;
+        sin = Fixed.sin(player.yaw);
+        cos = Fixed.cos(player.yaw);
         focalX = width * Fixed.ONE / 2;
         focalY = height * Fixed.ONE / 2;
     }

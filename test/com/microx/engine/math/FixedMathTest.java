@@ -19,7 +19,8 @@ public final class FixedMathTest {
         equal("negative truncation", -1, Fixed.toInt(-Fixed.ONE - Fixed.HALF));
         equal("negative floor", -2, Fixed.floorToInt(-Fixed.ONE - 1));
         equal("multiply", Fixed.fromInt(-6), Fixed.mul(Fixed.fromInt(-2), Fixed.fromInt(3)));
-        equal("multiply overflow", Integer.MAX_VALUE, Fixed.mul(Integer.MAX_VALUE, Fixed.fromInt(2)));
+        equal("multiply overflow", Integer.MAX_VALUE,
+                Fixed.mul(Integer.MAX_VALUE, Fixed.fromInt(2)));
         equal("add overflow", Integer.MAX_VALUE, Fixed.add(Integer.MAX_VALUE, 1));
         equal("subtract overflow", Integer.MIN_VALUE, Fixed.sub(Integer.MIN_VALUE, 1));
         equal("positive divide by zero", Integer.MAX_VALUE, Fixed.div(Fixed.ONE, 0));
@@ -34,9 +35,9 @@ public final class FixedMathTest {
         equal("cos -180", -Fixed.ONE, Fixed.cos(-180));
         equal("sin 30 golden", 32768, Fixed.sin(30));
         equal("lerp midpoint", Fixed.fromInt(15),
-              Fixed.lerp(Fixed.fromInt(10), Fixed.fromInt(20), Fixed.HALF));
+                Fixed.lerp(Fixed.fromInt(10), Fixed.fromInt(20), Fixed.HALF));
         equal("lerp clamps", Fixed.fromInt(10),
-              Fixed.lerp(Fixed.fromInt(10), Fixed.fromInt(20), -Fixed.ONE));
+                Fixed.lerp(Fixed.fromInt(10), Fixed.fromInt(20), -Fixed.ONE));
     }
 
     private static void vectorsAndClipping() {
@@ -51,13 +52,14 @@ public final class FixedMathTest {
         near("normalized x", 39322, v[0], 2);
         near("normalized y", 52429, v[1], 2);
 
-        int[] triangle = {-Fixed.ONE, 0, Fixed.HALF, Fixed.ONE, 0, Fixed.fromInt(2),
-                          0, Fixed.ONE, Fixed.fromInt(2)};
-        equal("near clip vertex count", 4,
-              Math3D.clipTriangleNear(triangle, 0, Fixed.ONE, out));
+        int[] triangle = {-Fixed.ONE, 0, Fixed.HALF, Fixed.ONE, 0, Fixed.fromInt(2), 0, Fixed.ONE,
+                Fixed.fromInt(2)};
+        equal("near clip vertex count", 4, Math3D.clipTriangleNear(triangle, 0, Fixed.ONE, out));
         equal("first clipped z", Fixed.ONE, out[2]);
         int onNear = 0;
-        for (int i = 2; i < 12; i += 3) if (out[i] == Fixed.ONE) onNear++;
+        for (int i = 2; i < 12; i += 3)
+            if (out[i] == Fixed.ONE)
+                onNear++;
         equal("near clip intersections", 2, onNear);
     }
 
@@ -88,13 +90,19 @@ public final class FixedMathTest {
     }
 
     private static void equal(String name, int expected, int actual) {
-        checks++; if (expected != actual) throw new AssertionError(name + ": " + actual + " != " + expected);
+        checks++;
+        if (expected != actual)
+            throw new AssertionError(name + ": " + actual + " != " + expected);
     }
     private static void near(String name, int expected, int actual, int tolerance) {
-        checks++; if (actual < expected - tolerance || actual > expected + tolerance)
-            throw new AssertionError(name + ": " + actual + " != " + expected + " +/- " + tolerance);
+        checks++;
+        if (actual < expected - tolerance || actual > expected + tolerance)
+            throw new AssertionError(
+                    name + ": " + actual + " != " + expected + " +/- " + tolerance);
     }
     private static void truth(String name, boolean value) {
-        checks++; if (!value) throw new AssertionError(name);
+        checks++;
+        if (!value)
+            throw new AssertionError(name);
     }
 }

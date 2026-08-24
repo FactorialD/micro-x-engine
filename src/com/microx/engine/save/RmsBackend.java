@@ -1,4 +1,30 @@
 package com.microx.engine.save;
 import javax.microedition.rms.*;
 /** MIDP RecordStore adapter. */
-public final class RmsBackend implements RecordBackend {private final RecordStore store;public RmsBackend(String name)throws RecordStoreException{store=RecordStore.openRecordStore(name,true);}public int add(byte[] b)throws RecordStoreException{return store.addRecord(b,0,b.length);}public byte[] get(int id)throws RecordStoreException{return store.getRecord(id);}public int[] ids()throws RecordStoreException{int[] a=new int[store.getNumRecords()];int n=0;RecordEnumeration e=store.enumerateRecords(null,null,false);while(e.hasNextElement())a[n++]=e.nextRecordId();e.destroy();if(n==a.length)return a;int[] exact=new int[n];System.arraycopy(a,0,exact,0,n);return exact;}public void close()throws RecordStoreException{store.closeRecordStore();}}
+public final class RmsBackend implements RecordBackend {
+    private final RecordStore store;
+    public RmsBackend(String name) throws RecordStoreException {
+        store = RecordStore.openRecordStore(name, true);
+    }
+    public int add(byte[] b) throws RecordStoreException {
+        return store.addRecord(b, 0, b.length);
+    }
+    public byte[] get(int id) throws RecordStoreException {
+        return store.getRecord(id);
+    }
+    public int[] ids() throws RecordStoreException {
+        int[] a = new int[store.getNumRecords()];
+        int n = 0;
+        RecordEnumeration e = store.enumerateRecords(null, null, false);
+        while (e.hasNextElement()) a[n++] = e.nextRecordId();
+        e.destroy();
+        if (n == a.length)
+            return a;
+        int[] exact = new int[n];
+        System.arraycopy(a, 0, exact, 0, n);
+        return exact;
+    }
+    public void close() throws RecordStoreException {
+        store.closeRecordStore();
+    }
+}

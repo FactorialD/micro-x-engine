@@ -1,2 +1,39 @@
 package com.microx.engine.gameplay;
-public final class Reputation {private final short[] values;public Reputation(int factions){values=new short[factions+1];}public int size(){return values.length-1;}public int get(int faction){return faction>0&&faction<values.length?values[faction]:0;}public boolean add(int faction,int delta){if(faction<=0||faction>=values.length)return false;int n=get(faction)+delta;if(n<-1000)n=-1000;if(n>1000)n=1000;values[faction]=(short)n;return true;}public void set(int faction,int value){if(faction>0&&faction<values.length){if(value<-1000)value=-1000;if(value>1000)value=1000;values[faction]=(short)value;}}public int buyPercent(int faction){return 100-Math.max(-25,Math.min(25,get(faction)/20));}public int sellPercent(int faction){return 50+Math.max(-20,Math.min(20,get(faction)/25));}}
+public final class Reputation {
+    private final short[] values;
+    public Reputation(int factions) {
+        values = new short[factions + 1];
+    }
+    public int size() {
+        return values.length - 1;
+    }
+    public int get(int faction) {
+        return faction > 0 && faction < values.length ? values[faction] : 0;
+    }
+    public boolean add(int faction, int delta) {
+        if (faction <= 0 || faction >= values.length)
+            return false;
+        int n = get(faction) + delta;
+        if (n < -1000)
+            n = -1000;
+        if (n > 1000)
+            n = 1000;
+        values[faction] = (short) n;
+        return true;
+    }
+    public void set(int faction, int value) {
+        if (faction > 0 && faction < values.length) {
+            if (value < -1000)
+                value = -1000;
+            if (value > 1000)
+                value = 1000;
+            values[faction] = (short) value;
+        }
+    }
+    public int buyPercent(int faction) {
+        return 100 - Math.max(-25, Math.min(25, get(faction) / 20));
+    }
+    public int sellPercent(int faction) {
+        return 50 + Math.max(-20, Math.min(20, get(faction) / 25));
+    }
+}

@@ -1,19 +1,276 @@
 package com.microx.engine;
-import com.microx.engine.assets.*;import com.microx.engine.audio.*;import com.microx.engine.combat.*;import com.microx.engine.render.*;import com.microx.engine.save.*;import com.microx.engine.ui.*;import com.microx.engine.world.*;
+import com.microx.engine.assets.*;
+import com.microx.engine.audio.*;
+import com.microx.engine.combat.*;
+import com.microx.engine.render.*;
+import com.microx.engine.save.*;
+import com.microx.engine.ui.*;
+import com.microx.engine.world.*;
 public final class Engine implements Runnable {
- public static final int STOPPED=0,RUNNING=1,PAUSED=2,SHUTDOWN=3;private static final int STEP=20,MAX_DELTA=200,MAX_STEPS=5;
- private volatile int state=STOPPED;private Thread thread;private GameCanvas3D canvas;public final Input input=new Input();public final Player player=new Player();public final Telemetry stats=new Telemetry();public final Hud hud=new Hud();public final SoftwareRenderer renderer=new SoftwareRenderer();public SaveData persistent=new SaveData();private final AssetManager assets=new AssetManager();private final AudioManager audio=new AudioManager();private final HitScan hit=new HitScan();private final InteractionSystem interaction=new InteractionSystem();private final WorldSystems systems=new WorldSystems(0x4d58534d);private SaveStore saves;private SettingsStore settings;private String location="test";public LevelLoader level;
- public void attach(GameCanvas3D c){canvas=c;renderer.configure(c.getWidth(),c.getHeight());renderer.setAssets(assets);try{saves=new SaveStore(new RmsBackend("microx-saves"));settings=new SettingsStore(new RmsBackend("microx-settings"));settings.load(c.settings);audio.setVolume(c.settings.volume);}catch(Exception ignored){saves=null;settings=null;}}
- public synchronized boolean start(){if(state==SHUTDOWN)return false;if(thread!=null){resume();return true;}persistent=new SaveData();persistent.seed=0x4d58534d;if(!loadLocation("test",0,false))return false;renderer.load();state=RUNNING;thread=new Thread(this);thread.start();return true;}
- public synchronized boolean loadGame(){if(saves==null)return false;try{SaveData loaded=saves.load(0);if(!loadLocation(loaded.location,loaded.spawn,false))return false;persistent=loaded;restorePlayer(loaded);return true;}catch(SaveException invalid){return false;}}
- public synchronized boolean saveGame(){if(saves==null||level==null)return false;try{capture();saves.save(persistent);return true;}catch(SaveException failure){return false;}}
- private void capture(){persistent.slot=0;persistent.sequence++;persistent.savedAt=System.currentTimeMillis();persistent.location=location;persistent.x=player.x;persistent.y=player.y;persistent.z=player.z;persistent.yaw=player.yaw;persistent.pitch=player.pitch;persistent.health=player.health;persistent.armor=player.armor;persistent.stamina=player.stamina;persistent.bleeding=player.bleeding;persistent.radiation=player.radiation;persistent.weapon=player.combat.weapon;persistent.magazine=player.combat.magazine;}
- private void restorePlayer(SaveData s){player.x=s.x;player.y=s.y;player.z=s.z;player.yaw=s.yaw;player.pitch=s.pitch;player.health=s.health;player.armor=s.armor;player.stamina=s.stamina;player.bleeding=s.bleeding;player.radiation=s.radiation;player.combat.equip(s.weapon);player.combat.magazine=s.magazine;player.ammo=s.magazine;level.world.updateVisibility(player.x,player.z);}
- private boolean loadLocation(String name,int spawn,boolean autosave){if(autosave&&!saveGame())return false;LevelLoader candidate=new LevelLoader();if(!candidate.load("/levels/"+name+"/level.lvl"))return false;audio.leaveLocation();assets.release();if(!candidate.selectSpawn(spawn)||!assets.loadLocation(name,0)){candidate.clear();return false;}location=name;level=candidate;player.reset(candidate.startX,candidate.startY,candidate.startZ);player.yaw=candidate.startYaw;candidate.world.updateVisibility(player.x,player.z);systems.enter(candidate.entities);audio.enterLocation(name);return true;}
- public void applySettings(){renderer.setResolutionMode(canvas.settings.resolution);audio.setVolume(canvas.settings.volume);audio.enterLocation(location);if(settings!=null)try{settings.save(canvas.settings);}catch(SaveException ignored){}}
- public synchronized void pause(){if(state==RUNNING)state=PAUSED;}public synchronized void resume(){if(state==PAUSED){state=RUNNING;notifyAll();}}public void togglePause(){if(state==PAUSED)resume();else pause();}
- public void shutdown(){Thread old;synchronized(this){state=SHUTDOWN;notifyAll();old=thread;}if(old!=null&&old!=Thread.currentThread())try{old.join(1000);}catch(InterruptedException ignored){}renderer.release();assets.release();audio.release();if(saves!=null)saves.close();if(settings!=null)settings.close();thread=null;}
- public void run(){long previous=System.currentTimeMillis(),acc=0;while(state!=SHUTDOWN){synchronized(this){while(state==PAUSED)try{wait();}catch(InterruptedException ignored){}if(state==SHUTDOWN)break;}long now=System.currentTimeMillis(),delta=now-previous;previous=now;if(delta>MAX_DELTA)delta=MAX_DELTA;if(delta<0)delta=0;acc+=delta;int steps=0,totalUpdate=0;while(acc>=STEP&&steps<MAX_STEPS){long u=System.currentTimeMillis();update(STEP,u);totalUpdate+=(int)(System.currentTimeMillis()-u);acc-=STEP;steps++;}if(acc>=STEP){int dropped=(int)(acc/STEP);stats.droppedFixedSteps+=dropped;acc%=STEP;}long r=System.currentTimeMillis();canvas.renderFrame();int render=(int)(System.currentTimeMillis()-r);stats.timing(totalUpdate,render);stats.rendererBudget(assets.residentBytes()+renderer.internalWidth()*renderer.internalHeight()*6,renderer.memoryBudget());stats.frame(now);long sleep=STEP-(System.currentTimeMillis()-now);if(sleep>1)try{Thread.sleep(sleep);}catch(InterruptedException ignored){}}state=STOPPED;}
- private void update(int ms,long now){input.update(now);if(canvas.gameplayBlocked()){input.endUpdate();return;}player.aiming=(input.down()&Input.AIM)!=0;int oldX=player.x,oldY=player.y,oldZ=player.z;player.update(ms,input,level.collision);int portal=level.world.crossedPortal(oldX,oldY,oldZ,player.x,player.y,player.z);if(portal>=0&&level.world.portalTransition(portal)>=0){int t=level.world.portalTransition(portal);loadLocation(level.transitionLocation[t],level.transitionSpawn[t],true);}stats.rooms=level.world.updateVisibility(player.x,player.z);systems.update(level.entities,player,level.collision,level.world,ms);if((input.pressed()&Input.WEAPON)!=0)player.combat.equip((player.combat.weapon+1)%ItemTypes.WEAPON_MAGAZINE.length);int selected=interaction.query(player,level.entities);hud.setInteraction(selected>=0);if((input.pressed()&Input.FIRE)!=0){if(selected>=0){}else if(player.combat.state==CombatState.JAMMED)player.combat.clearJam();else if(player.combat.trigger())hit.fire(player,level.entities,level.collision,com.microx.engine.math.Fixed.fromInt(ItemTypes.WEAPON_RANGE[player.combat.weapon]),ItemTypes.WEAPON_SPREAD[player.combat.weapon],ItemTypes.WEAPON_DAMAGE[player.combat.weapon]+ItemTypes.AMMO_DAMAGE_BONUS[ItemTypes.WEAPON_AMMO[player.combat.weapon]]);}player.ammo=player.combat.magazine;stats.entities=level.entities.activeCount();input.endUpdate();}
- public int state(){return state;}
+    public static final int STOPPED = 0, RUNNING = 1, PAUSED = 2, SHUTDOWN = 3;
+    private static final int STEP = 20, MAX_DELTA = 200, MAX_STEPS = 5;
+    private volatile int state = STOPPED;
+    private Thread thread;
+    private GameCanvas3D canvas;
+    public final Input input = new Input();
+    public final Player player = new Player();
+    public final Telemetry stats = new Telemetry();
+    public final Hud hud = new Hud();
+    public final SoftwareRenderer renderer = new SoftwareRenderer();
+    public SaveData persistent = new SaveData();
+    private final AssetManager assets = new AssetManager();
+    private final AudioManager audio = new AudioManager();
+    private final HitScan hit = new HitScan();
+    private final InteractionSystem interaction = new InteractionSystem();
+    private final WorldSystems systems = new WorldSystems(0x4d58534d);
+    private SaveStore saves;
+    private SettingsStore settings;
+    private String location = "test";
+    public LevelLoader level;
+    public void attach(GameCanvas3D c) {
+        canvas = c;
+        renderer.configure(c.getWidth(), c.getHeight());
+        renderer.setAssets(assets);
+        try {
+            saves = new SaveStore(new RmsBackend("microx-saves"));
+            settings = new SettingsStore(new RmsBackend("microx-settings"));
+            settings.load(c.settings);
+            audio.setVolume(c.settings.volume);
+        } catch (Exception ignored) {
+            saves = null;
+            settings = null;
+        }
+    }
+    public synchronized boolean start() {
+        if (state == SHUTDOWN)
+            return false;
+        if (thread != null) {
+            resume();
+            return true;
+        }
+        persistent = new SaveData();
+        persistent.seed = 0x4d58534d;
+        if (!loadLocation("test", 0, false))
+            return false;
+        renderer.load();
+        state = RUNNING;
+        thread = new Thread(this);
+        thread.start();
+        return true;
+    }
+    public synchronized boolean loadGame() {
+        if (saves == null)
+            return false;
+        try {
+            SaveData loaded = saves.load(0);
+            if (!loadLocation(loaded.location, loaded.spawn, false))
+                return false;
+            persistent = loaded;
+            restorePlayer(loaded);
+            return true;
+        } catch (SaveException invalid) {
+            return false;
+        }
+    }
+    public synchronized boolean saveGame() {
+        if (saves == null || level == null)
+            return false;
+        try {
+            capture();
+            saves.save(persistent);
+            return true;
+        } catch (SaveException failure) {
+            return false;
+        }
+    }
+    private void capture() {
+        persistent.slot = 0;
+        persistent.sequence++;
+        persistent.savedAt = System.currentTimeMillis();
+        persistent.location = location;
+        persistent.x = player.x;
+        persistent.y = player.y;
+        persistent.z = player.z;
+        persistent.yaw = player.yaw;
+        persistent.pitch = player.pitch;
+        persistent.health = player.health;
+        persistent.armor = player.armor;
+        persistent.stamina = player.stamina;
+        persistent.bleeding = player.bleeding;
+        persistent.radiation = player.radiation;
+        persistent.weapon = player.combat.weapon;
+        persistent.magazine = player.combat.magazine;
+    }
+    private void restorePlayer(SaveData s) {
+        player.x = s.x;
+        player.y = s.y;
+        player.z = s.z;
+        player.yaw = s.yaw;
+        player.pitch = s.pitch;
+        player.health = s.health;
+        player.armor = s.armor;
+        player.stamina = s.stamina;
+        player.bleeding = s.bleeding;
+        player.radiation = s.radiation;
+        player.combat.equip(s.weapon);
+        player.combat.magazine = s.magazine;
+        player.ammo = s.magazine;
+        level.world.updateVisibility(player.x, player.z);
+    }
+    private boolean loadLocation(String name, int spawn, boolean autosave) {
+        if (autosave && !saveGame())
+            return false;
+        LevelLoader candidate = new LevelLoader();
+        if (!candidate.load("/levels/" + name + "/level.lvl"))
+            return false;
+        audio.leaveLocation();
+        assets.release();
+        if (!candidate.selectSpawn(spawn) || !assets.loadLocation(name, 0)) {
+            candidate.clear();
+            return false;
+        }
+        location = name;
+        level = candidate;
+        player.reset(candidate.startX, candidate.startY, candidate.startZ);
+        player.yaw = candidate.startYaw;
+        candidate.world.updateVisibility(player.x, player.z);
+        systems.enter(candidate.entities);
+        audio.enterLocation(name);
+        return true;
+    }
+    public void applySettings() {
+        renderer.setResolutionMode(canvas.settings.resolution);
+        audio.setVolume(canvas.settings.volume);
+        audio.enterLocation(location);
+        if (settings != null)
+            try {
+                settings.save(canvas.settings);
+            } catch (SaveException ignored) {
+            }
+    }
+    public synchronized void pause() {
+        if (state == RUNNING)
+            state = PAUSED;
+    }
+    public synchronized void resume() {
+        if (state == PAUSED) {
+            state = RUNNING;
+            notifyAll();
+        }
+    }
+    public void togglePause() {
+        if (state == PAUSED)
+            resume();
+        else
+            pause();
+    }
+    public void shutdown() {
+        Thread old;
+        synchronized (this) {
+            state = SHUTDOWN;
+            notifyAll();
+            old = thread;
+        }
+        if (old != null && old != Thread.currentThread())
+            try {
+                old.join(1000);
+            } catch (InterruptedException ignored) {
+            }
+        renderer.release();
+        assets.release();
+        audio.release();
+        if (saves != null)
+            saves.close();
+        if (settings != null)
+            settings.close();
+        thread = null;
+    }
+    public void run() {
+        long previous = System.currentTimeMillis(), acc = 0;
+        while (state != SHUTDOWN) {
+            synchronized (this) {
+                while (state == PAUSED) try {
+                        wait();
+                    } catch (InterruptedException ignored) {
+                    }
+                if (state == SHUTDOWN)
+                    break;
+            }
+            long now = System.currentTimeMillis(), delta = now - previous;
+            previous = now;
+            if (delta > MAX_DELTA)
+                delta = MAX_DELTA;
+            if (delta < 0)
+                delta = 0;
+            acc += delta;
+            int steps = 0, totalUpdate = 0;
+            while (acc >= STEP && steps < MAX_STEPS) {
+                long u = System.currentTimeMillis();
+                update(STEP, u);
+                totalUpdate += (int) (System.currentTimeMillis() - u);
+                acc -= STEP;
+                steps++;
+            }
+            if (acc >= STEP) {
+                int dropped = (int) (acc / STEP);
+                stats.droppedFixedSteps += dropped;
+                acc %= STEP;
+            }
+            long r = System.currentTimeMillis();
+            canvas.renderFrame();
+            int render = (int) (System.currentTimeMillis() - r);
+            stats.timing(totalUpdate, render);
+            stats.rendererBudget(assets.residentBytes()
+                            + renderer.internalWidth() * renderer.internalHeight() * 6,
+                    renderer.memoryBudget());
+            stats.frame(now);
+            long sleep = STEP - (System.currentTimeMillis() - now);
+            if (sleep > 1)
+                try {
+                    Thread.sleep(sleep);
+                } catch (InterruptedException ignored) {
+                }
+        }
+        state = STOPPED;
+    }
+    private void update(int ms, long now) {
+        input.update(now);
+        if (canvas.gameplayBlocked()) {
+            input.endUpdate();
+            return;
+        }
+        player.aiming = (input.down() & Input.AIM) != 0;
+        int oldX = player.x, oldY = player.y, oldZ = player.z;
+        player.update(ms, input, level.collision);
+        int portal = level.world.crossedPortal(oldX, oldY, oldZ, player.x, player.y, player.z);
+        if (portal >= 0 && level.world.portalTransition(portal) >= 0) {
+            int t = level.world.portalTransition(portal);
+            loadLocation(level.transitionLocation[t], level.transitionSpawn[t], true);
+        }
+        stats.rooms = level.world.updateVisibility(player.x, player.z);
+        systems.update(level.entities, player, level.collision, level.world, ms);
+        if ((input.pressed() & Input.WEAPON) != 0)
+            player.combat.equip((player.combat.weapon + 1) % ItemTypes.WEAPON_MAGAZINE.length);
+        int selected = interaction.query(player, level.entities);
+        hud.setInteraction(selected >= 0);
+        if ((input.pressed() & Input.FIRE) != 0) {
+            if (selected >= 0) {
+            } else if (player.combat.state == CombatState.JAMMED)
+                player.combat.clearJam();
+            else if (player.combat.trigger())
+                hit.fire(player, level.entities, level.collision,
+                        com.microx.engine.math.Fixed.fromInt(
+                                ItemTypes.WEAPON_RANGE[player.combat.weapon]),
+                        ItemTypes.WEAPON_SPREAD[player.combat.weapon],
+                        ItemTypes.WEAPON_DAMAGE[player.combat.weapon]
+                                + ItemTypes.AMMO_DAMAGE_BONUS[ItemTypes
+                                                .WEAPON_AMMO[player.combat.weapon]]);
+        }
+        player.ammo = player.combat.magazine;
+        stats.entities = level.entities.activeCount();
+        input.endUpdate();
+    }
+    public int state() {
+        return state;
+    }
 }

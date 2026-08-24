@@ -8,8 +8,11 @@ public final class VertexTransformer {
     private int[] x = new int[0], y = new int[0], z = new int[0];
 
     void reserve(int count) {
-        if (x.length >= count) return;
-        x = new int[count]; y = new int[count]; z = new int[count];
+        if (x.length >= count)
+            return;
+        x = new int[count];
+        y = new int[count];
+        z = new int[count];
     }
     void transform(MeshSection mesh, RenderCamera camera) {
         int i;
@@ -21,5 +24,13 @@ public final class VertexTransformer {
             z[i] = Fixed.sub(Fixed.mul(dz, camera.cos), Fixed.mul(dx, camera.sin));
         }
     }
-    int x(int i) { return x[i]; } int y(int i) { return y[i]; } int z(int i) { return z[i]; }
+    int x(int i) {
+        return x[i];
+    }
+    int y(int i) {
+        return y[i];
+    }
+    int z(int i) {
+        return z[i];
+    }
 }
