@@ -3,19 +3,16 @@ package com.microx.engine.assets;
 import java.io.DataInputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import javax.microedition.media.Manager;
-import javax.microedition.media.Player;
 
 /** Loads compact binary render data and keeps shared/location ownership separate. */
 public final class AssetManager {
     private static final int MESH_MAGIC=0x4d584d32,TEXTURE_MAGIC=0x4d585432,FORMAT_VERSION=2,MAX_ASSET_BYTES=768*1024;
     private static final TextureData WHITE=new TextureData(1,1,new int[]{0xffffff},new byte[]{0});
-    private MeshSection[] sharedSections,locationSections;private TextureData[] sharedTextures,locationTextures;private Player music;
+    private MeshSection[] sharedSections,locationSections;private TextureData[] sharedTextures,locationTextures;
 
     public boolean loadShared(String root){MeshSection[] sections=readMesh(root+"/geometry.mesh");TextureData[] textures=readTextures(root+"/textures.tex");if(bytes(sections,textures)>MAX_ASSET_BYTES)throw new OutOfMemoryError("shared asset pack exceeds 768 KiB");releaseShared();sharedSections=sections;sharedTextures=textures;return sections!=null||textures!=null;}
     public boolean loadLocation(String name,int volume){
         String root="/levels/"+name;MeshSection[] sections=readMesh(root+"/geometry.mesh");TextureData[] textures=readTextures(root+"/textures.tex");if(bytes(sections,textures)>MAX_ASSET_BYTES)throw new OutOfMemoryError("location asset pack exceeds 768 KiB");unloadLocation();locationSections=sections;locationTextures=textures;
-        if(volume>0){InputStream stream=getClass().getResourceAsStream(root+"/music.mid");if(stream!=null)try{music=Manager.createPlayer(stream,"audio/midi");music.realize();}catch(Exception ignored){music=null;}}
         return true;
     }
     public int locationSectionCount(){return locationSections==null?0:locationSections.length;}
@@ -25,7 +22,7 @@ public final class AssetManager {
         if(id>=0&&locationTextures!=null&&id<locationTextures.length)return locationTextures[id];
         int shared=-id-1;if(shared>=0&&sharedTextures!=null&&shared<sharedTextures.length)return sharedTextures[shared];return WHITE;
     }
-    public void unloadLocation(){if(music!=null){music.close();music=null;}locationSections=null;locationTextures=null;}
+    public void unloadLocation(){locationSections=null;locationTextures=null;}
     public void releaseShared(){sharedSections=null;sharedTextures=null;}
     public void release(){unloadLocation();releaseShared();}
     public int residentBytes(){return bytes(sharedSections,sharedTextures)+bytes(locationSections,locationTextures);}
