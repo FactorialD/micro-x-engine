@@ -1,21 +1,36 @@
-# Micro X text level format, version 1
-MXL1
+# Micro X editable level format, version 2. Coordinates are signed 16.16 integers.
+MXL2
+# rooms floors ceilings edges portals spawns transitions entities capacity
+counts 2 3 2 7 2 2 1 1 8
 
-rooms 2
-portals 2
-capacity 8
-
-# minX maxX minZ maxZ
 room -5 5 -5 5
 room 5 15 -5 5
 
-# Bidirectional doorway between the rooms.
-portal 0 1
-portal 1 0
+# room minX maxX minZ maxZ height
+floor 0 -5 4 -5 5 0
+floor 0 4 5 -5 5 1       # step / upper landing
+floor 1 5 15 -5 5 1
+ceiling 0 -5 5 -5 5 4
+ceiling 1 5 15 -5 5 4
 
-# x y z; room two has a raised floor for x > 4.
-start 0 0 0
+# room x1 z1 x2 z2 bottom top. East wall leaves a door from z=-1..1.
+edge 0 -5 -5 5 -5 0 4
+edge 0 -5 5 5 5 0 4
+edge 0 -5 -5 -5 5 0 4
+edge 0 5 -5 5 -1 0 4
+edge 0 5 1 5 5 0 4
+edge 1 5 -5 15 -5 0 4
+edge 1 5 5 15 5 0 4
 
-entities 1
+# id from to minX maxX minY maxY minZ maxZ reverse-index transition-index
+portal 10 0 1 4 6 1 3 -1 1 1 0
+portal 11 1 0 4 6 1 3 -1 1 0 -1
+
+# id room x y z yaw
+spawn 0 0 0 0 0 0
+spawn 1 1 7 1 0 180
+# transition-id target-spawn target-location
+transition 100 1 test
+
 # type x y z health
 entity 1 10 1 0 100

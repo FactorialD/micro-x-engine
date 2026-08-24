@@ -1,83 +1,16 @@
 package com.microx.tools;
+import java.io.*;import java.nio.charset.StandardCharsets;import java.nio.file.*;import java.util.*;import java.util.stream.Stream;import javax.imageio.ImageIO;import java.awt.image.BufferedImage;
 
-import java.io.*;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.*;
-import java.util.*;
-import java.util.stream.Stream;
-import javax.imageio.ImageIO;
-import java.awt.image.BufferedImage;
-
-/** Desktop-only converter. Editable inputs never enter the MIDlet resource tree. */
+/** Desktop converter and strict validator for editable assets. */
 public final class AssetConverter {
-    private AssetConverter() {}
-
-    public static void main(String[] args) throws Exception {
-        if (args.length != 2) throw new IllegalArgumentException("usage: AssetConverter <source-dir> <output-dir>");
-        final Path source = Paths.get(args[0]).toAbsolutePath().normalize();
-        final Path output = Paths.get(args[1]).toAbsolutePath().normalize();
-        Files.createDirectories(output);
-        try (Stream<Path> paths = Files.walk(source)) {
-            paths.filter(Files::isRegularFile).sorted().forEach(path -> convert(source, output, path));
-        }
-    }
-
-    private static void convert(Path root, Path output, Path input) {
-        try {
-            Path relative = root.relativize(input);
-            String name = relative.getFileName().toString();
-            if (name.endsWith(".level")) {
-                writeLevel(input, output.resolve(replaceSuffix(relative, ".level", ".lvl")));
-            } else if (name.endsWith(".obj")) {
-                writeModel(input, output.resolve(replaceSuffix(relative, ".obj", ".mesh")));
-            } else if (name.equals("textures.png")) {
-                writeTexture(input, output.resolve(replaceSuffix(relative, ".png", ".tex")));
-            }
-            // Editor metadata and every unknown source format are intentionally ignored.
-        } catch (IOException e) {
-            throw new UncheckedIOException(e);
-        }
-    }
-
-    private static Path replaceSuffix(Path path, String oldSuffix, String newSuffix) {
-        String value = path.toString();
-        return Paths.get(value.substring(0, value.length() - oldSuffix.length()) + newSuffix);
-    }
-
-    private static void writeLevel(Path input, Path output) throws IOException {
-        List<String> lines = Files.readAllLines(input, StandardCharsets.UTF_8);
-        StringBuilder runtime = new StringBuilder();
-        for (String line : lines) {
-            int comment = line.indexOf('#');
-            String clean = (comment < 0 ? line : line.substring(0, comment)).trim();
-            if (!clean.isEmpty()) runtime.append(clean).append('\n');
-        }
-        if (!runtime.toString().startsWith("MXL1\n")) throw new IOException("Invalid MXL1 level: " + input);
-        Files.createDirectories(output.getParent());
-        Files.write(output, runtime.toString().getBytes(StandardCharsets.US_ASCII));
-    }
-
-    private static void writeModel(Path input, Path output) throws IOException {
-        List<float[]> vertices = new ArrayList<float[]>();
-        List<int[]> faces = new ArrayList<int[]>();
-        for (String line : Files.readAllLines(input, StandardCharsets.US_ASCII)) {
-            line = line.trim();
-            if (line.startsWith("v ")) {String[] p=line.substring(2).trim().split("\\s+");vertices.add(new float[]{Float.parseFloat(p[0]),Float.parseFloat(p[1]),Float.parseFloat(p[2])});}
-            else if (line.startsWith("f ")) {String[] p=line.substring(2).trim().split("\\s+");if(p.length>=3)faces.add(new int[]{objIndex(p[0]),objIndex(p[1]),objIndex(p[2])});}
-        }
-        Files.createDirectories(output.getParent());
-        try (DataOutputStream out=new DataOutputStream(Files.newOutputStream(output))) {
-            out.writeInt(0x4d584d32);out.writeShort(1);out.writeShort(0);out.writeShort(0);out.writeShort(vertices.size());out.writeShort(faces.size());
-            for(float[] v:vertices){out.writeInt((int)(v[0]*65536.0f));out.writeInt((int)(v[1]*65536.0f));out.writeInt((int)(v[2]*65536.0f));}
-            for(int i=0;i<vertices.size();i++){out.writeInt(0);out.writeInt(0);}
-            for(int[] face:faces)for(int index:face)out.writeShort(index);
-        }
-    }
-
-    private static int objIndex(String token){int slash=token.indexOf('/');return Integer.parseInt(slash<0?token:token.substring(0,slash))-1;}
-
-    private static void writeTexture(Path input,Path output)throws IOException{
-        BufferedImage image=ImageIO.read(input.toFile());if(image==null||image.getWidth()>256||image.getHeight()>256)throw new IOException("Invalid texture atlas: "+input);
-        Files.createDirectories(output.getParent());try(DataOutputStream out=new DataOutputStream(Files.newOutputStream(output))){out.writeInt(0x4d585432);out.writeShort(1);out.writeShort(image.getWidth());out.writeShort(image.getHeight());for(int y=0;y<image.getHeight();y++)for(int x=0;x<image.getWidth();x++)out.writeInt(image.getRGB(x,y)&0xffffff);}
-    }
+ private static final int MAGIC=0x4d584c32,VERSION=1,MAX_FIXED=32767;
+ private AssetConverter(){}
+ public static void main(String[] args)throws Exception{if(args.length!=2)throw new IllegalArgumentException("usage: AssetConverter <source-dir> <output-dir>");final Path source=Paths.get(args[0]).toAbsolutePath().normalize(),output=Paths.get(args[1]).toAbsolutePath().normalize();Files.createDirectories(output);try(Stream<Path> paths=Files.walk(source)){paths.filter(Files::isRegularFile).sorted().forEach(path->convert(source,output,path));}}
+ private static void convert(Path root,Path output,Path input){try{Path relative=root.relativize(input);String name=relative.getFileName().toString();if(name.endsWith(".level"))writeLevel(input,output.resolve(replaceSuffix(relative,".level",".lvl")));else if(name.endsWith(".obj"))writeModel(input,output.resolve(replaceSuffix(relative,".obj",".mesh")));else if(name.equals("textures.png"))writeTexture(input,output.resolve(replaceSuffix(relative,".png",".tex")));}catch(IOException e){throw new UncheckedIOException(e);}}
+ private static Path replaceSuffix(Path p,String old,String n){String v=p.toString();return Paths.get(v.substring(0,v.length()-old.length())+n);}
+ public static void writeLevel(Path input,Path output)throws IOException{Tokens t=new Tokens(input);t.expect("MXL2");t.expect("counts");int rooms=t.count(1,256),floors=t.count(1,1024),ceilings=t.count(1,1024),edges=t.count(0,2048),portals=t.count(0,1024),spawns=t.count(1,256),transitions=t.count(0,256),entities=t.count(0,1024),capacity=t.count(1,1024);if(entities>capacity)t.fail("entity pool capacity exceeded");ByteArrayOutputStream bytes=new ByteArrayOutputStream();DataOutputStream out=new DataOutputStream(bytes);out.writeInt(MAGIC);out.writeShort(VERSION);int[] counts={rooms,floors,ceilings,edges,portals,spawns,transitions,entities,capacity};for(int n:counts)out.writeShort(n);int i;for(i=0;i<rooms;i++){t.expect("room");int a=t.fixed(),b=t.fixed(),c=t.fixed(),d=t.fixed();ordered(t,a,b,c,d);out.writeInt(a);out.writeInt(b);out.writeInt(c);out.writeInt(d);}for(i=0;i<floors;i++){t.expect("floor");out.writeShort(t.index(rooms));bounds(t,out);out.writeInt(t.fixed());}for(i=0;i<ceilings;i++){t.expect("ceiling");out.writeShort(t.index(rooms));bounds(t,out);out.writeInt(t.fixed());}for(i=0;i<edges;i++){t.expect("edge");out.writeShort(t.index(rooms));for(int q=0;q<6;q++)out.writeInt(t.fixed());}int[] reverse=new int[portals],portalTransition=new int[portals];for(i=0;i<portals;i++){t.expect("portal");out.writeShort(t.id());out.writeShort(t.index(rooms));out.writeShort(t.index(rooms));int a=t.fixed(),b=t.fixed(),c=t.fixed(),d=t.fixed(),e=t.fixed(),f=t.fixed();if(a>b||c>d||e>f)t.fail("unordered portal bounds");out.writeInt(a);out.writeInt(b);out.writeInt(c);out.writeInt(d);out.writeInt(e);out.writeInt(f);reverse[i]=t.signedIndex(portals);portalTransition[i]=t.signedIndex(transitions);out.writeShort(reverse[i]);out.writeShort(portalTransition[i]);}for(i=0;i<portals;i++)if(reverse[i]>=0&&reverse[reverse[i]]!=i)t.fail("portal reverse link is not bidirectional");for(i=0;i<spawns;i++){t.expect("spawn");out.writeShort(t.id());out.writeShort(t.index(rooms));out.writeInt(t.fixed());out.writeInt(t.fixed());out.writeInt(t.fixed());out.writeShort(t.range(-32768,32767));}for(i=0;i<transitions;i++){t.expect("transition");out.writeShort(t.id());out.writeShort(t.id());String location=t.next();if(!location.matches("[A-Za-z0-9_-]{1,64}"))t.fail("invalid location identifier");out.writeUTF(location);}for(i=0;i<entities;i++){t.expect("entity");out.writeShort(t.id());out.writeInt(t.fixed());out.writeInt(t.fixed());out.writeInt(t.fixed());out.writeShort(t.id());}if(t.hasNext())t.fail("unexpected token "+t.next());out.close();Files.createDirectories(output.getParent());Files.write(output,bytes.toByteArray());}
+ private static void bounds(Tokens t,DataOutputStream out)throws IOException{int a=t.fixed(),b=t.fixed(),c=t.fixed(),d=t.fixed();ordered(t,a,b,c,d);out.writeInt(a);out.writeInt(b);out.writeInt(c);out.writeInt(d);}private static void ordered(Tokens t,int a,int b,int c,int d)throws IOException{if(a>b||c>d)t.fail("unordered bounds");}
+ private static void writeModel(Path input,Path output)throws IOException{List<float[]> v=new ArrayList<float[]>();List<int[]> f=new ArrayList<int[]>();for(String line:Files.readAllLines(input,StandardCharsets.US_ASCII)){line=line.trim();if(line.startsWith("v ")){String[] p=line.substring(2).trim().split("\\s+");v.add(new float[]{Float.parseFloat(p[0]),Float.parseFloat(p[1]),Float.parseFloat(p[2])});}else if(line.startsWith("f ")){String[] p=line.substring(2).trim().split("\\s+");if(p.length>=3)f.add(new int[]{objIndex(p[0]),objIndex(p[1]),objIndex(p[2])});}}Files.createDirectories(output.getParent());try(DataOutputStream out=new DataOutputStream(Files.newOutputStream(output))){out.writeInt(0x4d584d32);out.writeShort(1);out.writeShort(0);out.writeShort(0);out.writeShort(v.size());out.writeShort(f.size());for(float[] x:v){out.writeInt((int)(x[0]*65536));out.writeInt((int)(x[1]*65536));out.writeInt((int)(x[2]*65536));}for(int i=0;i<v.size();i++){out.writeInt(0);out.writeInt(0);}for(int[] x:f)for(int q:x)out.writeShort(q);}}
+ private static int objIndex(String s){int p=s.indexOf('/');return Integer.parseInt(p<0?s:s.substring(0,p))-1;}private static void writeTexture(Path input,Path output)throws IOException{BufferedImage im=ImageIO.read(input.toFile());if(im==null||im.getWidth()>256||im.getHeight()>256)throw new IOException("Invalid texture atlas: "+input);Files.createDirectories(output.getParent());try(DataOutputStream out=new DataOutputStream(Files.newOutputStream(output))){out.writeInt(0x4d585432);out.writeShort(1);out.writeShort(im.getWidth());out.writeShort(im.getHeight());for(int y=0;y<im.getHeight();y++)for(int x=0;x<im.getWidth();x++)out.writeInt(im.getRGB(x,y)&0xffffff);}}
+ private static final class Tokens{final List<String> v=new ArrayList<String>();int p;final Path file;Tokens(Path f)throws IOException{file=f;for(String line:Files.readAllLines(f,StandardCharsets.UTF_8)){int c=line.indexOf('#');if(c>=0)line=line.substring(0,c);for(String s:line.trim().split("\\s+"))if(s.length()>0)v.add(s);}}String next()throws IOException{if(p>=v.size())fail("unexpected end");return v.get(p++);}boolean hasNext(){return p<v.size();}void expect(String s)throws IOException{if(!s.equals(next()))fail("expected "+s);}int number()throws IOException{try{return Integer.parseInt(next());}catch(NumberFormatException e){fail("invalid integer");return 0;}}int range(int a,int b)throws IOException{int n=number();if(n<a||n>b)fail("value out of range");return n;}int count(int a,int b)throws IOException{return range(a,b);}int index(int n)throws IOException{return range(0,n-1);}int signedIndex(int n)throws IOException{return range(-1,n-1);}int id()throws IOException{return range(0,65535);}int fixed()throws IOException{int n=range(-MAX_FIXED,MAX_FIXED);return n*65536;}void fail(String m)throws IOException{throw new IOException(file+": "+m+" at token "+p);}}
 }

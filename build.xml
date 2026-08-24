@@ -40,15 +40,21 @@
            source="8" target="8" includeantruntime="false" debug="false"/>
   </target>
 
-  <target name="desktop-test" description="Run allocation-free fixed math reference tests on the host JDK">
+  <target name="desktop-test" description="Run converter, binary loader, collision and fixed math tests on the host JDK">
     <delete dir="${desktop.test.classes.dir}"/>
     <mkdir dir="${desktop.test.classes.dir}"/>
     <javac destdir="${desktop.test.classes.dir}" source="8" target="8"
            includeantruntime="false" debug="true">
-      <src path="src"/><src path="test"/>
+      <src path="src"/><src path="tools/src"/><src path="test"/>
       <include name="com/microx/engine/math/**"/>
+      <include name="com/microx/engine/world/**"/>
+      <include name="com/microx/engine/Input.java"/>
+      <include name="com/microx/tools/AssetConverter.java"/>
     </javac>
     <java classname="com.microx.engine.math.FixedMathTest" fork="true" failonerror="true">
+      <classpath><pathelement location="${desktop.test.classes.dir}"/></classpath>
+    </java>
+    <java classname="com.microx.engine.world.WorldFormatTest" fork="true" failonerror="true">
       <classpath><pathelement location="${desktop.test.classes.dir}"/></classpath>
     </java>
   </target>
