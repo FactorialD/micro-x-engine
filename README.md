@@ -25,12 +25,45 @@ fallback: у `build.properties` явно задані `toolchain.jdk.home` і `w
 * `compile` і `preverify` збирають та перевіряють CLDC-класи;
 * `create-jar`, `create-jad` і `check-jar-size` створюють дистрибутив та
   перевіряють ліміт `max.jar.bytes`; `package` запускає весь pipeline.
+* `validate-package` перевіряє обов'язковий level і відсутність source assets;
+* `desktop-static-test` запускає host-side тести, зокрема аварійний save/fallback.
 
 Редаговані моделі, рівні та службові файли зберігаються лише в `assets-src/`.
 Конвертер пише результат у `build/generated-resources/`, а статичні готові
 ресурси беруться з `runtime-resources/`. Жодна з цих цілей не копіює
 `assets-src/` до JAR, тому OBJ, коментарі вихідних рівнів і editor metadata не
 потрапляють у дистрибутив.
+
+## Acceptance criteria вертикального зрізу
+
+Release candidate приймається лише одним безперервним проходженням на чистому
+RecordStore:
+
+- гра стартує без save/settings records;
+- один квест можна взяти в NPC-діалозі та завершити;
+- працює одна операція купівлі й продажу;
+- присутні один людський ворог, один мутант, аномалія та один артефакт;
+- працює двосторонній перехід між двома локаціями з autosave;
+- save/load відновлює локацію, гравця, inventory, quest flags, reputation та
+  sparse deltas контейнерів/сутностей; пошкодження нової транзакції дає fallback;
+- 15-хвилинний прогін не перевищує **2 MiB heap**, після десяти переходів немає
+  висхідного тренду; ціль — **20 FPS** і p95 update+render не більше 50 ms;
+- JAR вкладається в `max.jar.bytes`, проходить preverification і package checks.
+
+## Release performance baseline
+
+Hardware profiling є release gate, його не можна підміняти вимірами CI. У
+поточному середовищі немає цільового емулятора чи під'єднаного телефона, тому
+baseline чесно позначений `PENDING`. Перед релізом обидва рядки заповнюються з
+фактичних 15-хвилинних прогонів.
+
+| Середовище / модель | Heap | Внутрішня роздільність | FPS avg / p5 | Peak memory | JAR bytes | Статус |
+|---|---:|---:|---:|---:|---:|---|
+| Цільовий емулятор (назва + версія) | PENDING | PENDING | PENDING | PENDING | PENDING | PENDING |
+| Реальний телефон (модель + firmware) | PENDING | PENDING | PENDING | PENDING | PENDING | PENDING |
+
+До baseline додають дату, emulator/JVM, renderer mode, маршрут і telemetry log:
+FPS, peak heap, p50/p95 update/render, dropped steps, rooms/entities і budget.
 
 ---
 

@@ -32,5 +32,6 @@ public final class SoftwareRenderer {
     public int drawnTriangles() { return frame.drawnTriangles; }
     public int internalWidth() { return frame.width(); }
     public int internalHeight() { return frame.height(); }
+    public int memoryBudget(){return memoryBudget;}
     public void release() { frame.release(); }
 }

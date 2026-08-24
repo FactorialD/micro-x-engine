@@ -59,6 +59,12 @@
       <include name="com/microx/engine/render/Clipper.java"/>
       <include name="com/microx/engine/render/Rasterizer.java"/>
       <include name="com/microx/engine/render/RenderingTest.java"/>
+      <include name="com/microx/engine/save/SaveData.java"/>
+      <include name="com/microx/engine/save/SaveException.java"/>
+      <include name="com/microx/engine/save/SaveCodec.java"/>
+      <include name="com/microx/engine/save/RecordBackend.java"/>
+      <include name="com/microx/engine/save/SaveStore.java"/>
+      <include name="com/microx/engine/save/SaveStoreTest.java"/>
     </javac>
     <java classname="com.microx.engine.math.FixedMathTest" fork="true" failonerror="true">
       <classpath><pathelement location="${desktop.test.classes.dir}"/></classpath>
@@ -78,6 +84,13 @@
     <java classname="com.microx.engine.gameplay.GameplayTest" fork="true" failonerror="true"><classpath><pathelement location="${desktop.test.classes.dir}"/></classpath></java>
     <java classname="com.microx.tools.GameplayDataTest" fork="true" failonerror="true"><classpath><pathelement location="${desktop.test.classes.dir}"/></classpath></java>
     <java classname="com.microx.engine.ui.UIStateMachineTest" fork="true" failonerror="true"><classpath><pathelement location="${desktop.test.classes.dir}"/></classpath></java>
+    <java classname="com.microx.engine.save.SaveStoreTest" fork="true" failonerror="true"><classpath><pathelement location="${desktop.test.classes.dir}"/></classpath></java>
+  </target>
+
+  <target name="desktop-static-test" depends="desktop-test" description="Run host-side static and persistence tests without MIDP packaging">
+    <fail message="Java sources must not import editable assets from assets-src">
+      <condition><resourcecount when="greater" count="0"><fileset dir="src"><contains text="assets-src/"/></fileset></resourcecount></condition>
+    </fail>
   </target>
 
   <target name="convert-assets" depends="compile-tools" description="Convert editable levels and OBJ models to compact runtime resources">
@@ -123,7 +136,12 @@
     </jar>
   </target>
 
-  <target name="create-jad" depends="create-jar" description="Create a JAD matching the packaged JAR">
+  <target name="validate-package" depends="create-jar" description="Check mandatory runtime resources and reject source assets in the JAR">
+    <fail message="Mandatory /levels/test/level.lvl is missing from the JAR"><condition><not><resourcecount when="greater" count="0"><zipfileset src="${dist.jar}" includes="levels/test/level.lvl"/></resourcecount></not></condition></fail>
+    <fail message="Editable/source assets are forbidden in the runtime JAR"><condition><resourcecount when="greater" count="0"><zipfileset src="${dist.jar}" includes="**/*.obj,**/*.level,assets-src/**,**/*~"/></resourcecount></condition></fail>
+  </target>
+
+  <target name="create-jad" depends="validate-package" description="Create a JAD matching the packaged JAR">
     <length file="${dist.jar}" property="jar.size"/>
     <copy file="MANIFEST.MF" tofile="${dist.jad}"/>
     <echo file="${dist.jad}" append="true">MIDlet-Jar-URL: ${dist.jar}${line.separator}MIDlet-Jar-Size: ${jar.size}${line.separator}</echo>
