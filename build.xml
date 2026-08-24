@@ -51,6 +51,7 @@
       <include name="com/microx/engine/combat/**"/>
       <include name="com/microx/engine/gameplay/**"/>
       <include name="com/microx/engine/Input.java"/>
+      <include name="com/microx/engine/ui/UIStateMachine.java"/>
       <include name="com/microx/tools/AssetConverter.java"/>
       <include name="com/microx/tools/GameplayDataTest.java"/>
       <include name="com/microx/engine/assets/MeshSection.java"/>
@@ -76,6 +77,7 @@
     </java>
     <java classname="com.microx.engine.gameplay.GameplayTest" fork="true" failonerror="true"><classpath><pathelement location="${desktop.test.classes.dir}"/></classpath></java>
     <java classname="com.microx.tools.GameplayDataTest" fork="true" failonerror="true"><classpath><pathelement location="${desktop.test.classes.dir}"/></classpath></java>
+    <java classname="com.microx.engine.ui.UIStateMachineTest" fork="true" failonerror="true"><classpath><pathelement location="${desktop.test.classes.dir}"/></classpath></java>
   </target>
 
   <target name="convert-assets" depends="compile-tools" description="Convert editable levels and OBJ models to compact runtime resources">
