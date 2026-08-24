@@ -1,0 +1,10 @@
+# Stable IDs must never be reused.
+1|pistol|Пістолет
+2|rifle|Автомат
+3|leather_armor|Шкіряний костюм
+4|medkit|Аптечка
+5|bandage|Бинт
+6|stone|Кам'яна кров
+7|crystal|Кристал
+8|ammo_9mm|Набої 9 мм
+9|ammo_545|Набої 5.45 мм
