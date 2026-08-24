@@ -1,20 +1,101 @@
-<project name="micro-x-engine" default="jar">
+<?xml version="1.0" encoding="UTF-8"?>
+<project name="micro-x-engine" default="package" basedir=".">
   <property file="build.properties"/>
-  <property name="build" value="build"/>
-  <target name="clean"><delete dir="${build}"/><delete file="micro-x-engine.jar"/><delete file="micro-x-engine.jad"/></target>
-  <target name="compile">
-    <mkdir dir="${build}/classes"/>
-    <javac srcdir="src" destdir="${build}/classes" source="1.3" target="1.3" bootclasspath="${cldc.jar}:${midp.jar}:${m3g.jar}" includeantruntime="false" debug="${debug}"/>
+
+  <path id="midp.bootclasspath">
+    <pathelement location="${cldc.jar}"/>
+    <pathelement location="${midp.jar}"/>
+  </path>
+
+  <target name="clean" description="Remove all generated output">
+    <delete dir="${build.dir}"/>
+    <delete file="${dist.jar}"/>
+    <delete file="${dist.jad}"/>
   </target>
-  <target name="preverify" depends="compile">
-    <mkdir dir="${build}/verified"/>
-    <exec executable="${wtk.home}/bin/preverify" failonerror="true"><arg value="-classpath"/><arg value="${cldc.jar}:${midp.jar}:${m3g.jar}"/><arg value="-d"/><arg value="${build}/verified"/><arg value="${build}/classes"/></exec>
+
+  <target name="check-toolchain" description="Fail early unless the configured compiler can emit CLDC-compatible bytecode">
+    <available file="${j2me.javac}" property="j2me.javac.available"/>
+    <fail unless="j2me.javac.available"
+          message="No compatible J2ME compiler at ${j2me.javac}. Set toolchain.jdk.home to JDK 6/7; modern javac cannot emit -source/-target 1.3 bytecode."/>
+    <available file="${cldc.jar}" property="cldc.jar.available"/>
+    <available file="${midp.jar}" property="midp.jar.available"/>
+    <available file="${preverify}" property="preverify.available"/>
+    <fail unless="cldc.jar.available" message="Missing CLDC API: ${cldc.jar}. Configure wtk.home in build.properties."/>
+    <fail unless="midp.jar.available" message="Missing MIDP API: ${midp.jar}. Configure wtk.home in build.properties."/>
+    <fail unless="preverify.available" message="Missing WTK preverify: ${preverify}. Configure wtk.home in build.properties."/>
+    <mkdir dir="${build.dir}/toolchain-check"/>
+    <echo file="${build.dir}/toolchain-check/ClDcProbe.java">final class ClDcProbe {}</echo>
+    <exec executable="${j2me.javac}" failonerror="true"
+          error="${build.dir}/toolchain-check/javac.err">
+      <arg value="-source"/><arg value="1.3"/>
+      <arg value="-target"/><arg value="1.3"/>
+      <arg value="-d"/><arg value="${build.dir}/toolchain-check"/>
+      <arg value="${build.dir}/toolchain-check/ClDcProbe.java"/>
+    </exec>
   </target>
-  <target name="jar" depends="preverify">
-    <copy todir="${build}/verified"><fileset dir="res"/></copy>
-    <jar destfile="micro-x-engine.jar" manifest="MANIFEST.MF" basedir="${build}/verified"/>
-    <length file="micro-x-engine.jar" property="jar.size"/>
-    <copy file="MANIFEST.MF" tofile="micro-x-engine.jad"/>
-    <echo file="micro-x-engine.jad" append="true">MIDlet-Jar-URL: micro-x-engine.jar${line.separator}MIDlet-Jar-Size: ${jar.size}${line.separator}</echo>
+
+  <target name="compile-tools" description="Compile desktop-only asset conversion tools">
+    <mkdir dir="${tools.classes.dir}"/>
+    <javac srcdir="${tools.src.dir}" destdir="${tools.classes.dir}"
+           source="8" target="8" includeantruntime="false" debug="false"/>
   </target>
+
+  <target name="convert-assets" depends="compile-tools" description="Convert editable levels and OBJ models to compact runtime resources">
+    <delete dir="${generated.resources.dir}"/>
+    <mkdir dir="${generated.resources.dir}"/>
+    <java classname="com.microx.tools.AssetConverter" fork="true" failonerror="true">
+      <classpath><pathelement location="${tools.classes.dir}"/></classpath>
+      <arg value="${assets.source.dir}"/>
+      <arg value="${generated.resources.dir}"/>
+    </java>
+  </target>
+
+  <target name="copy-runtime-resources" depends="convert-assets" description="Stage generated and explicitly runtime-only resources">
+    <mkdir dir="${resources.stage.dir}"/>
+    <copy todir="${resources.stage.dir}">
+      <fileset dir="${generated.resources.dir}"/>
+    </copy>
+    <copy todir="${resources.stage.dir}" failonerror="false">
+      <fileset dir="${runtime.resources.dir}"/>
+    </copy>
+  </target>
+
+  <target name="compile" depends="check-toolchain" description="Compile MIDP application with the pinned legacy JDK">
+    <mkdir dir="${classes.dir}"/>
+    <javac srcdir="src" destdir="${classes.dir}" source="1.3" target="1.3"
+           bootclasspathref="midp.bootclasspath" includeantruntime="false"
+           debug="${debug}" fork="true" executable="${j2me.javac}"/>
+  </target>
+
+  <target name="preverify" depends="compile" description="Preverify application classes for CLDC 1.1">
+    <mkdir dir="${verified.dir}"/>
+    <exec executable="${preverify}" failonerror="true">
+      <arg value="-classpath"/><arg pathref="midp.bootclasspath"/>
+      <arg value="-d"/><arg value="${verified.dir}"/>
+      <arg value="${classes.dir}"/>
+    </exec>
+  </target>
+
+  <target name="create-jar" depends="preverify,copy-runtime-resources" description="Create the deployable MIDlet JAR">
+    <jar destfile="${dist.jar}" manifest="MANIFEST.MF">
+      <fileset dir="${verified.dir}"/>
+      <fileset dir="${resources.stage.dir}"/>
+    </jar>
+  </target>
+
+  <target name="create-jad" depends="create-jar" description="Create a JAD matching the packaged JAR">
+    <length file="${dist.jar}" property="jar.size"/>
+    <copy file="MANIFEST.MF" tofile="${dist.jad}"/>
+    <echo file="${dist.jad}" append="true">MIDlet-Jar-URL: ${dist.jar}${line.separator}MIDlet-Jar-Size: ${jar.size}${line.separator}</echo>
+  </target>
+
+  <target name="check-jar-size" depends="create-jad" description="Enforce the configured distribution size budget">
+    <length file="${dist.jar}" property="jar.size.checked"/>
+    <fail message="${dist.jar} is ${jar.size.checked} bytes; limit is ${max.jar.bytes} bytes.">
+      <condition><greater arg1="${jar.size.checked}" arg2="${max.jar.bytes}" type="long"/></condition>
+    </fail>
+  </target>
+
+  <target name="package" depends="check-jar-size" description="Convert assets, compile, preverify, and package JAR/JAD"/>
+  <target name="jar" depends="package" description="Backward-compatible alias for package"/>
 </project>

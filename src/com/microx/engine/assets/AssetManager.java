@@ -1,8 +1,26 @@
 package com.microx.engine.assets;
-import java.io.*; import javax.microedition.m3g.*; import javax.microedition.media.*;
+
+import java.io.InputStream;
+import javax.microedition.media.Manager;
+import javax.microedition.media.Player;
+
+/** Manages optional MIDP media only; geometry is loaded by the software renderer pipeline. */
 public final class AssetManager {
- private Object3D[] objects; private Player music; private String location;
- public boolean loadLocation(String name,int volume){unloadLocation();location=name;try{objects=Loader.load("/levels/"+name+"/world.m3g");}catch(Exception e){objects=null;}if(volume>0){try{music=Manager.createPlayer(getClass().getResourceAsStream("/levels/"+name+"/music.mid"),"audio/midi");music.realize();}catch(Exception e){music=null;}}return objects!=null;}
- public Object3D[] objects(){return objects;}
- public void unloadLocation(){if(music!=null){music.close();music=null;}objects=null;location=null;}
+    private Player music;
+
+    public boolean loadLocation(String name, int volume) {
+        unloadLocation();
+        if (volume > 0) {
+            InputStream stream = getClass().getResourceAsStream("/levels/" + name + "/music.mid");
+            if (stream != null) try {
+                music = Manager.createPlayer(stream, "audio/midi");
+                music.realize();
+            } catch (Exception ignored) { music = null; }
+        }
+        return true;
+    }
+
+    public void unloadLocation() {
+        if (music != null) { music.close(); music = null; }
+    }
 }
