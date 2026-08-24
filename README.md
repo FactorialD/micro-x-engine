@@ -270,107 +270,63 @@ Pipeline кадру: `clear -> room/portal culling -> transform -> near/frustum 
 
 Отже, вертикальність не вимагає JSR-184/M3G і не має 2.5D-обмеження «одна висота підлоги на `x/z`».
 
-## 2. Offline-конвеєр `OBJ -> MXT`
+## 2. Фактичні runtime-формати та offline-конвеєр
 
-Телефон **ніколи не читає і не парсить OBJ**. OBJ/MTL є лише вхідним authoring-форматом на ПК. Офлайн-інструмент `obj2mxt` виконує такий детермінований конвеєр:
+OBJ ніколи не читається телефоном. `AssetConverter` приймає `v`, `vt`, кути
+`v/vt` (також від’ємні OBJ-індекси), триангулює опуклий полігон fan-методом і
+зварює однакові пари position/UV у межах секції. Нульові та позадіапазонні
+індекси, відсутні UV, нечислові/нескінченні координати, Q16.16 overflow і
+вироджені трикутники відхиляються. Геометрія використовує праву систему:
+`+X` праворуч, `+Y` вгору, `+Z` вперед. Лицьовий winding — CCW при погляді з
+лицьового боку (після проєкції rasterizer приймає додатну edge-area).
 
-1. читає OBJ/MTL, триангулює грані, застосовує scale/axis transform та відкидає невикористані вершини;
-2. зварює однакові вершини, генерує/перевіряє UV, нормалі та winding, квантує координати у signed fixed-point 16.16, а UV — у unsigned 0.16;
-3. зі службових імен/sidecar-файлу будує кімнати, портали, спрощений collision mesh і spawn-сутності;
-4. перевпорядковує трикутники за кімнатою й матеріалом, перевіряє ліміти, manifold-помилки порталів, індекси та collision-проходи;
-5. записує канонічний текстовий `.mxt`, потім повторно читає його desktop-парсером і порівнює структуру; CI конвертує той самий source двічі та вимагає byte-for-byte однаковий результат;
-6. пакує `.mxt` і вже конвертовані текстури до JAR. Runtime робить однопрохідний parser чисел у попередньо виділені primitive arrays і ніколи не створює `String` на один елемент.
+Metadata задається `o room_N`/`g room_N` або коментарем `# microx room N`.
+Матеріал вибирається `usemtl`; відповідність texture id задає
+`# microx material NAME SIGNED_ID` (або суфікс `NAME_ID`). Зміна room/material
+починає окрему mesh section.
 
-### 2.1. Загальні правила MXT v1
+### 2.1. `MXM2`, binary mesh version 2 (big-endian)
 
-* Розширення: `.mxt`; MIME не потрібний. Перші байти файла: ASCII `MXT 1.0\n` (`4D 58 54 20 31 2E 30 0A`).
-* Кодування: UTF-8 без BOM; ключові слова та ідентифікатори — printable ASCII; завершення рядка — лише LF (`0A`). Коментар починається з `#`; порожні рядки дозволені.
-* Поля відділяються одним або кількома ASCII space/tab. Десятковий роздільник — `.`, але v1 не допускає float: усі значення вже квантизовані цілі. Знаки `+`, експоненти й розділювачі тисяч заборонені.
-* Порядок байтів у текстових десяткових чисел не застосовується: цифри йдуть від старшого розряду до молодшого. Заголовок однаково фіксує `byte_order little`; усі майбутні багатобайтові binary payload-и та CRC-представлення мусять бути little-endian. **MXT v1 не допускає binary payload-ів**, тому runtime не залежить від native endianness телефона.
-* Векторна система права: `+X` праворуч, `+Y` вгору, `+Z` уперед; winding видимої грані — counter-clockwise при погляді ззовні. Відстані — метри у signed 16.16 (`1 м = 65536`), UV — unsigned 0.16 (`1.0 = 65535`).
-* Секції мають наведений нижче порядок, починаються `[NAME count]`, містять рівно `count` записів і завершуються `[END NAME]`. ID щільні, нуль-базовані та збігаються з порядком записів. Відсутню опційну секцію все одно записують із `count=0`.
-* Останній рядок `[END MXT]`; після його LF додаткових байтів немає. Parser відхиляє невідомі секції/поля, дублікати ID, неправильну кількість записів, вихід індексу за межі та переповнення типу.
+`magic:u32=MXM2`, `version:u16=2`, `sectionCount:u16`, далі для кожної секції:
+`room:u16`, `texture:i16`, `vertexCount:u16`, `triangleCount:u16`, масиви
+`xyz:i32[vertexCount*3]` Q16.16, `uv:i32[vertexCount*2]` Q16.16 та
+`indices:u16[triangleCount*3]`. Runtime приймає рівно v2, непорожні секції,
+валідні індекси, не більше 4096 секцій і відсутність trailing bytes.
 
-### 2.2. Заголовок і секції
+### 2.2. `MXT2`, indexed texture version 2 (big-endian)
 
-Канонічний порядок та схема запису:
+`magic:u32=MXT2`, `version:u16=2`, `textureCount:u16`; кожна текстура містить
+`width:u16`, `height:u16`, `paletteCount:u16`, `palette:RGB888[paletteCount]`,
+`indices:u8[width*height]`. Поточний PNG-конвертер створює один atlas, максимум
+256×256 і 256 кольорів. Виміряний runtime footprint текстури дорівнює
+`16 + paletteCount*4 + width*height` байтів; converter відхиляє atlas понад
+96 KiB, loader — некоректні palette indices, версію, counts і trailing data.
 
-```text
-MXT 1.0
-byte_order little
-flags 0
-counts vertices=V indices=I uvs=U materials=M rooms=R portals=P collisions=C entities=E
-bounds minX minY minZ maxX maxY maxZ
-crc32 XXXXXXXX
+### 2.3. `MXL2`, binary level version 1 (big-endian)
 
-[VERTICES V]
-id x16_16 y16_16 z16_16
-[END VERTICES]
+Header: `magic:u32=MXL2`, `version:u16=1`, потім дев’ять `u16` counts:
+rooms, floors, ceilings, edges, portals, spawns, transitions, entities і entity
+capacity. Записи йдуть саме в цьому порядку. Координати/AABB — signed Q16.16;
+room references — `u16`; portal містить id/from/to, шість меж Q16.16,
+`reverse:i16`, `transition:i16`; spawn — id/room/xyz/yaw; transition — id,
+spawn id та modified-UTF location; entity — id/xyz/type. Loader перевіряє
+counts, bounds, references, capacity, версію та EOF до публікації рівня.
 
-[INDICES I]
-id vertexId
-[END INDICES]
+## 3. Формальний бюджет renderer-а
 
-[UVS U]
-id u0_16 v0_16
-[END UVS]
-
-[MATERIALS M]
-id textureId firstIndex indexCount flags
-[END MATERIALS]
-
-[ROOMS R]
-id minX minY minZ maxX maxY maxZ firstIndex indexCount firstCollision collisionCount
-[END ROOMS]
-
-[PORTALS P]
-id roomA roomB vertexCount vertexId0 vertexId1 vertexId2 [vertexId3 ...] flags
-[END PORTALS]
-
-[COLLISIONS C]
-id roomId vertexA vertexB vertexC flags
-[END COLLISIONS]
-
-[ENTITIES E]
-id typeId roomId x16_16 y16_16 z16_16 yaw0_16 flags param0 param1
-[END ENTITIES]
-[END MXT]
-```
-
-Семантика секцій:
-
-* **Header:** `counts` дублює розміри секцій для одноразової алокації; `bounds` — AABB усього рівня; `crc32` — вісім uppercase hex-цифр CRC-32/ISO-HDLC від першого байта `[VERTICES` до LF перед `[END MXT]`. Значення `flags=0` обов'язкове у v1.
-* **VERTICES:** унікальні позиції render і portal mesh як три signed 32-bit fixed-point числа.
-* **INDICES:** плоский список unsigned 16-bit індексів вершин; кожні три послідовні записи утворюють трикутник. `I % 3 == 0`. Діапазони матеріалу/кімнати починаються і закінчуються на межі трикутника.
-* **UVS:** один UV-запис на кожен запис `INDICES` (`U == I`), щоб шов текстури не дублював позицію. Значення лежать у `0..65535`; адресація поза текстурою задається flags матеріалу, не UV.
-* **MATERIALS:** `textureId` посилається на таблицю ресурсів збірки, не на ім'я файла; діапазони індексів не перетинаються. Flags: bit 0 — masked, bit 1 — two-sided, bit 2 — clamp U, bit 3 — clamp V; інші біти нульові.
-* **ROOMS:** 3D AABB для пошуку кімнати, діапазон render indices і діапазон collision records. Кімнати можуть перекриватися за `x/z`, але їхні внутрішні об'єми не можуть неоднозначно перекриватися у 3D.
-* **PORTALS:** опуклий полігон із 3–8 vertex ID, coplanar winding від `roomA` до `roomB`; обидві кімнати існують. Bit 0 позначає one-way visibility, решта нульові.
-* **COLLISIONS:** окремі трикутники з індексами `VERTICES`. Flags: bit 0 — solid, bit 1 — floor, bit 2 — ladder, bit 3 — two-sided; exporter забороняє несумісні комбінації.
-* **ENTITIES:** spawn-запис без довільних рядків: тип і параметри беруться зі стабільних таблиць у коді. `yaw0_16` задає повний оберт як `0..65535`; flags і `param0/1` інтерпретує конкретний `typeId`.
-
-### 2.3. Версіонування і сумісність
-
-Версія `MAJOR.MINOR` є частиною magic. Зміна семантики, порядку обов'язкових полів, fixed-point формату чи видалення поля підвищує `MAJOR`; старий runtime зобов'язаний відхилити такий файл до алокації великих масивів. Зворотно сумісне додавання значень flags або нових entity type підвищує `MINOR`, але лише runtime, що явно оголосив підтримку цього minor і flags, може прийняти файл. Поточний runtime приймає **рівно `1.0`**, невідомі flags не ігнорує. Конвертер і runtime ділять golden-файли parser-тестів, а CRC захищає від пошкодження, не є механізмом безпеки.
-
-## 3. Вимірювані бюджети мінімального пристрою
-
-**Мінімальний профіль:** MIDP 2.0 / CLDC 1.1, екран 240×320, доступний Java heap **2,000 KiB**, без JSR-184. Релізний profiling виконується на обраному фізичному телефоні цього класу після холодного запуску; модель телефона й firmware записуються у звіт. Сцена acceptance — 60 секунд бою у найважчій кімнаті тестової локації після двох переходів між кімнатами.
-
-| Метрика | Жорсткий максимум / ціль | Як перевіряється |
-|---|---:|---|
-| Java heap | **2,000 KiB max**, з них щонайменше 128 KiB вільно після завантаження | `Runtime.totalMemory() - Runtime.freeMemory()`, peak кожного кадру |
-| Framebuffer | **240×320×2 = 153,600 B**, RGB565 у `short[]` | розмір алокованого масиву |
-| Z-buffer | **120×160×2 = 38,400 B**, unsigned 16-bit; один depth sample на блок 2×2 | розмір алокованого масиву |
-| Геометрія локації | **8,192 render-трикутники** у файлі | звіт `obj2mxt`/header MXT |
-| Геометрія кадру | **1,200 трикутників після portal culling**, **800 rasterized** після clipping/backface culling | renderer counters, peak за acceptance-сцену |
-| Кімнати | **64 на локацію**, **8 видимих за кадр** | MXT count і portal traversal counter |
-| Активні сутності | **32 загалом**: до 12 бойових NPC/мутантів, 20 предметів/ефектів | entity-pool high-water mark |
-| Текстури | **16 resident**, до **256 KiB** texel data сумарно; максимум 128×128, 8-bit indexed | texture manager counters |
-| Час кадру | **≤50 ms для 95-го перцентиля**, **≤100 ms worst frame**; окремо log update/render/present | кільцевий буфер 1,200 frame timings |
-| Частота кадрів | **20 FPS target**, **не нижче 15 FPS для 1% low** | 60-секундний acceptance run |
-
-Сума framebuffer і Z-buffer — **192,000 B** (187.5 KiB). Якщо MIDP-реалізація не дозволяє ефективно present-ити RGB565, дозволений staging `int[240×320]` лише під час `present`; його 307,200 B входять до того самого heap-ліміту, а звіт має показати peak. Перевищення будь-якого жорсткого максимуму блокує контент або реліз: спочатку спрощуються видимість, геометрія чи assets, а не підвищується мінімальний профіль мовчки.
+Єдиний heap budget за замовчуванням — **2 MiB (2,097,152 B)**. Renderer
+розподіляє його так: **45%** framebuffer+depth, **40%** resident mesh/textures,
+**10%** transform/clip/portal scratch і **5%** резерв VM/презентації.
+Framebuffer фактично є `int[W*H]` (4 B/pixel), depth — `short[W*H]` (2 B/pixel):
+240×320 потребує **460,800 B** і вкладається у частку 45% (943,718 B).
+Indexed atlas 256×256/256 кольорів потребує **66,576 B**. AssetManager має
+жорстку додаткову межу 768 KiB; FrameCoordinator відхиляє pack понад 40%.
+Якщо buffers не влазять у 45%, внутрішні W/H синхронно діляться навпіл; якщо
+після цього сумарні формальні частки порушено або asset pack завеликий,
+кидається `OutOfMemoryError`, а не залишається частково завантажений renderer.
+Depth нормалізується монотонно від near 0.125 m до far 256 m у 0..65534.
+UV інтерполюється perspective-correct через `1/z`; clipping та проєкція
+використовують long/saturating bounds, щоб крайні координати не wrap-ились.
 
 ## 4. Поетапний MVP
 

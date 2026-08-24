@@ -3,7 +3,7 @@ package com.microx.engine.render;
 import com.microx.engine.math.Fixed;
 import com.microx.engine.world.Player;
 
-/** Allocation-free camera state in Q16.16 view coordinates. */
+/** Allocation-free Q16.16 camera; near=0.125 m and normalized depth far=256 m. */
 public final class RenderCamera {
     int x, y, z, sin, cos, focalX, focalY;
     final int near = Fixed.ONE / 8;

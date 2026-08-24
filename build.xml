@@ -50,11 +50,19 @@
       <include name="com/microx/engine/world/**"/>
       <include name="com/microx/engine/Input.java"/>
       <include name="com/microx/tools/AssetConverter.java"/>
+      <include name="com/microx/engine/assets/MeshSection.java"/>
+      <include name="com/microx/engine/assets/TextureData.java"/>
+      <include name="com/microx/engine/render/Clipper.java"/>
+      <include name="com/microx/engine/render/Rasterizer.java"/>
+      <include name="com/microx/engine/render/RenderingTest.java"/>
     </javac>
     <java classname="com.microx.engine.math.FixedMathTest" fork="true" failonerror="true">
       <classpath><pathelement location="${desktop.test.classes.dir}"/></classpath>
     </java>
     <java classname="com.microx.engine.world.WorldFormatTest" fork="true" failonerror="true">
+      <classpath><pathelement location="${desktop.test.classes.dir}"/></classpath>
+    </java>
+    <java classname="com.microx.engine.render.RenderingTest" fork="true" failonerror="true">
       <classpath><pathelement location="${desktop.test.classes.dir}"/></classpath>
     </java>
   </target>

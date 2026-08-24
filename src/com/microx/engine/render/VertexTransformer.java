@@ -3,7 +3,7 @@ package com.microx.engine.render;
 import com.microx.engine.assets.MeshSection;
 import com.microx.engine.math.Fixed;
 
-/** Transforms a mesh section once, into caller-owned view-space arrays. */
+/** Saturating Q16.16 world-to-view transform into reusable arrays. */
 public final class VertexTransformer {
     private int[] x = new int[0], y = new int[0], z = new int[0];
 
