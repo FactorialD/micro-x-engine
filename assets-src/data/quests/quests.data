@@ -1,0 +1,2 @@
+1|find_stash|Знайти схованку
+2|report_wolf|Доповісти Вовку|requires=1,ref=npcs:2

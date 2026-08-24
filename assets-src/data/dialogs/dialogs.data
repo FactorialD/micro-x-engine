@@ -1,0 +1,3 @@
+1|intro|Хто ти?|next=2,ref=npcs:1
+2|trade|Покажи товар
+3|repair|Потрібен ремонт|ref=npcs:3
