@@ -7,23 +7,23 @@ import com.microx.engine.world.*;
 
 /** Executes clear, portal selection, transform, clipping, culling, raster and presentation. */
 public final class FrameCoordinator {
-    private int[] rgb; private short[] depth; private int width,height,outputWidth,outputHeight;
+    private int[] rgb; private short[] depth; private int width,height,outputWidth,outputHeight,memoryBudget;
     private AssetManager assets; private final RenderCamera camera=new RenderCamera();
     private final VertexTransformer transformer=new VertexTransformer(); private final Clipper clipper=new Clipper();
     private final Rasterizer rasterizer=new Rasterizer();
     int submittedTriangles,clippedTriangles,drawnTriangles;
     void setAssets(AssetManager value){assets=value;}
-    void prepareAssets(){if(assets!=null)transformer.reserve(assets.maximumLocationVertices());}
+    void prepareAssets(){if(assets!=null){if((long)assets.maximumLocationVertices()*12L>memoryBudget*10L/100L)throw new OutOfMemoryError("transform scratch exceeds 10% renderer budget");configure(outputWidth,outputHeight,memoryBudget);transformer.reserve(assets.maximumLocationVertices());}}
     void configure(int w,int h,int budget){
-        outputWidth=w;outputHeight=h;if(w<=0||h<=0)return;
-        while((long)w*h*6L>budget){w=(w+1)/2;h=(h+1)/2;}
+        outputWidth=w;outputHeight=h;memoryBudget=budget;if(w<=0||h<=0)return;
+        int assetBytes=assets==null?0:assets.residentBytes(),frameBudget=budget*45/100,scratchBudget=budget*10/100;if(assetBytes>budget*40/100)throw new OutOfMemoryError("asset pack exceeds 40% renderer budget");while((long)w*h*6L>frameBudget){w=(w+1)/2;h=(h+1)/2;}if((long)w*h*6L+assetBytes+scratchBudget>budget)throw new OutOfMemoryError("2 MiB renderer budget exceeded");
         if(w==width&&h==height&&rgb!=null)return;
         try{rgb=new int[w*h];depth=new short[w*h];}catch(OutOfMemoryError e){w=(w+1)/2;h=(h+1)/2;rgb=new int[w*h];depth=new short[w*h];}
         width=w;height=h;rasterizer.target(rgb,depth,w,h);
     }
     void render(Graphics g,Player player,PortalWorld world){
         if(rgb==null)return;submittedTriangles=clippedTriangles=drawnTriangles=0;rasterizer.clear(0x182030);camera.update(player,width,height);
-        if(assets!=null){int rooms=world.visibleCount(),r,s;for(r=0;r<rooms;r++){int room=world.visibleRoom(r);for(s=0;s<assets.locationSectionCount();s++){MeshSection mesh=assets.locationSection(s);if(mesh.room()==room)draw(mesh,assets.texture(mesh.texture()));}}}
+        if(assets!=null){world.updateVisibility(camera.x,camera.y,camera.z,camera.sin,camera.cos,camera.focalX,camera.focalY,width,height);int rooms=world.visibleCount(),r,s;for(r=0;r<rooms;r++){rasterizer.clip(world.visibleLeft(r),world.visibleTop(r),world.visibleRight(r),world.visibleBottom(r));int room=world.visibleRoom(r);for(s=0;s<assets.locationSectionCount();s++){MeshSection mesh=assets.locationSection(s);if(mesh.room()==room)draw(mesh,assets.texture(mesh.texture()));}}}
         if(width!=outputWidth||height!=outputHeight){g.setColor(0);g.fillRect(0,0,outputWidth,outputHeight);}
         g.drawRGB(rgb,0,width,(outputWidth-width)/2,(outputHeight-height)/2,width,height,false);
     }
@@ -36,14 +36,12 @@ public final class FrameCoordinator {
     }
     private void projectAndDraw(int a,int b,int c,TextureData texture){
         int z0=clipper.value(a,2),z1=clipper.value(b,2),z2=clipper.value(c,2);
-        int x0=width/2+Fixed.toInt(Fixed.div(Fixed.mul(clipper.value(a,0),camera.focalX),z0));
-        int y0=height/2-Fixed.toInt(Fixed.div(Fixed.mul(clipper.value(a,1),camera.focalY),z0));
-        int x1=width/2+Fixed.toInt(Fixed.div(Fixed.mul(clipper.value(b,0),camera.focalX),z1));
-        int y1=height/2-Fixed.toInt(Fixed.div(Fixed.mul(clipper.value(b,1),camera.focalY),z1));
-        int x2=width/2+Fixed.toInt(Fixed.div(Fixed.mul(clipper.value(c,0),camera.focalX),z2));
-        int y2=height/2-Fixed.toInt(Fixed.div(Fixed.mul(clipper.value(c,1),camera.focalY),z2));
+        int x0=project(clipper.value(a,0),camera.focalX,z0,width/2),y0=project(Fixed.neg(clipper.value(a,1)),camera.focalY,z0,height/2);
+        int x1=project(clipper.value(b,0),camera.focalX,z1,width/2),y1=project(Fixed.neg(clipper.value(b,1)),camera.focalY,z1,height/2);
+        int x2=project(clipper.value(c,0),camera.focalX,z2,width/2),y2=project(Fixed.neg(clipper.value(c,1)),camera.focalY,z2,height/2);
         long facing=(long)(x2-x0)*(y1-y0)-(long)(y2-y0)*(x1-x0);if(facing<=0){clippedTriangles++;return;}
         if(rasterizer.draw(x0,y0,z0,clipper.value(a,3),clipper.value(a,4),x1,y1,z1,clipper.value(b,3),clipper.value(b,4),x2,y2,z2,clipper.value(c,3),clipper.value(c,4),texture))drawnTriangles++;
     }
+    private int project(int value,int focal,int z,int center){long n=center+(long)value*focal/z;return n<-32768?-32768:(n>32767?32767:(int)n);}
     int width(){return width;}int height(){return height;}void release(){rgb=null;depth=null;assets=null;width=height=0;}
 }

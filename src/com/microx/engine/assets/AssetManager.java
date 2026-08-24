@@ -8,13 +8,13 @@ import javax.microedition.media.Player;
 
 /** Loads compact binary render data and keeps shared/location ownership separate. */
 public final class AssetManager {
-    private static final int MESH_MAGIC=0x4d584d32,TEXTURE_MAGIC=0x4d585432;
-    private static final TextureData WHITE=new TextureData(1,1,new int[]{0xffffff});
+    private static final int MESH_MAGIC=0x4d584d32,TEXTURE_MAGIC=0x4d585432,FORMAT_VERSION=2,MAX_ASSET_BYTES=768*1024;
+    private static final TextureData WHITE=new TextureData(1,1,new int[]{0xffffff},new byte[]{0});
     private MeshSection[] sharedSections,locationSections;private TextureData[] sharedTextures,locationTextures;private Player music;
 
-    public boolean loadShared(String root){releaseShared();sharedSections=readMesh(root+"/geometry.mesh");sharedTextures=readTextures(root+"/textures.tex");return sharedSections!=null||sharedTextures!=null;}
+    public boolean loadShared(String root){MeshSection[] sections=readMesh(root+"/geometry.mesh");TextureData[] textures=readTextures(root+"/textures.tex");if(bytes(sections,textures)>MAX_ASSET_BYTES)throw new OutOfMemoryError("shared asset pack exceeds 768 KiB");releaseShared();sharedSections=sections;sharedTextures=textures;return sections!=null||textures!=null;}
     public boolean loadLocation(String name,int volume){
-        unloadLocation();String root="/levels/"+name;locationSections=readMesh(root+"/geometry.mesh");locationTextures=readTextures(root+"/textures.tex");
+        String root="/levels/"+name;MeshSection[] sections=readMesh(root+"/geometry.mesh");TextureData[] textures=readTextures(root+"/textures.tex");if(bytes(sections,textures)>MAX_ASSET_BYTES)throw new OutOfMemoryError("location asset pack exceeds 768 KiB");unloadLocation();locationSections=sections;locationTextures=textures;
         if(volume>0){InputStream stream=getClass().getResourceAsStream(root+"/music.mid");if(stream!=null)try{music=Manager.createPlayer(stream,"audio/midi");music.realize();}catch(Exception ignored){music=null;}}
         return true;
     }
@@ -28,12 +28,14 @@ public final class AssetManager {
     public void unloadLocation(){if(music!=null){music.close();music=null;}locationSections=null;locationTextures=null;}
     public void releaseShared(){sharedSections=null;sharedTextures=null;}
     public void release(){unloadLocation();releaseShared();}
+    public int residentBytes(){return bytes(sharedSections,sharedTextures)+bytes(locationSections,locationTextures);}
+    private static int bytes(MeshSection[] sections,TextureData[] textures){int n=0,i;if(sections!=null)for(i=0;i<sections.length;i++)n+=sections[i].memoryBytes();if(textures!=null)for(i=0;i<textures.length;i++)n+=textures[i].memoryBytes();return n;}
 
     private MeshSection[] readMesh(String path){InputStream raw=getClass().getResourceAsStream(path);if(raw==null)return null;DataInputStream in=new DataInputStream(raw);try{
-        if(in.readInt()!=MESH_MAGIC)return null;int sectionCount=in.readUnsignedShort();MeshSection[] result=new MeshSection[sectionCount];int s;
-        for(s=0;s<sectionCount;s++){int room=in.readUnsignedShort(),texture=in.readShort(),vertices=in.readUnsignedShort(),triangles=in.readUnsignedShort();int[] xyz=new int[vertices*3],uv=new int[vertices*2];short[] index=new short[triangles*3];int i;for(i=0;i<xyz.length;i++)xyz[i]=in.readInt();for(i=0;i<uv.length;i++)uv[i]=in.readInt();for(i=0;i<index.length;i++){index[i]=in.readShort();if((index[i]&0xffff)>=vertices)return null;}result[s]=new MeshSection(room,texture,xyz,uv,index);}return result;
-    }catch(IOException e){return null;}finally{try{in.close();}catch(IOException ignored){}}}
+        if(in.readInt()!=MESH_MAGIC||in.readUnsignedShort()!=FORMAT_VERSION)throw new IOException("unsupported MXM2 version");int sectionCount=in.readUnsignedShort();if(sectionCount<1||sectionCount>4096)throw new IOException("invalid mesh section count");MeshSection[] result=new MeshSection[sectionCount];int used=0,s;
+        for(s=0;s<sectionCount;s++){int room=in.readUnsignedShort(),texture=in.readShort(),vertices=in.readUnsignedShort(),triangles=in.readUnsignedShort();if(vertices<3||triangles<1)throw new IOException("empty mesh section");used+=24+vertices*20+triangles*6;if(used>MAX_ASSET_BYTES)throw new OutOfMemoryError("MXM2 exceeds asset budget");int[] xyz=new int[vertices*3],uv=new int[vertices*2];short[] index=new short[triangles*3];int i;for(i=0;i<xyz.length;i++)xyz[i]=in.readInt();for(i=0;i<uv.length;i++)uv[i]=in.readInt();for(i=0;i<index.length;i++){index[i]=in.readShort();if((index[i]&0xffff)>=vertices)throw new IOException("mesh index out of range");}result[s]=new MeshSection(room,texture,xyz,uv,index);}if(in.read()!=-1)throw new IOException("trailing MXM2 data");return result;
+    }catch(IOException e){throw new IllegalArgumentException(path+": invalid MXM2",e);}finally{try{in.close();}catch(IOException ignored){}}}
     private TextureData[] readTextures(String path){InputStream raw=getClass().getResourceAsStream(path);if(raw==null)return null;DataInputStream in=new DataInputStream(raw);try{
-        if(in.readInt()!=TEXTURE_MAGIC)return null;int count=in.readUnsignedShort();TextureData[] result=new TextureData[count];int t;for(t=0;t<count;t++){int w=in.readUnsignedShort(),h=in.readUnsignedShort();if(w<=0||h<=0||w>256||h>256)return null;int[] rgb=new int[w*h];int i;for(i=0;i<rgb.length;i++)rgb[i]=in.readInt()&0xffffff;result[t]=new TextureData(w,h,rgb);}return result;
-    }catch(IOException e){return null;}finally{try{in.close();}catch(IOException ignored){}}}
+        if(in.readInt()!=TEXTURE_MAGIC||in.readUnsignedShort()!=FORMAT_VERSION)throw new IOException("unsupported MXT2 version");int count=in.readUnsignedShort();if(count<1||count>256)throw new IOException("invalid texture count");TextureData[] result=new TextureData[count];int used=0,t;for(t=0;t<count;t++){int w=in.readUnsignedShort(),h=in.readUnsignedShort(),colors=in.readUnsignedShort();if(w<=0||h<=0||w>256||h>256||colors<1||colors>256)throw new IOException("invalid atlas metadata");used+=16+colors*4+w*h;if(used>MAX_ASSET_BYTES)throw new OutOfMemoryError("MXT2 exceeds asset budget");int[] palette=new int[colors];byte[] pixels=new byte[w*h];int i;for(i=0;i<colors;i++)palette[i]=(in.readUnsignedByte()<<16)|(in.readUnsignedByte()<<8)|in.readUnsignedByte();in.readFully(pixels);for(i=0;i<pixels.length;i++)if((pixels[i]&255)>=colors)throw new IOException("palette index out of range");result[t]=new TextureData(w,h,palette,pixels);}if(in.read()!=-1)throw new IOException("trailing MXT2 data");return result;
+    }catch(IOException e){throw new IllegalArgumentException(path+": invalid MXT2",e);}finally{try{in.close();}catch(IOException ignored){}}}
 }

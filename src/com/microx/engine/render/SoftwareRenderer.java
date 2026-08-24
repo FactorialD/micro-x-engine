@@ -5,7 +5,7 @@ import com.microx.engine.assets.AssetManager;
 import com.microx.engine.world.Player;
 import com.microx.engine.world.PortalWorld;
 
-/** Public, JSR-184-free rendering API. Owns all storage used by a frame. */
+/** Public renderer. Budget split: 45% framebuffer/depth, 40% assets, 10% scratch, 5% reserve. */
 public final class SoftwareRenderer {
     private static final int DEFAULT_BUDGET = 2 * 1024 * 1024;
     private final FrameCoordinator frame = new FrameCoordinator();
