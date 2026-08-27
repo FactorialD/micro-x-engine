@@ -4,7 +4,7 @@ import com.microx.engine.gameplay.*;
 
 /** Versioned, checksummed content format. */
 public final class SaveCodec {
-    public static final int MAGIC = 0x4d585356, FORMAT_VERSION = 2, CONTENT_VERSION = 1;
+    public static final int MAGIC = 0x4d585356, FORMAT_VERSION = 3, CONTENT_VERSION = 1;
     private static final int MAX_BYTES = 32768;
     public byte[] encode(SaveData s) throws SaveException {
         try {
@@ -34,6 +34,11 @@ public final class SaveCodec {
             out.writeByte(s.reserveAmmo.length);
             for (int i = 0; i < s.reserveAmmo.length; i++) out.writeShort(s.reserveAmmo[i]);
             writeGameplay(out, s.gameplay);
+            QuestState narrative = s.gameplay.quests;
+            out.writeShort(narrative.storyNode());
+            out.writeShort(narrative.ending());
+            out.writeBoolean(narrative.freeplay());
+            out.writeInt(narrative.cyclicSeed());
             out.writeByte(s.entityCount);
             for (int i = 0; i < s.entityCount; i++) {
                 out.writeInt(s.entityId[i]);
@@ -62,9 +67,9 @@ public final class SaveCodec {
             if (in.readInt() != MAGIC)
                 throw new SaveException("not a MicroX save");
             int format = in.readUnsignedShort(), content = in.readUnsignedShort();
-            if (format != FORMAT_VERSION)
-                throw new SaveException(
-                        "unsupported save format " + format + " (expected " + FORMAT_VERSION + ")");
+            if (format != FORMAT_VERSION && format != 2)
+                throw new SaveException("unsupported save format " + format + " (expected 2 or "
+                        + FORMAT_VERSION + ")");
             if (content != CONTENT_VERSION)
                 throw new SaveException(
                         "unsupported content version " + content + "; no migration is registered");
@@ -94,6 +99,12 @@ public final class SaveCodec {
                 throw new SaveException("too many reserve ammo entries");
             for (int i = 0; i < ammo; i++) s.reserveAmmo[i] = in.readUnsignedShort();
             readGameplay(in, s.gameplay);
+            if (format >= 3) {
+                s.gameplay.quests.setStoryNode(in.readUnsignedShort());
+                s.gameplay.quests.setEnding(in.readUnsignedShort());
+                s.gameplay.quests.setFreeplay(in.readBoolean());
+                s.gameplay.quests.setCyclicSeed(in.readInt());
+            }
             s.entityCount = in.readUnsignedByte();
             if (s.entityCount > SaveData.MAX_ENTITY_DELTAS)
                 throw new SaveException("too many entity deltas");

@@ -164,6 +164,33 @@ public final class GameplayTables {
     public int questRef(int quest) {
         return referenceNumber(find("quests", quest));
     }
+    public int tableSize(String tableName) {
+        for (int t = 0; t < table.length; t++)
+            if (table[t].equals(tableName))
+                return count[t] & 65535;
+        return 0;
+    }
+    public int tableRow(String tableName, int offset) {
+        for (int t = 0; t < table.length; t++)
+            if (table[t].equals(tableName) && offset >= 0 && offset < (count[t] & 65535))
+                return (first[t] & 65535) + offset;
+        return -1;
+    }
+    public int numberAt(int row, String name) {
+        return row < 0 ? 0 : number(meta[row], name);
+    }
+    public String fieldAt(int row, String name) {
+        return row < 0 ? null : field(meta[row], name);
+    }
+    public int storyEntry() {
+        int n = tableSize("story_nodes");
+        for (int i = 0; i < n; i++) {
+            int row = tableRow("story_nodes", i);
+            if (numberAt(row, "entry") == 1)
+                return id(row);
+        }
+        return 0;
+    }
     private int referenced(String tableName, int stableId, String expectedTable) {
         int row = find(tableName, stableId);
         if (row < 0 || !expectedTable.equals(referencePart(row, true)))

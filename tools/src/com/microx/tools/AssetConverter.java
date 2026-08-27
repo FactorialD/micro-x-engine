@@ -62,6 +62,7 @@ public final class AssetConverter {
         validateStringSizes(tables);
         validateDialogCycles(tables);
         validateQuestPrerequisites(tables);
+        validateStoryContent(tables);
         validateRecordStoreLimits(tables);
         Files.createDirectories(output.getParent());
         try (DataOutputStream out = new DataOutputStream(Files.newOutputStream(output))) {
@@ -151,7 +152,24 @@ public final class AssetConverter {
                 if ("dialogs".equals(table.getKey()))
                     allowed.addAll(Arrays.asList("next", "ref"));
                 else if ("quests".equals(table.getKey()))
-                    allowed.addAll(Arrays.asList("requires", "ref"));
+                    allowed.addAll(Arrays.asList("requires", "ref", "description", "objective"));
+                else if ("story_nodes".equals(table.getKey()))
+                    allowed.addAll(Arrays.asList("entry", "next", "alt", "quest", "objective",
+                            "reward", "scene", "ending", "location", "spawn"));
+                else if ("slides".equals(table.getKey()))
+                    allowed.addAll(Arrays.asList("scene", "order", "duration"));
+                else if ("objectives".equals(table.getKey()))
+                    allowed.addAll(Arrays.asList("quest", "marker", "kind", "target", "amount"));
+                else if ("rewards".equals(table.getKey()))
+                    allowed.addAll(
+                            Arrays.asList("money", "item", "amount", "faction", "reputation"));
+                else if ("endings".equals(table.getKey()))
+                    allowed.addAll(Arrays.asList("freeplay", "location", "spawn", "scene"));
+                else if ("cyclic_quests".equals(table.getKey()))
+                    allowed.addAll(Arrays.asList("objective", "reward", "cooldown", "next"));
+                else if ("arena".equals(table.getKey()))
+                    allowed.addAll(Arrays.asList(
+                            "fee", "waves", "weapon", "ammo", "reward", "location", "returnSpawn"));
                 else if ("npcs".equals(table.getKey()))
                     allowed.add("ref");
                 else if ("traders".equals(table.getKey()))
@@ -336,6 +354,82 @@ public final class AssetConverter {
             }
         }
     }
+    /** Validates the complete narrative graph before it can reach a device. */
+    public static void validateStoryContent(Map<String, List<DataRow>> t) throws IOException {
+        List<DataRow> nodes = t.get("story_nodes"), endings = t.get("endings");
+        if (nodes == null || nodes.size() == 0)
+            throw new IOException("required story_nodes table is missing or empty");
+        if (endings == null || endings.size() == 0)
+            throw new IOException("required endings table is missing or empty");
+        Map<Integer, DataRow> graph = new HashMap<Integer, DataRow>();
+        DataRow entry = null;
+        for (DataRow row : nodes) {
+            graph.put(Integer.valueOf(row.id), row);
+            if (metaInt(row, "entry", 0) == 1) {
+                if (entry != null)
+                    throw row.error("multiple story entries");
+                entry = row;
+            }
+        }
+        if (entry == null)
+            throw new IOException("story has no entry node");
+        Set<Integer> reachable = new HashSet<Integer>();
+        visitStory(entry, graph, reachable);
+        if (reachable.size() != nodes.size())
+            throw new IOException("unreachable story node");
+        boolean realEnding = false, freeplay = false;
+        for (DataRow row : endings) {
+            if (metaInt(row, "freeplay", 0) == 0)
+                realEnding = true;
+            if (metaInt(row, "freeplay", 0) == 1 && metadata(row).containsKey("location"))
+                freeplay = true;
+        }
+        if (!realEnding)
+            throw new IOException("story needs at least one real ending");
+        if (!freeplay)
+            throw new IOException("story needs a freeplay transition");
+        for (DataRow row : nodes) {
+            int ending = metaInt(row, "ending", 0);
+            if (ending > 0 && find(endings, ending) == null)
+                throw row.error("unknown ending " + ending);
+            for (String edge : new String[] {"next", "alt"}) {
+                int n = metaInt(row, edge, 0);
+                if (n > 0 && !graph.containsKey(Integer.valueOf(n)))
+                    throw row.error("unknown " + edge + " node " + n);
+            }
+        }
+        for (DataRow row : nodes)
+            if (!hasExit(row.id, graph, new HashSet<Integer>(), new HashSet<Integer>()))
+                throw row.error("story cycle has no ending exit");
+    }
+    private static void visitStory(DataRow row, Map<Integer, DataRow> graph, Set<Integer> seen)
+            throws IOException {
+        if (!seen.add(Integer.valueOf(row.id)))
+            return;
+        for (String edge : new String[] {"next", "alt"}) {
+            int n = metaInt(row, edge, 0);
+            if (n > 0 && graph.containsKey(Integer.valueOf(n)))
+                visitStory(graph.get(Integer.valueOf(n)), graph, seen);
+        }
+    }
+    private static boolean hasExit(int id, Map<Integer, DataRow> graph, Set<Integer> path,
+            Set<Integer> dead) throws IOException {
+        DataRow row = graph.get(Integer.valueOf(id));
+        if (metaInt(row, "ending", 0) > 0)
+            return true;
+        if (dead.contains(Integer.valueOf(id)) || !path.add(Integer.valueOf(id)))
+            return false;
+        boolean exit = false;
+        for (String edge : new String[] {"next", "alt"}) {
+            int n = metaInt(row, edge, 0);
+            if (n > 0 && graph.containsKey(Integer.valueOf(n)))
+                exit |= hasExit(n, graph, new HashSet<Integer>(path), dead);
+        }
+        if (!exit)
+            dead.add(Integer.valueOf(id));
+        return exit;
+    }
+
     public static void validateRecordStoreLimits(Map<String, List<DataRow>> t) throws IOException {
         long bytes = 4 + 1;
         for (Map.Entry<String, List<DataRow>> table : t.entrySet()) {

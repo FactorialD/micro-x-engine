@@ -16,6 +16,7 @@ public final class GameplayTest {
         verticalSlice();
         tableDrivenScenario();
         tradeRepairAndCorpseSaveLoad();
+        narrativeAndArena();
         System.out.println("GameplayTest OK");
     }
     private static void fiveArtifactSave() {
@@ -114,6 +115,48 @@ public final class GameplayTest {
         eq(500, g.inventory.money());
         eq(1, g.inventory.count(GameIds.ITEM_MEDKIT));
         eq(10, g.reputation.get(GameIds.FACTION_LONER));
+    }
+    private static void narrativeAndArena() {
+        GameplayTables tables = new GameplayTables();
+        ok(tables.load("/data/gameplay.dat"));
+        GameplayState g = new GameplayState();
+        StorySystem story = new StorySystem(tables, g.quests);
+        ok(story.start());
+        eq(1, story.node());
+        eq(10003, g.quests.objective());
+        CutsceneSystem scene = new CutsceneSystem(tables);
+        ok(scene.start(story.scene()));
+        ok(scene.text().length() > 0);
+        ok(scene.next());
+        no(scene.next());
+        ok(story.choose(false));
+        eq(2, story.node());
+        ok(story.choose(true));
+        eq(4, story.node());
+        ok(story.choose(false));
+        eq(1, story.ending());
+        ok(story.enterFreeplay(3));
+        ok(g.quests.freeplay());
+
+        CyclicQuestSystem cyclic = new CyclicQuestSystem(tables, g.quests);
+        eq(1, cyclic.current());
+        cyclic.complete();
+        eq(2, cyclic.current());
+
+        GameplayState fighter = new GameplayState();
+        fighter.inventory.setMoney(1000);
+        fighter.inventory.add(GameIds.ITEM_MEDKIT, 1, 100);
+        ArenaSystem arena = new ArenaSystem(tables);
+        ok(arena.enter(1, fighter, "garbage", 20));
+        eq(500, fighter.inventory.money());
+        no(arena.clearWave());
+        no(arena.clearWave());
+        ok(arena.clearWave());
+        ok(arena.leave(fighter, true));
+        eq(1700, fighter.inventory.money());
+        eq(1, fighter.inventory.count(GameIds.ITEM_MEDKIT));
+        eq(2, fighter.inventory.count(GameIds.ITEM_BANDAGE));
+        eq(20, arena.returnSpawn());
     }
     private static void inventory() {
         Inventory a = new Inventory(2, 2);

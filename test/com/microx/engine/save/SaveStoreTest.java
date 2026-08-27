@@ -37,6 +37,9 @@ public final class SaveStoreTest {
         s.gameplay.equipment.equip(s.gameplay.inventory, 2, 0);
         s.reserveAmmo[1] = 120;
         s.gameplay.quests.setFlag(7, true);
+        s.gameplay.quests.setStoryNode(3);
+        s.gameplay.quests.setEnding(2);
+        s.gameplay.quests.setCyclicSeed(99);
         s.gameplay.reputation.set(1, -20);
         s.gameplay.containers.put(99, 1, -1);
         s.addEntityDelta(77, 3);
@@ -48,6 +51,9 @@ public final class SaveStoreTest {
         eq(200, newest.x, "newest");
         eq(2, newest.gameplay.equipment.weapon(0), "equipment restored");
         eq(120, newest.reserveAmmo[1], "reserve ammo restored");
+        eq(3, newest.gameplay.quests.storyNode(), "story restored");
+        eq(2, newest.gameplay.quests.ending(), "ending restored");
+        eq(99, newest.gameplay.quests.cyclicSeed(), "cyclic seed restored");
         m.corrupt(3);
         eq(100, store.load(0).x, "fallback after corrupt prepared record");
         int before = m.data.size();
