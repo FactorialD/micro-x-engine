@@ -68,16 +68,23 @@ public final class AssetConverter {
             }
         }
     }
-    private static Map<String, List<DataRow>> readData(Path root) throws IOException {
+    static Map<String, List<DataRow>> readData(Path root) throws IOException {
         Map<String, List<DataRow>> result = new TreeMap<String, List<DataRow>>();
         try (Stream<Path> paths = Files.walk(root)) {
-            for (Iterator<Path> it = paths
-                            .filter(p -> Files.isRegularFile(p) && p.toString().endsWith(".data"))
-                            .sorted()
-                            .iterator();
+            List<Path> files = new ArrayList<Path>();
+            for (Iterator<Path> all = paths.filter(Files::isRegularFile).sorted().iterator();
+                    all.hasNext();) {
+                Path p = all.next();
+                String name = p.getFileName().toString();
+                if (name.endsWith(".data"))
+                    throw new IOException(p + ": legacy .data gameplay file is forbidden; rename it to .txt");
+                if (name.endsWith(".txt")) files.add(p);
+            }
+            for (Iterator<Path> it = files.iterator();
                     it.hasNext();) {
                 Path p = it.next();
-                String table = p.getFileName().toString().replace(".data", "");
+                String fileName = p.getFileName().toString();
+                String table = fileName.substring(0, fileName.length() - 4);
                 List<DataRow> rows = new ArrayList<DataRow>();
                 int line = 0;
                 Set<Integer> ids = new HashSet<Integer>();
