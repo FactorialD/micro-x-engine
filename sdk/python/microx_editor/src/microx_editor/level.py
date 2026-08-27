@@ -1,72 +1,237 @@
 """Comment-preserving MXL2 level parser/serializer."""
+
+import re
 from dataclasses import dataclass
-from pathlib import Path
+
 from .io import Project
-class LevelError(ValueError): pass
-KINDS=("room","floor","ceiling","edge","portal","spawn","transition","entity")
-ARITY={"room":4,"floor":6,"ceiling":6,"edge":7,"portal":11,"spawn":6,"transition":3,"entity":6}
+
+
+class LevelError(ValueError):
+    pass
+
+
+KINDS = ("room", "floor", "ceiling", "edge", "portal", "spawn", "transition", "entity")
+ARITY = {"room": 4, "floor": 6, "ceiling": 6, "edge": 7, "portal": 11,
+         "spawn": 6, "transition": 3, "entity": 6}
+COUNT_LIMITS = ((1, 256), (1, 1024), (1, 1024), (0, 2048),
+                (0, 1024), (1, 256), (0, 256), (0, 1024), (1, 1024))
+LOCATION = re.compile(r"[A-Za-z0-9_-]{1,64}\Z")
+
+
 @dataclass
 class Line:
-    raw:str; kind:str|None=None; values:list[str]|None=None; comment:str=""
+    raw: str
+    kind: str | None = None
+    values: list[str] | None = None
+    comment: str = ""
+
+
 @dataclass
 class Level:
-    lines:list[Line]
-    def records(self,kind): return [x for x in self.lines if x.kind==kind]
+    lines: list[Line]
 
-def parse_level_text(text:str)->Level:
-    lines=[]; seen_header=False; declared=None
-    for no,raw in enumerate(text.splitlines(),1):
-        code,sep,comment=raw.partition("#"); p=code.split()
-        if not p: lines.append(Line(raw,comment=("#"+comment if sep else ""))); continue
-        if p[0]=="MXL2": seen_header=True; lines.append(Line(raw,"MXL2",[],"#"+comment if sep else "")); continue
-        if p[0]=="counts":
-            if len(p)!=10: raise LevelError(f"line {no}: counts needs 9 values")
-            try: declared=[int(x) for x in p[1:]]
-            except ValueError: raise LevelError(f"line {no}: invalid declared count")
-            lines.append(Line(raw,"counts",p[1:],"#"+comment if sep else "")); continue
-        kind=p[0]
-        if kind not in KINDS: raise LevelError(f"line {no}: unknown record {kind}")
-        if len(p)-1 != ARITY[kind]: raise LevelError(f"line {no}: {kind} needs {ARITY[kind]} fields")
-        lines.append(Line(raw,kind,p[1:],"#"+comment if sep else ""))
-    if not seen_header or declared is None: raise LevelError("MXL2 header and counts are required")
-    level=Level(lines); validate_level(level,declared); return level
+    def records(self, kind):
+        return [line for line in self.lines if line.kind == kind]
 
-def validate_level(level:Level,declared=None):
-    counts=[len(level.records(k)) for k in KINDS]
-    if declared and counts != declared[:8]: raise LevelError(f"declared counts {declared[:8]} do not match records {counts}")
-    rooms=counts[0]; portals=level.records("portal")
-    def integer(v,what):
-        try: n=int(v)
-        except ValueError: raise LevelError(f"invalid integer in {what}")
-        if n < -32767 or n > 32767: raise LevelError(f"Q16.16 overflow in {what}")
-        return n
+
+def _integer(value: str, what: str) -> int:
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        raise LevelError(f"invalid integer in {what}") from None
+
+
+def _range(value: str, low: int, high: int, what: str) -> int:
+    number = _integer(value, what)
+    if not low <= number <= high:
+        raise LevelError(f"{what} must be in {low}..{high}, got {number}")
+    return number
+
+
+def validate_unsigned_id(value: str, what: str) -> int:
+    """Validate an ID stored by the converter as an unsigned 16-bit value."""
+    return _range(value, 0, 65535, what)
+
+
+def validate_signed_short(value: str, what: str) -> int:
+    return _range(value, -32768, 32767, what)
+
+
+def validate_entity_stable_id(value: str, what: str = "entity stable ID") -> int:
+    # AssetConverter currently reads this with Tokens.id(), despite writing an int.
+    return _range(value, 0, 65535, what)
+
+
+def validate_location(value: str, what: str = "transition location") -> str:
+    if not isinstance(value, str) or LOCATION.fullmatch(value) is None:
+        raise LevelError(f"invalid {what}: expected [A-Za-z0-9_-]{{1,64}}")
+    return value
+
+
+def validate_source_coordinate(value: str, what: str) -> int:
+    """Validate an integer which AssetConverter converts to Q16.16."""
+    return _range(value, -32768, 32767, what)
+
+
+def parse_level_text(text: str) -> Level:
+    lines = []
+    structural = []
+    for no, raw in enumerate(text.splitlines(), 1):
+        code, separator, comment = raw.partition("#")
+        parts = code.split()
+        preserved_comment = "#" + comment if separator else ""
+        if not parts:
+            lines.append(Line(raw, comment=preserved_comment))
+            continue
+        kind = parts[0]
+        if kind == "MXL2":
+            if len(parts) != 1:
+                raise LevelError(f"line {no}: MXL2 takes no values")
+            values = []
+        elif kind == "counts":
+            if len(parts) != 10:
+                raise LevelError(f"line {no}: counts needs 9 values")
+            values = parts[1:]
+        elif kind in KINDS:
+            if len(parts) - 1 != ARITY[kind]:
+                raise LevelError(f"line {no}: {kind} needs {ARITY[kind]} fields")
+            values = parts[1:]
+        else:
+            raise LevelError(f"line {no}: unknown record {kind}")
+        structural.append((kind, no))
+        lines.append(Line(raw, kind, values, preserved_comment))
+
+    headers = [item for item in structural if item[0] == "MXL2"]
+    count_headers = [item for item in structural if item[0] == "counts"]
+    if len(headers) != 1:
+        raise LevelError(f"expected exactly one MXL2 header, found {len(headers)}")
+    if len(count_headers) != 1:
+        raise LevelError(f"expected exactly one counts header, found {len(count_headers)}")
+    if structural[0][0] != "MXL2" or structural[1][0] != "counts":
+        raise LevelError("MXL2 and counts must be the first two non-comment lines, in that order")
+
+    record_kinds = [kind for kind, _ in structural[2:]]
+    positions = [KINDS.index(kind) for kind in record_kinds]
+    if positions != sorted(positions):
+        raise LevelError("records must follow converter order: " + ", ".join(KINDS))
+
+    level = Level(lines)
+    validate_level(level, level.records("counts")[0].values)
+    return level
+
+
+def validate_level(level: Level, declared=None):
+    structural = [line.kind for line in level.lines if line.kind is not None]
+    if structural.count("MXL2") != 1 or structural.count("counts") != 1:
+        raise LevelError("model must contain exactly one MXL2 and one counts header")
+    if structural[:2] != ["MXL2", "counts"]:
+        raise LevelError("MXL2 and counts must be the first two records, in that order")
+    record_positions = [KINDS.index(kind) for kind in structural[2:] if kind in KINDS]
+    if len(record_positions) != len(structural) - 2 or record_positions != sorted(record_positions):
+        raise LevelError("records must follow converter order: " + ", ".join(KINDS))
+    counts = [len(level.records(kind)) for kind in KINDS]
+    if declared is None:
+        count_lines = level.records("counts")
+        if len(count_lines) != 1 or count_lines[0].values is None:
+            raise LevelError("exactly one counts header is required")
+        declared = count_lines[0].values
+    if len(declared) != 9:
+        raise LevelError("counts needs 9 values")
+
+    declared_counts = [
+        _range(value, low, high, f"{KINDS[i] if i < 8 else 'capacity'} count")
+        for i, (value, (low, high)) in enumerate(zip(declared, COUNT_LIMITS))
+    ]
+    if counts != declared_counts[:8]:
+        raise LevelError(f"declared counts {declared_counts[:8]} do not match records {counts}")
+    capacity = declared_counts[8]
+    if counts[7] > capacity:
+        raise LevelError(f"entity count {counts[7]} exceeds capacity {capacity}")
+
+    rooms, portals, transitions = counts[0], counts[4], counts[6]
+
+    def room_index(value, what):
+        return _range(value, 0, rooms - 1, what)
+
+    def coordinates(values, indexes, kind):
+        return [validate_source_coordinate(values[index], f"{kind} field {index + 1}")
+                for index in indexes]
+
     for kind in KINDS:
-        for row in level.records(kind):
-            vals=row.values or []
-            # Coordinate fields are integers in the converter's source contract.
-            coord={"room":range(4),"floor":range(1,6),"ceiling":range(1,6),"edge":range(1,7),"portal":range(3,9),"spawn":range(2,5),"entity":range(2,5)}.get(kind,())
-            for i in coord: integer(vals[i],kind)
-            if kind in ("floor","ceiling","edge","spawn") and not 0<=int(vals[0 if kind!="spawn" else 1])<rooms: raise LevelError(f"invalid room reference in {kind}")
-            if kind=="portal" and (not 0<=int(vals[1])<rooms or not 0<=int(vals[2])<rooms): raise LevelError("invalid portal room reference")
-            bounds=(vals if kind=="room" else vals[1:])
-            if kind in ("room","floor","ceiling") and (int(bounds[0])>int(bounds[1]) or int(bounds[2])>int(bounds[3])): raise LevelError(f"unordered bounds in {kind}")
-    for i,p in enumerate(portals):
-        reverse=int(p.values[9])
-        if reverse>=0 and (reverse>=len(portals) or int(portals[reverse].values[9])!=i): raise LevelError("portal reverse link is not bidirectional")
+        for row_number, row in enumerate(level.records(kind), 1):
+            values = row.values or []
+            where = f"{kind} {row_number}"
+            if len(values) != ARITY[kind]:
+                raise LevelError(f"{where} needs {ARITY[kind]} fields")
+            if kind == "room":
+                q = coordinates(values, range(4), where)
+                if q[0] > q[1] or q[2] > q[3]:
+                    raise LevelError(f"unordered bounds in {where}")
+            elif kind in ("floor", "ceiling"):
+                room_index(values[0], f"{where} room index")
+                q = coordinates(values, range(1, 6), where)
+                if q[0] > q[1] or q[2] > q[3]:
+                    raise LevelError(f"unordered bounds in {where}")
+            elif kind == "edge":
+                room_index(values[0], f"{where} room index")
+                coordinates(values, range(1, 7), where)
+            elif kind == "portal":
+                validate_unsigned_id(values[0], f"{where} ID")
+                room_index(values[1], f"{where} from-room index")
+                room_index(values[2], f"{where} to-room index")
+                q = coordinates(values, range(3, 9), where)
+                if q[0] > q[1] or q[2] > q[3] or q[4] > q[5]:
+                    raise LevelError(f"unordered bounds in {where}")
+                _range(values[9], -1, portals - 1, f"{where} reverse index")
+                _range(values[10], -1, transitions - 1, f"{where} transition index")
+            elif kind == "spawn":
+                validate_unsigned_id(values[0], f"{where} ID")
+                room_index(values[1], f"{where} room index")
+                coordinates(values, range(2, 5), where)
+                validate_signed_short(values[5], f"{where} yaw")
+            elif kind == "transition":
+                validate_unsigned_id(values[0], f"{where} ID")
+                validate_unsigned_id(values[1], f"{where} spawn ID")
+                validate_location(values[2], f"{where} location")
+            elif kind == "entity":
+                validate_entity_stable_id(values[0], f"{where} stable ID")
+                validate_unsigned_id(values[1], f"{where} type ID")
+                coordinates(values, range(2, 5), where)
+                validate_unsigned_id(values[5], f"{where} health")
 
-def serialize_level(level:Level)->str:
+    portal_rows = level.records("portal")
+    for index, portal in enumerate(portal_rows):
+        reverse = _integer((portal.values or [])[9], f"portal {index + 1} reverse index")
+        if reverse >= 0:
+            linked_reverse = _integer((portal_rows[reverse].values or [])[9],
+                                      f"portal {reverse + 1} reverse index")
+            if linked_reverse != index:
+                raise LevelError("portal reverse link is not bidirectional")
+
+
+def serialize_level(level: Level) -> str:
     validate_level(level)
-    counts=[len(level.records(k)) for k in KINDS]
-    out=[]
+    counts = [len(level.records(kind)) for kind in KINDS]
+    capacity = _integer(level.records("counts")[0].values[8], "capacity count")
+    output = []
     for line in level.lines:
-        if line.kind is None: out.append(line.raw)
-        elif line.kind=="MXL2": out.append("MXL2"+(" "+line.comment if line.comment else ""))
-        elif line.kind=="counts":
-            capacity=max(counts[7],int(line.values[8]) if line.values and len(line.values)>8 else counts[7])
-            out.append("counts "+" ".join(map(str,counts+[capacity]))+(" "+line.comment if line.comment else ""))
-        else: out.append(line.kind+" "+" ".join(line.values or [])+(" "+line.comment if line.comment else ""))
-    return "\n".join(out)+"\n"
-def load_level(project:Project,path): return parse_level_text(project.read_text(path))
-def save_level(project:Project,path,level):
-    if project.path(path).suffix != ".level": raise LevelError("Generated .lvl files cannot be edited")
-    project.atomic_write(path,serialize_level(level))
+        suffix = " " + line.comment if line.comment else ""
+        if line.kind is None:
+            output.append(line.raw)
+        elif line.kind == "MXL2":
+            output.append("MXL2" + suffix)
+        elif line.kind == "counts":
+            output.append("counts " + " ".join(map(str, counts + [capacity])) + suffix)
+        else:
+            output.append(line.kind + " " + " ".join(line.values or []) + suffix)
+    return "\n".join(output) + "\n"
+
+
+def load_level(project: Project, path):
+    return parse_level_text(project.read_text(path))
+
+
+def save_level(project: Project, path, level):
+    if project.path(path).suffix != ".level":
+        raise LevelError("Generated .lvl files cannot be edited")
+    project.atomic_write(path, serialize_level(level))
