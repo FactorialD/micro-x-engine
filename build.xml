@@ -52,6 +52,7 @@
       <include name="com/microx/engine/gameplay/**"/>
       <include name="com/microx/engine/Input.java"/>
       <include name="com/microx/engine/ui/UIStateMachine.java"/>
+      <include name="com/microx/engine/ui/UISettings.java"/>
       <include name="com/microx/tools/AssetConverter.java"/>
       <include name="com/microx/tools/GameplayDataTest.java"/>
       <include name="com/microx/tools/LocationPackageTest.java"/>

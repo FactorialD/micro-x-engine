@@ -13,11 +13,12 @@ public final class SettingsStore {
             ByteArrayOutputStream raw = new ByteArrayOutputStream();
             DataOutputStream out = new DataOutputStream(raw);
             out.writeInt(MAGIC);
-            out.writeByte(1);
+            out.writeByte(2);
             out.writeByte(s.volume);
             out.writeByte(s.resolution);
             out.writeByte(s.controls);
             out.writeBoolean(s.debug);
+            out.writeByte(s.sensitivity);
             out.flush();
             byte[] body = raw.toByteArray();
             out.writeInt(SaveCodec.checksum(body, 0, body.length));
@@ -32,13 +33,16 @@ public final class SettingsStore {
             int[] ids = records.ids();
             for (int i = ids.length - 1; i >= 0; i--) {
                 byte[] b = records.get(ids[i]);
-                if (b.length != 13 || read(b, 0) != MAGIC
-                        || SaveCodec.checksum(b, 0, 9) != read(b, 9))
+                int version = b.length > 5 ? b[4] & 255 : 0;
+                int body = version == 1 ? 9 : version == 2 ? 10 : 0;
+                if (body == 0 || b.length != body + 4 || read(b, 0) != MAGIC
+                        || SaveCodec.checksum(b, 0, body) != read(b, body))
                     continue;
                 s.volume = b[5] & 255;
                 s.resolution = b[6] & 255;
                 s.controls = b[7] & 255;
                 s.debug = b[8] != 0;
+                s.sensitivity = version >= 2 ? b[9] & 255 : 5;
                 return true;
             }
         } catch (Exception ignored) {

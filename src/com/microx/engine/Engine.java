@@ -42,6 +42,7 @@ public final class Engine implements Runnable {
             settings = new SettingsStore(new RmsBackend("microx-settings"));
             settings.load(c.settings);
             audio.setVolume(c.settings.volume);
+            player.setTurnSensitivity(c.settings.sensitivity);
         } catch (Exception ignored) {
             saves = null;
             settings = null;
@@ -185,6 +186,7 @@ public final class Engine implements Runnable {
     public void applySettings() {
         renderer.setResolutionMode(canvas.settings.resolution);
         audio.setVolume(canvas.settings.volume);
+        player.setTurnSensitivity(canvas.settings.sensitivity);
         audio.enterLocation(location);
         if (settings != null)
             try {
@@ -361,9 +363,13 @@ public final class Engine implements Runnable {
                 rows[n++] = (short) bag.idAt(i);
         ui.fillList(rows, n);
     }
+    public void openPda() {
+        fillInventory(canvas.ui, gameplay.inventory);
+        canvas.ui.show(UIStateMachine.INVENTORY);
+    }
     private void fillTrade() {
-        short[] rows = new short[32];
-        byte[] sides = new byte[32];
+        short[] rows = new short[64];
+        byte[] sides = new byte[64];
         int n = 0;
         if (!repairing)
             for (int i = 0; i < gameplay.trader.slots() && n < rows.length; i++)
@@ -379,8 +385,8 @@ public final class Engine implements Runnable {
         canvas.ui.fillTrade(rows, sides, n);
     }
     private void fillLoot() {
-        short[] rows = new short[32];
-        byte[] sides = new byte[32];
+        short[] rows = new short[64];
+        byte[] sides = new byte[64];
         int n = 0;
         for (int i = 0; i < gameplay.loot.slots() && n < rows.length; i++)
             if (gameplay.loot.idAt(i) != 0) {
@@ -486,6 +492,12 @@ public final class Engine implements Runnable {
     }
     public String tradeResult() {
         return operationResult;
+    }
+    public GameplayTables gameplayTables() {
+        return tables;
+    }
+    public String locationName() {
+        return location;
     }
     public int state() {
         return state;

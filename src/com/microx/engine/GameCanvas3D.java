@@ -17,7 +17,7 @@ public final class GameCanvas3D extends GameCanvas {
     protected void keyPressed(int key) {
         if (ui.state() == UIStateMachine.GAMEPLAY) {
             if (key == '*') {
-                ui.show(UIStateMachine.PDA);
+                engine.openPda();
                 return;
             }
             if (key == -6 || key == -7) {
@@ -89,8 +89,9 @@ public final class GameCanvas3D extends GameCanvas {
             engine.hud.paint(g, engine.player, engine.level.world, engine.stats.fps,
                     engine.stats.entities, engine.stats.rooms, settings.debug);
         }
-        view.bind(
-                engine.gameplay, engine.tradeFaction(), engine.repairMode(), engine.tradeResult());
+        view.bind(engine.gameplay, engine.gameplayTables(), engine.player, engine.level,
+                engine.locationName(), engine.tradeFaction(), engine.repairMode(),
+                engine.tradeResult());
         if (ui.state() != UIStateMachine.GAMEPLAY)
             view.paint(g, ui, settings);
         flushGraphics();

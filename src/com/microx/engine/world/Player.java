@@ -10,6 +10,7 @@ public final class Player {
                                                 physicalProtection, anomalyProtection,
                                                 radiationProtection;
     public int bleedTimer, radiationTimer, slowTimer;
+    private int turnSensitivity = 5;
     public int faction = 1;
     public boolean grounded = true, crouched, aiming, sprinting, detectorActive;
     public final CombatState combat = new CombatState();
@@ -53,7 +54,7 @@ public final class Player {
             s++;
         if ((keys & Input.STRAFE_LEFT) != 0)
             s--;
-        int turn = 90 * dt / 1000;
+        int turn = 90 * dt * turnSensitivity / 5000;
         if ((keys & Input.LEFT) != 0)
             yaw -= turn;
         if ((keys & Input.RIGHT) != 0)
@@ -94,6 +95,9 @@ public final class Player {
         }
         updateEffects(dt);
         stamina = Fixed.clamp(stamina, 0, 100);
+    }
+    public void setTurnSensitivity(int value) {
+        turnSensitivity = value < 1 ? 1 : value > 10 ? 10 : value;
     }
     public void slow(int duration) {
         if (duration > slowTimer)
