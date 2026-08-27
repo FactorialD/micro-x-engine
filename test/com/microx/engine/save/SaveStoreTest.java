@@ -1,5 +1,6 @@
 package com.microx.engine.save;
 import java.util.Vector;
+import com.microx.engine.gameplay.ItemCatalog;
 public final class SaveStoreTest {
     private static final class Memory implements RecordBackend {
         final Vector data = new Vector();
@@ -22,6 +23,8 @@ public final class SaveStoreTest {
         }
     }
     public static void main(String[] args) throws Exception {
+        if (!ItemCatalog.loadDefault())
+            throw new AssertionError("gameplay catalog unavailable");
         Memory m = new Memory();
         SaveStore store = new SaveStore(m);
         SaveData s = new SaveData();

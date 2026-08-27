@@ -3,7 +3,7 @@ package com.microx.engine.gameplay;
 /** Process-wide, validated runtime item catalog. Values originate only in gameplay.dat. */
 public final class ItemCatalog {
     public static final byte TYPE_WEAPON = 1, TYPE_ARMOR = 2, TYPE_CONSUMABLE = 3,
-                             TYPE_ARTIFACT = 4, TYPE_AMMO = 5;
+                             TYPE_ARTIFACT = 4, TYPE_AMMO = 5, TYPE_BOLT = 6, TYPE_DETECTOR = 7;
     private static GameplayTables data;
     private ItemCatalog() {}
     public static boolean install(GameplayTables tables) {

@@ -1,11 +1,35 @@
 package com.microx.engine.world;
 import com.microx.engine.math.Fixed;
+import com.microx.engine.gameplay.ItemCatalog;
 public final class SimulationTest {
     public static void main(String[] args) {
+        if (!ItemCatalog.loadDefault())
+            throw new AssertionError("gameplay catalog unavailable");
         statesAndSight();
         corpseAndCapacity();
         determinism();
+        anomalies();
         System.out.println("SimulationTest OK");
+    }
+    private static void anomalies() {
+        EntityPool entities = new EntityPool(16);
+        int anomaly = entities.spawn(EntityPool.ANOMALY, 0, 0, 0, 1);
+        entities.aux[anomaly] = AnomalySystem.SLOW;
+        entities.radius[anomaly] = Fixed.fromInt(2);
+        Player player = new Player();
+        AnomalySystem system = new AnomalySystem(7);
+        system.update(entities, player, 20);
+        ok(player.slowTimer > 0);
+        for (int attempt = 0; attempt < 32 && entities.typeCount(EntityPool.ITEM) == 0; attempt++)
+            system.enterLocation(entities);
+        for (int i = 0; i < entities.capacity(); i++)
+            if (entities.active[i] && entities.type[i] == EntityPool.ITEM) {
+                int item = entities.aux[i] & 65535;
+                ok(ItemCatalog.valid(item));
+                eq(ItemCatalog.TYPE_ARTIFACT, ItemCatalog.type(item));
+                return;
+            }
+        throw new AssertionError("artifact was not spawned");
     }
     private static void statesAndSight() {
         Collision c = space();

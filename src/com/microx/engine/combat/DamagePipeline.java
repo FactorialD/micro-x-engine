@@ -1,6 +1,5 @@
 package com.microx.engine.combat;
 import com.microx.engine.world.Player;
-import com.microx.engine.gameplay.ItemCatalog;
 
 /** Single mitigation and status-effect path for every damage source. */
 public final class DamagePipeline {
@@ -11,15 +10,15 @@ public final class DamagePipeline {
             return 0;
         int mitigation;
         if (type == RADIATION) {
-            mitigation = ItemCatalog.radiation(p.suit) + ItemCatalog.radiation(p.artifact);
+            mitigation = p.radiationProtection;
             int dose = amount * (100 - clamp(mitigation)) / 100;
             p.radiation += dose;
             return dose;
         }
         if (type == ANOMALY)
-            mitigation = ItemCatalog.anomaly(p.suit) + ItemCatalog.anomaly(p.artifact);
+            mitigation = p.anomalyProtection;
         else
-            mitigation = ItemCatalog.physical(p.suit) + ItemCatalog.physical(p.artifact) + p.armor;
+            mitigation = p.physicalProtection;
         int dealt = amount * (100 - clamp(mitigation)) / 100;
         if (dealt == 0 && amount > 0)
             dealt = 1;

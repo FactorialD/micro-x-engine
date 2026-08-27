@@ -7,7 +7,6 @@ public final class GameplayState {
     public final Reputation reputation = new Reputation(8);
     public final QuestState quests = new QuestState(32, 4, 32);
     public final ContainerDelta containers = new ContainerDelta(64);
-    public final PlayerStats stats = new PlayerStats();
     /** Bounded working inventories backing the currently open trade/loot screens. */
     public final Inventory trader = new Inventory(24, 40);
     public final Inventory loot = new Inventory(24, 40);

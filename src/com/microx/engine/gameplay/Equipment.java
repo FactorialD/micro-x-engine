@@ -1,4 +1,5 @@
 package com.microx.engine.gameplay;
+import com.microx.engine.world.Player;
 
 /** Two weapons, one armor and five artifact slots. */
 public final class Equipment {
@@ -57,6 +58,30 @@ public final class Equipment {
         }
         return false;
     }
+    public boolean equip(Inventory bag, int id, int slot, Player player) {
+        boolean equipped = equip(bag, id, slot);
+        if (equipped)
+            apply(player);
+        return equipped;
+    }
+    /** Returns an equipped item to the bag and immediately refreshes runtime protection. */
+    public boolean unequip(Inventory bag, int kind, int slot, Player player) {
+        int id;
+        if (kind == 1 && slot == 0) {
+            id = armor & 65535;
+            if (id == 0 || !bag.add(id, 1, 100))
+                return false;
+            armor = 0;
+        } else if (kind == 2 && slot >= 0 && slot < artifact.length) {
+            id = artifact[slot] & 65535;
+            if (id == 0 || !bag.add(id, 1, 100))
+                return false;
+            artifact[slot] = 0;
+        } else
+            return false;
+        apply(player);
+        return true;
+    }
     private boolean swap(Inventory bag, short[] slots, int slot, int id) {
         int old = slots[slot] & 65535;
         if (old != 0 && !bag.canAddAfterRemoving(old, 1, id))
@@ -67,16 +92,17 @@ public final class Equipment {
         slots[slot] = (short) id;
         return true;
     }
-    public boolean use(Inventory bag, int id, PlayerStats stats) {
+    public boolean use(Inventory bag, int id, Player player) {
         if (!ItemCatalog.valid(id) || ItemCatalog.type(id) != ItemCatalog.TYPE_CONSUMABLE
                 || bag.count(id) < 1)
             return false;
         bag.remove(id, 1);
-        stats.health = Math.min(100, stats.health + ItemCatalog.health(id));
-        stats.bleeding = Math.max(0, stats.bleeding - ItemCatalog.bleeding(id));
+        player.health = Math.min(100, player.health + ItemCatalog.health(id));
+        player.bleeding = Math.max(0, player.bleeding - ItemCatalog.bleeding(id));
+        player.radiation = Math.max(0, player.radiation + ItemCatalog.radiation(id));
         return true;
     }
-    public void apply(PlayerStats s) {
+    public void apply(Player s) {
         s.physicalProtection = s.anomalyProtection = s.radiationProtection = 0;
         if (armor != 0)
             add(s, armor);
@@ -84,7 +110,7 @@ public final class Equipment {
             if (artifact[i] != 0)
                 add(s, artifact[i]);
     }
-    private void add(PlayerStats s, int id) {
+    private void add(Player s, int id) {
         s.physicalProtection += ItemCatalog.physical(id);
         s.anomalyProtection += ItemCatalog.anomaly(id);
         s.radiationProtection += ItemCatalog.radiation(id);

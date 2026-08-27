@@ -105,7 +105,7 @@ public final class Engine implements Runnable {
         persistent.yaw = player.yaw;
         persistent.pitch = player.pitch;
         persistent.health = player.health;
-        persistent.armor = player.armor;
+        persistent.armor = player.physicalProtection;
         persistent.stamina = player.stamina;
         persistent.bleeding = player.bleeding;
         persistent.radiation = player.radiation;
@@ -150,7 +150,6 @@ public final class Engine implements Runnable {
         player.yaw = s.yaw;
         player.pitch = s.pitch;
         player.health = s.health;
-        player.armor = s.armor;
         player.stamina = s.stamina;
         player.bleeding = s.bleeding;
         player.radiation = s.radiation;
@@ -158,6 +157,7 @@ public final class Engine implements Runnable {
         player.combat.magazine = s.magazine;
         for (int i = 0; i < s.reserveAmmo.length; i++) player.reserveAmmo[i] = s.reserveAmmo[i];
         player.ammo = s.magazine;
+        gameplay.equipment.apply(player);
         level.world.updateVisibility(player.x, player.z);
     }
     private boolean loadLocation(String name, int spawn, boolean autosave) {
@@ -437,10 +437,27 @@ public final class Engine implements Runnable {
             }
         } else if (screen == UIStateMachine.INVENTORY && id != 0) {
             if (ItemCatalog.type(id) == ItemCatalog.TYPE_CONSUMABLE)
-                gameplay.equipment.use(gameplay.inventory, id, gameplay.stats);
+                gameplay.equipment.use(gameplay.inventory, id, player);
+            else if (ItemCatalog.type(id) == ItemCatalog.TYPE_DETECTOR)
+                player.detectorActive = !player.detectorActive;
+            else if (ItemCatalog.type(id) == ItemCatalog.TYPE_BOLT
+                    && gameplay.inventory.remove(id, 1))
+                probeAnomalies();
             else
-                gameplay.equipment.equip(gameplay.inventory, id, alternate ? 1 : 0);
+                gameplay.equipment.equip(gameplay.inventory, id, alternate ? 1 : 0, player);
         }
+    }
+    /** A thrown bolt forces nearby anomalies to reveal their next activation. */
+    private void probeAnomalies() {
+        EntityPool e = level.entities;
+        long range = (long) com.microx.engine.math.Fixed.fromInt(4)
+                * com.microx.engine.math.Fixed.fromInt(4);
+        for (int i = 0; i < e.capacity(); i++)
+            if (e.active[i] && e.type[i] == EntityPool.ANOMALY) {
+                long dx = player.x - e.x[i], dz = player.z - e.z[i];
+                if (dx * dx + dz * dz <= range)
+                    e.timer[i] = 0;
+            }
     }
     private void applyContainerDeltas(int container, Inventory inventory) {
         for (int item = 1; item <= ItemCatalog.maxId(); item++) {

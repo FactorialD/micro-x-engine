@@ -16,7 +16,9 @@ public final class StateMachineSystem {
             if (p.active[i] && (p.flags[i] & EntityPool.FLAG_UPDATE) != 0) {
                 if (p.timer[i] > 0)
                     p.timer[i] -= dt;
-                if (p.type[i] == EntityPool.HUMAN) {
+                if (p.type[i] == EntityPool.CORPSE && p.timer[i] <= 0) {
+                    p.remove(i);
+                } else if (p.type[i] == EntityPool.HUMAN) {
                     if ((p.flags[i] & EntityPool.FLAG_PERCEIVES_PLAYER) != 0)
                         p.state[i] = EntityPool.STATE_COMBAT;
                     else if (p.timer[i] > 0)
