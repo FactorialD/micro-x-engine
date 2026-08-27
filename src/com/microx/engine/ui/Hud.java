@@ -14,7 +14,8 @@ public final class Hud {
     }
     public void paint(Graphics g, Player p, PortalWorld world, int fps, int entities, int rooms,
             boolean debug) {
-        int w = g.getClipWidth(), h = g.getClipHeight(), vx = (w - 240) / 2, vy = (h - 320) / 2;
+        int w = g.getClipWidth(), h = g.getClipHeight(), vx = Math.max(0, (w - 240) / 2),
+            vy = Math.max(0, (h - 320) / 2);
         g.setFont(font);
         bar(g, vx + 4, vy + 5, 70, p.health, 0xb03030, HP);
         bar(g, vx + 4, vy + 18, 70, p.physicalProtection, 0x6080a0, AR);
@@ -37,18 +38,19 @@ public final class Hud {
             g.setColor(0xffffff);
             g.drawString(USE, w / 2, vy + 210, Graphics.TOP | Graphics.HCENTER);
         }
-        map(g, world, p, vx + 184, vy + 250);
+        map(g, world, p, Math.max(2, w - 56), Math.max(55, h - 70));
         int cx = w / 2, cy = h / 2;
         g.setColor(0xffffff);
         g.drawLine(cx - 5, cy, cx + 5, cy);
         g.drawLine(cx, cy - 5, cx, cy + 5);
         if (debug) {
-            g.drawString(FPS, vx + 4, vy + 302, Graphics.TOP | Graphics.LEFT);
-            number(g, fps, vx + 28, vy + 302);
-            g.drawString(ENTS, vx + 47, vy + 302, Graphics.TOP | Graphics.LEFT);
-            number(g, entities, vx + 61, vy + 302);
-            g.drawString(ROOMS, vx + 80, vy + 302, Graphics.TOP | Graphics.LEFT);
-            number(g, rooms, vx + 94, vy + 302);
+            int debugY = Math.max(0, h - 16);
+            g.drawString(FPS, vx + 4, debugY, Graphics.TOP | Graphics.LEFT);
+            number(g, fps, vx + 28, debugY);
+            g.drawString(ENTS, vx + 47, debugY, Graphics.TOP | Graphics.LEFT);
+            number(g, entities, vx + 61, debugY);
+            g.drawString(ROOMS, vx + 80, debugY, Graphics.TOP | Graphics.LEFT);
+            number(g, rooms, vx + 94, debugY);
         }
     }
     private void bar(Graphics g, int x, int y, int width, int value, int color, String label) {

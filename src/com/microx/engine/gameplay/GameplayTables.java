@@ -145,6 +145,19 @@ public final class GameplayTables {
         int row = find("quests", quest);
         return row < 0 ? null : text[row];
     }
+    public String questDescription(int quest) {
+        int row = find("quests", quest);
+        String value = row < 0 ? null : field(meta[row], "description");
+        return value == null ? questText(quest) : value;
+    }
+    public String questObjective(int quest) {
+        int row = find("quests", quest);
+        return row < 0 ? null : field(meta[row], "objective");
+    }
+    public String npcName(int npc) {
+        int row = find("npcs", npc);
+        return row < 0 ? "NPC" : text[row];
+    }
     public String questRefTable(int quest) {
         return referencePart(find("quests", quest), true);
     }

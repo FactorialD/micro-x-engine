@@ -5,14 +5,14 @@ import com.microx.engine.Input;
 public final class UIStateMachine {
     public static final int MAIN_MENU = 0, GAMEPLAY = 1, PAUSE = 2, PDA = 3, INVENTORY = 4, MAP = 5,
                             QUESTS = 6, DIALOGUE = 7, TRADE = 8, LOOT = 9, SETTINGS = 10,
-                            ERROR = 11;
+                            ERROR = 11, ABOUT = 12;
     public static final int ACTION_NONE = 0, ACTION_START = 1, ACTION_QUIT = 2,
                             ACTION_APPLY_SETTINGS = 3, ACTION_LOAD = 4, ACTION_SAVE = 5,
                             ACTION_LIST_ACCEPT = 6, ACTION_LIST_ALT = 7;
-    private static final byte[] MODAL = {1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1};
+    private static final byte[] MODAL = {1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1};
     private int state = MAIN_MENU, previous = GAMEPLAY, selection, action;
-    private final short[] list = new short[32];
-    private final byte[] side = new byte[32];
+    private final short[] list = new short[64];
+    private final byte[] side = new byte[64];
     private int listSize;
     public int state() {
         return state;
@@ -49,7 +49,7 @@ public final class UIStateMachine {
         for (int i = 0; i < listSize; i++) side[i] = sides[i];
     }
     public void show(int next) {
-        if (next < 0 || next > ERROR)
+        if (next < 0 || next > ABOUT)
             return;
         if (next != GAMEPLAY && state == GAMEPLAY)
             previous = state;
@@ -67,9 +67,9 @@ public final class UIStateMachine {
         else if (command == Input.DOWN && count > 0)
             selection = (selection + 1) % count;
         else if (command == Input.TAB_LEFT || command == Input.TAB_RIGHT) {
-            if (state == PDA || state == INVENTORY || state == MAP || state == QUESTS) {
-                int d = command == Input.TAB_RIGHT ? 1 : 3;
-                state = INVENTORY + (state - INVENTORY + d) % 4;
+            if (state == INVENTORY || state == MAP || state == QUESTS) {
+                int d = command == Input.TAB_RIGHT ? 1 : 2;
+                state = INVENTORY + (state - INVENTORY + d) % 3;
                 selection = 0;
             }
         } else if (command == Input.MENU) {
@@ -87,7 +87,7 @@ public final class UIStateMachine {
     private void back() {
         if (state == MAIN_MENU || state == ERROR)
             return;
-        if (state == SETTINGS) {
+        if (state == SETTINGS || state == ABOUT) {
             state = previous;
             selection = 0;
         } else
@@ -104,6 +104,9 @@ public final class UIStateMachine {
             } else if (selection == 2) {
                 previous = MAIN_MENU;
                 state = SETTINGS;
+            } else if (selection == 3) {
+                previous = MAIN_MENU;
+                state = ABOUT;
             } else
                 action = ACTION_QUIT;
         } else if (state == PAUSE) {
@@ -130,11 +133,11 @@ public final class UIStateMachine {
     }
     private int itemCount() {
         if (state == MAIN_MENU)
-            return 4;
+            return 5;
         if (state == PAUSE)
             return 5;
         if (state == SETTINGS)
-            return 4;
+            return 5;
         if (state == PDA)
             return 4;
         return listSize;
