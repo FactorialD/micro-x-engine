@@ -28,7 +28,7 @@ public final class WorldFormatTest {
         ok(!loader.load(new ByteArrayInputStream(truncated)), "truncated rejected");
         ok(loader.world == published, "failed load is atomic");
         byte[] version = (byte[]) valid.clone();
-        version[5] = 3;
+        version[5] = 4;
         ok(!new LevelLoader().load(new ByteArrayInputStream(version)), "version rejected");
         Files.write(source,
                 level().replace(
@@ -58,6 +58,6 @@ public final class WorldFormatTest {
             throw new AssertionError(message);
     }
     private static String level() {
-        return "MXL2\ncounts 2 3 2 7 2 2 1 1 8\nroom -5 5 -5 5\nroom 5 15 -5 5\nfloor 0 -5 4 -5 5 0\nfloor 0 4 5 -5 5 1\nfloor 1 5 15 -5 5 1\nceiling 0 -5 5 -5 5 4\nceiling 1 5 15 -5 5 4\nedge 0 -5 -5 5 -5 0 4\nedge 0 -5 5 5 5 0 4\nedge 0 -5 -5 -5 5 0 4\nedge 0 5 -5 5 -1 0 4\nedge 0 5 1 5 5 0 4\nedge 1 5 -5 15 -5 0 4\nedge 1 5 5 15 5 0 4\nportal 10 0 1 4 6 1 3 -1 1 1 0\nportal 11 1 0 4 6 1 3 -1 1 0 -1\nspawn 0 0 0 0 0 0\nspawn 1 1 7 1 0 180\ntransition 100 1 test\nentity 77 1 10 1 0 100\n";
+        return "MXL2\ncounts 2 3 2 7 2 2 1 1 8\nroom -5 5 -5 5\nroom 5 15 -5 5\nfloor 0 -5 4 -5 5 0\nfloor 0 4 5 -5 5 1\nfloor 1 5 15 -5 5 1\nceiling 0 -5 5 -5 5 4\nceiling 1 5 15 -5 5 4\nedge 0 -5 -5 5 -5 0 4\nedge 0 -5 5 5 5 0 4\nedge 0 -5 -5 -5 5 0 4\nedge 0 5 -5 5 -1 0 4\nedge 0 5 1 5 5 0 4\nedge 1 5 -5 15 -5 0 4\nedge 1 5 5 15 5 0 4\nportal 10 0 1 4 6 1 3 -1 1 1 0\nportal 11 1 0 4 6 1 3 -1 1 0 -1\nspawn 0 0 0 0 0 0\nspawn 1 1 7 1 0 180\ntransition 100 1 test\nentity 77 1 10 1 0 100 2 11 3\n";
     }
 }

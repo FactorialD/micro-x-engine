@@ -12,7 +12,7 @@ class LevelError(ValueError):
 
 KINDS = ("room", "floor", "ceiling", "edge", "portal", "spawn", "transition", "entity")
 ARITY = {"room": 4, "floor": 6, "ceiling": 6, "edge": 7, "portal": 11,
-         "spawn": 6, "transition": 3, "entity": 6}
+         "spawn": 6, "transition": 3, "entity": 9}
 COUNT_LIMITS = ((1, 256), (1, 1024), (1, 1024), (0, 2048),
                 (0, 1024), (1, 256), (0, 256), (0, 1024), (1, 1024))
 LOCATION = re.compile(r"[A-Za-z0-9_-]{1,64}\Z")
@@ -198,6 +198,9 @@ def validate_level(level: Level, declared=None):
                 validate_unsigned_id(values[1], f"{where} type ID")
                 coordinates(values, range(2, 5), where)
                 validate_unsigned_id(values[5], f"{where} health")
+                validate_unsigned_id(values[6], f"{where} faction ID")
+                validate_unsigned_id(values[7], f"{where} sprite ID")
+                validate_unsigned_id(values[8], f"{where} aux ID")
 
     portal_rows = level.records("portal")
     for index, portal in enumerate(portal_rows):

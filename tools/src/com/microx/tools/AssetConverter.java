@@ -9,7 +9,7 @@ import java.awt.image.BufferedImage;
 
 /** Desktop converter and strict validator for editable assets. */
 public final class AssetConverter {
-    private static final int MAGIC = 0x4d584c32, VERSION = 2, MAX_FIXED = 32767;
+    private static final int MAGIC = 0x4d584c32, VERSION = 3, MAX_FIXED = 32767;
     // GameplayTables wire-format contract. Keep these values synchronized with
     // GameplayTables and sdk/python/microx_editor/data.py.
     static final int GAMEPLAY_MAGIC = 0x4d584732, MAX_GAMEPLAY_TABLES = 16,
@@ -37,10 +37,15 @@ public final class AssetConverter {
             String name = relative.getFileName().toString();
             if (name.endsWith(".level"))
                 writeLevel(input, output.resolve(replaceSuffix(relative, ".level", ".lvl")));
-            else if (name.endsWith(".obj"))
-                writeModel(input, output.resolve(replaceSuffix(relative, ".obj", ".mesh")));
+            else if (name.equals("geometry.txt"))
+                writeModel(input, output.resolve(replaceSuffix(relative, ".txt", ".mesh")));
             else if (name.equals("textures.png"))
                 writeTexture(input, output.resolve(replaceSuffix(relative, ".png", ".tex")));
+            else if (name.endsWith(".mid")) {
+                Path target = output.resolve(relative);
+                Files.createDirectories(target.getParent());
+                Files.copy(input, target, StandardCopyOption.REPLACE_EXISTING);
+            }
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }
@@ -455,6 +460,9 @@ public final class AssetConverter {
             out.writeInt(t.fixed());
             out.writeInt(t.fixed());
             out.writeShort(t.id());
+            out.writeShort(t.id()); // faction
+            out.writeShort(t.id()); // sprite
+            out.writeShort(t.id()); // gameplay aux/content id
         }
         if (t.hasNext())
             t.fail("unexpected token " + t.next());

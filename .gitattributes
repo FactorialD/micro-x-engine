@@ -1,0 +1,2 @@
+# Authored geometry uses a text extension and must remain reviewable text.
+assets-src/levels/*/geometry.txt text eol=lf
