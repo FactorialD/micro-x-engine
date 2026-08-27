@@ -2,6 +2,8 @@ package com.microx.engine.gameplay;
 
 public final class GameplayTest {
     public static void main(String[] args) {
+        if (!ItemCatalog.loadDefault())
+            throw new AssertionError("gameplay catalog unavailable");
         inventory();
         equipment();
         loot();
@@ -61,7 +63,7 @@ public final class GameplayTest {
         Inventory a = new Inventory(8, 20), b = new Inventory(8, 20);
         ok(LootSystem.generateCorpse(a, 77, 123, 2, 1, 2));
         ok(LootSystem.generateCorpse(b, 77, 123, 2, 1, 2));
-        for (int i = 1; i <= ItemCatalog.MAX_ID; i++) eq(a.count(i), b.count(i));
+        for (int i = 1; i <= ItemCatalog.maxId(); i++) eq(a.count(i), b.count(i));
         no(LootSystem.generateCorpse(a, 77, 123, 2, 1, 2));
     }
     private static void trade() {

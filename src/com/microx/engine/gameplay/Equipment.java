@@ -35,7 +35,7 @@ public final class Equipment {
     public boolean equip(Inventory bag, int id, int slot) {
         if (!ItemCatalog.valid(id) || bag.count(id) < 1)
             return false;
-        byte type = ItemCatalog.TYPE[id];
+        int type = ItemCatalog.type(id);
         if (type == ItemCatalog.TYPE_WEAPON) {
             if (slot < 0 || slot >= 2)
                 return false;
@@ -68,12 +68,12 @@ public final class Equipment {
         return true;
     }
     public boolean use(Inventory bag, int id, PlayerStats stats) {
-        if (!ItemCatalog.valid(id) || ItemCatalog.TYPE[id] != ItemCatalog.TYPE_CONSUMABLE
+        if (!ItemCatalog.valid(id) || ItemCatalog.type(id) != ItemCatalog.TYPE_CONSUMABLE
                 || bag.count(id) < 1)
             return false;
         bag.remove(id, 1);
-        stats.health = Math.min(100, stats.health + ItemCatalog.HEALTH[id]);
-        stats.bleeding = Math.max(0, stats.bleeding - ItemCatalog.BLEEDING[id]);
+        stats.health = Math.min(100, stats.health + ItemCatalog.health(id));
+        stats.bleeding = Math.max(0, stats.bleeding - ItemCatalog.bleeding(id));
         return true;
     }
     public void apply(PlayerStats s) {
@@ -85,8 +85,8 @@ public final class Equipment {
                 add(s, artifact[i]);
     }
     private void add(PlayerStats s, int id) {
-        s.physicalProtection += ItemCatalog.PHYSICAL[id];
-        s.anomalyProtection += ItemCatalog.ANOMALY[id];
-        s.radiationProtection += ItemCatalog.RADIATION[id];
+        s.physicalProtection += ItemCatalog.physical(id);
+        s.anomalyProtection += ItemCatalog.anomaly(id);
+        s.radiationProtection += ItemCatalog.radiation(id);
     }
 }

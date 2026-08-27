@@ -50,6 +50,9 @@ public final class Engine implements Runnable {
             resume();
             return true;
         }
+        GameplayTables tables = new GameplayTables();
+        if (!tables.load("/data/gameplay.dat") || !ItemCatalog.install(tables))
+            return false;
         persistent = new SaveData();
         persistent.seed = 0x4d58534d;
         if (!loadLocation("test", 0, false))
@@ -282,7 +285,8 @@ public final class Engine implements Runnable {
         stats.rooms = level.world.updateVisibility(player.x, player.z);
         systems.update(level.entities, player, level.collision, level.world, ms);
         if ((input.pressed() & Input.WEAPON) != 0)
-            player.combat.equip((player.combat.weapon + 1) % ItemTypes.WEAPON_MAGAZINE.length);
+            player.combat.equip(
+                    player.combat.weapon == ItemTypes.PISTOL ? ItemTypes.RIFLE : ItemTypes.PISTOL);
         int selected = interaction.query(player, level.entities);
         hud.setInteraction(selected >= 0);
         if ((input.pressed() & Input.FIRE) != 0) {
@@ -293,11 +297,10 @@ public final class Engine implements Runnable {
             else if (player.combat.trigger())
                 hit.fire(player, level.entities, level.collision,
                         com.microx.engine.math.Fixed.fromInt(
-                                ItemTypes.WEAPON_RANGE[player.combat.weapon]),
-                        ItemTypes.WEAPON_SPREAD[player.combat.weapon],
-                        ItemTypes.WEAPON_DAMAGE[player.combat.weapon]
-                                + ItemTypes.AMMO_DAMAGE_BONUS[ItemTypes
-                                                .WEAPON_AMMO[player.combat.weapon]]);
+                                ItemCatalog.range(player.combat.weapon)),
+                        ItemCatalog.spread(player.combat.weapon),
+                        ItemCatalog.damage(player.combat.weapon)
+                                + ItemCatalog.damageBonus(ItemCatalog.ammo(player.combat.weapon)));
         }
         player.ammo = player.combat.magazine;
         stats.entities = level.entities.activeCount();
@@ -366,7 +369,7 @@ public final class Engine implements Runnable {
             gameplay.containers.put(gameplay.containerId, id, -1);
             fillInventory(canvas.ui, gameplay.loot);
         } else if (screen == UIStateMachine.INVENTORY && id != 0) {
-            if (ItemCatalog.TYPE[id] == ItemCatalog.TYPE_CONSUMABLE)
+            if (ItemCatalog.type(id) == ItemCatalog.TYPE_CONSUMABLE)
                 gameplay.equipment.use(gameplay.inventory, id, gameplay.stats);
             else
                 gameplay.equipment.equip(gameplay.inventory, id, alternate ? 1 : 0);

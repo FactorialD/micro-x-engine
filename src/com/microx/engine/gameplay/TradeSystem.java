@@ -31,7 +31,7 @@ public final class TradeSystem {
         int condition = owner.conditionOf(item);
         if (owner.count(item) < 1 || condition >= 100 || mechanicPercent < 1)
             return false;
-        int price = (ItemCatalog.VALUE[item] * (100 - condition) * mechanicPercent + 9999) / 10000;
+        int price = (ItemCatalog.value(item) * (100 - condition) * mechanicPercent + 9999) / 10000;
         if (owner.money() < price)
             return false;
         owner.setMoney(owner.money() - price);
@@ -39,7 +39,7 @@ public final class TradeSystem {
         return true;
     }
     private static int cost(int item, int amount, int percent) {
-        long n = (long) ItemCatalog.VALUE[item] * amount * percent;
+        long n = (long) ItemCatalog.value(item) * amount * percent;
         return (int) ((n + 99) / 100);
     }
 }

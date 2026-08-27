@@ -40,7 +40,7 @@
            source="8" target="8" includeantruntime="false" debug="false"/>
   </target>
 
-  <target name="desktop-test" description="Run converter, binary loader, collision and fixed math tests on the host JDK">
+  <target name="desktop-test" depends="compile-tools,convert-assets" description="Run converter, binary loader, collision and fixed math tests on the host JDK">
     <delete dir="${desktop.test.classes.dir}"/>
     <mkdir dir="${desktop.test.classes.dir}"/>
     <javac destdir="${desktop.test.classes.dir}" source="8" target="8"
@@ -67,7 +67,7 @@
       <include name="com/microx/engine/save/SaveStoreTest.java"/>
     </javac>
     <java classname="com.microx.engine.math.FixedMathTest" fork="true" failonerror="true">
-      <classpath><pathelement location="${desktop.test.classes.dir}"/></classpath>
+      <classpath><pathelement location="${desktop.test.classes.dir}"/><pathelement location="${generated.resources.dir}"/></classpath>
     </java>
     <java classname="com.microx.engine.world.WorldFormatTest" fork="true" failonerror="true">
       <classpath><pathelement location="${desktop.test.classes.dir}"/></classpath>
@@ -79,9 +79,9 @@
       <classpath><pathelement location="${desktop.test.classes.dir}"/></classpath>
     </java>
     <java classname="com.microx.engine.combat.CombatTest" fork="true" failonerror="true">
-      <classpath><pathelement location="${desktop.test.classes.dir}"/></classpath>
+      <classpath><pathelement location="${desktop.test.classes.dir}"/><pathelement location="${generated.resources.dir}"/></classpath>
     </java>
-    <java classname="com.microx.engine.gameplay.GameplayTest" fork="true" failonerror="true"><classpath><pathelement location="${desktop.test.classes.dir}"/></classpath></java>
+    <java classname="com.microx.engine.gameplay.GameplayTest" fork="true" failonerror="true"><classpath><pathelement location="${desktop.test.classes.dir}"/><pathelement location="${generated.resources.dir}"/></classpath></java>
     <java classname="com.microx.tools.GameplayDataTest" fork="true" failonerror="true"><classpath><pathelement location="${desktop.test.classes.dir}"/></classpath></java>
     <java classname="com.microx.engine.ui.UIStateMachineTest" fork="true" failonerror="true"><classpath><pathelement location="${desktop.test.classes.dir}"/></classpath></java>
     <java classname="com.microx.engine.save.SaveStoreTest" fork="true" failonerror="true"><classpath><pathelement location="${desktop.test.classes.dir}"/></classpath></java>
@@ -162,6 +162,7 @@
 
   <target name="validate-package" depends="create-jar" description="Check mandatory runtime resources and reject source assets in the JAR">
     <fail message="Mandatory /levels/test/level.lvl is missing from the JAR"><condition><not><resourcecount when="greater" count="0"><zipfileset src="${dist.jar}" includes="levels/test/level.lvl"/></resourcecount></not></condition></fail>
+    <fail message="Mandatory /data/gameplay.dat is missing from the JAR"><condition><not><resourcecount when="greater" count="0"><zipfileset src="${dist.jar}" includes="data/gameplay.dat"/></resourcecount></not></condition></fail>
     <fail message="Editable/source assets are forbidden in the runtime JAR"><condition><resourcecount when="greater" count="0"><zipfileset src="${dist.jar}" includes="**/*.obj,**/*.level,assets-src/**,**/*~"/></resourcecount></condition></fail>
   </target>
 

@@ -41,7 +41,7 @@ public final class Inventory {
         int n = 0;
         for (int i = 0; i < ids.length; i++)
             if (ids[i] != 0)
-                n += ItemCatalog.CELLS[ids[i]];
+                n += ItemCatalog.cells(ids[i]);
         return n;
     }
     public void clear() {
@@ -61,12 +61,12 @@ public final class Inventory {
         int left = amount;
         for (int i = 0; i < ids.length; i++)
             if (ids[i] == id)
-                left -= Math.min(left, ItemCatalog.STACK[id] - (counts[i] & 65535));
+                left -= Math.min(left, ItemCatalog.stack(id) - (counts[i] & 65535));
         int freeCells = cellLimit - cellsUsed();
         for (int i = 0; i < ids.length && left > 0; i++)
-            if (ids[i] == 0 && freeCells >= ItemCatalog.CELLS[id]) {
-                left -= Math.min(left, ItemCatalog.STACK[id]);
-                freeCells -= ItemCatalog.CELLS[id];
+            if (ids[i] == 0 && freeCells >= ItemCatalog.cells(id)) {
+                left -= Math.min(left, ItemCatalog.stack(id));
+                freeCells -= ItemCatalog.cells(id);
             }
         return left == 0;
     }
@@ -96,14 +96,14 @@ public final class Inventory {
             return false;
         int left = amount;
         for (int i = 0; i < ids.length && left > 0; i++)
-            if (ids[i] == id && (counts[i] & 65535) < ItemCatalog.STACK[id]) {
-                int n = Math.min(left, ItemCatalog.STACK[id] - (counts[i] & 65535));
+            if (ids[i] == id && (counts[i] & 65535) < ItemCatalog.stack(id)) {
+                int n = Math.min(left, ItemCatalog.stack(id) - (counts[i] & 65535));
                 counts[i] += n;
                 left -= n;
             }
         for (int i = 0; i < ids.length && left > 0; i++)
             if (ids[i] == 0) {
-                int n = Math.min(left, ItemCatalog.STACK[id]);
+                int n = Math.min(left, ItemCatalog.stack(id));
                 ids[i] = (short) id;
                 counts[i] = (short) n;
                 durability[i] = (short) condition;

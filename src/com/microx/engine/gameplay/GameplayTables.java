@@ -8,6 +8,9 @@ public final class GameplayTables {
     public static final int MAGIC = 0x4d584732, MAX_TABLES = 16, MAX_ROWS = 256;
     private String[] table, key, text, meta;
     private short[] id, first, count;
+    private byte[] itemType, cells, health, bleeding, physical, anomaly, radiation, spread,
+            durability;
+    private short[] stack, value, ammo, magazine, damage, range, cooldown, reload, damageBonus;
     public boolean load(String resource) {
         InputStream in = getClass().getResourceAsStream(resource);
         return in != null && load(in);
@@ -15,41 +18,224 @@ public final class GameplayTables {
     public boolean load(InputStream stream) {
         try {
             DataInputStream in = new DataInputStream(stream);
-            if (in.readInt() != MAGIC) return false;
+            if (in.readInt() != MAGIC)
+                return false;
             int tables = in.readUnsignedByte();
-            if (tables > MAX_TABLES) return false;
-            table = new String[tables]; first = new short[tables]; count = new short[tables];
-            id = new short[1024]; key = new String[1024]; text = new String[1024];
+            if (tables > MAX_TABLES)
+                return false;
+            table = new String[tables];
+            first = new short[tables];
+            count = new short[tables];
+            id = new short[1024];
+            key = new String[1024];
+            text = new String[1024];
             meta = new String[1024];
             int total = 0;
             for (int i = 0; i < tables; i++) {
-                table[i] = in.readUTF(); first[i] = (short) total;
+                table[i] = in.readUTF();
+                first[i] = (short) total;
                 int n = in.readUnsignedShort();
-                if (n > MAX_ROWS || total + n > 1024) return false;
+                if (n > MAX_ROWS || total + n > 1024)
+                    return false;
                 count[i] = (short) n;
                 for (int j = 0; j < n; j++) {
                     id[total] = (short) in.readUnsignedShort();
-                    key[total] = in.readUTF(); text[total] = in.readUTF(); meta[total] = in.readUTF();
+                    key[total] = in.readUTF();
+                    text[total] = in.readUTF();
+                    meta[total] = in.readUTF();
                     total++;
                 }
             }
-            return in.read() == -1;
-        } catch (IOException invalid) { return false; }
-        finally { try { stream.close(); } catch (IOException ignored) {} }
+            if (in.read() != -1 || !buildItems())
+                return false;
+            return true;
+        } catch (Exception invalid) {
+            clear();
+            return false;
+        } finally {
+            try {
+                stream.close();
+            } catch (IOException ignored) {
+            }
+        }
     }
     public int find(String tableName, int stableId) {
         for (int t = 0; t < table.length; t++)
             if (table[t].equals(tableName))
                 for (int i = first[t] & 65535, end = i + (count[t] & 65535); i < end; i++)
-                    if ((id[i] & 65535) == stableId) return i;
+                    if ((id[i] & 65535) == stableId)
+                        return i;
         return -1;
     }
-    public String key(int row) { return key[row]; }
-    public String text(int row) { return text[row]; }
-    public String meta(int row) { return meta[row]; }
+    public String key(int row) {
+        return key[row];
+    }
+    public String text(int row) {
+        return text[row];
+    }
+    public String meta(int row) {
+        return meta[row];
+    }
+    private boolean buildItems() {
+        int max = 0, tableIndex = -1;
+        for (int t = 0; t < table.length; t++)
+            if ("items".equals(table[t]))
+                tableIndex = t;
+        if (tableIndex < 0)
+            return false;
+        int start = first[tableIndex] & 65535, end = start + (count[tableIndex] & 65535);
+        for (int i = start; i < end; i++)
+            if ((id[i] & 65535) > max)
+                max = id[i] & 65535;
+        itemType = new byte[max + 1];
+        cells = new byte[max + 1];
+        health = new byte[max + 1];
+        bleeding = new byte[max + 1];
+        physical = new byte[max + 1];
+        anomaly = new byte[max + 1];
+        radiation = new byte[max + 1];
+        spread = new byte[max + 1];
+        durability = new byte[max + 1];
+        stack = new short[max + 1];
+        value = new short[max + 1];
+        ammo = new short[max + 1];
+        magazine = new short[max + 1];
+        damage = new short[max + 1];
+        range = new short[max + 1];
+        cooldown = new short[max + 1];
+        reload = new short[max + 1];
+        damageBonus = new short[max + 1];
+        for (int row = start; row < end; row++) {
+            int item = id[row] & 65535;
+            String type = field(meta[row], "type");
+            itemType[item] = (byte) ("weapon".equals(type) ? 1
+                            : "armor".equals(type)         ? 2
+                            : "consumable".equals(type)    ? 3
+                            : "artifact".equals(type)      ? 4
+                            : "ammo".equals(type)          ? 5
+                                                           : 0);
+            if (itemType[item] == 0)
+                return false;
+            cells[item] = (byte) number(meta[row], "cells");
+            stack[item] = (short) number(meta[row], "stack");
+            value[item] = (short) number(meta[row], "value");
+            health[item] = (byte) number(meta[row], "health");
+            bleeding[item] = (byte) number(meta[row], "bleeding");
+            physical[item] = (byte) number(meta[row], "physical");
+            anomaly[item] = (byte) number(meta[row], "anomaly");
+            radiation[item] = (byte) number(meta[row], "radiation");
+            ammo[item] = (short) number(meta[row], "ammo");
+            magazine[item] = (short) number(meta[row], "magazine");
+            damage[item] = (short) number(meta[row], "damage");
+            range[item] = (short) number(meta[row], "range");
+            cooldown[item] = (short) number(meta[row], "cooldown");
+            reload[item] = (short) number(meta[row], "reload");
+            spread[item] = (byte) number(meta[row], "spread");
+            durability[item] = (byte) number(meta[row], "durability");
+            damageBonus[item] = (short) number(meta[row], "damageBonus");
+        }
+        return true;
+    }
+    private static String field(String metadata, String name) {
+        String prefix = name + "=";
+        int from = 0;
+        while (from <= metadata.length()) {
+            int end = metadata.indexOf(',', from);
+            if (end < 0)
+                end = metadata.length();
+            if (metadata.regionMatches(from, prefix, 0, prefix.length()))
+                return metadata.substring(from + prefix.length(), end);
+            from = end + 1;
+        }
+        return null;
+    }
+    private static int number(String metadata, String name) {
+        String v = field(metadata, name);
+        return v == null ? 0 : Integer.parseInt(v);
+    }
+    private void clear() {
+        table = null;
+        key = text = meta = null;
+        id = first = count = null;
+        itemType = null;
+    }
+    public boolean hasRequiredData() {
+        return itemType != null && containsCoreIds() && validItem(GameIds.ITEM_PISTOL)
+                && validItem(GameIds.ITEM_RIFLE) && validItem(GameIds.ITEM_LEATHER_ARMOR)
+                && validItem(GameIds.ITEM_MEDKIT) && validItem(GameIds.ITEM_BANDAGE)
+                && validItem(GameIds.ITEM_STONE) && validItem(GameIds.ITEM_CRYSTAL)
+                && validItem(GameIds.ITEM_AMMO_9MM) && validItem(GameIds.ITEM_AMMO_545);
+    }
+    public boolean validItem(int item) {
+        return item > 0 && item < itemType.length && itemType[item] != 0;
+    }
+    public int maxItemId() {
+        return itemType.length - 1;
+    }
+    public int itemType(int i) {
+        return itemType[i];
+    }
+    public int cells(int i) {
+        return cells[i] & 255;
+    }
+    public int stack(int i) {
+        return stack[i] & 65535;
+    }
+    public int value(int i) {
+        return value[i] & 65535;
+    }
+    public int health(int i) {
+        return health[i];
+    }
+    public int bleeding(int i) {
+        return bleeding[i];
+    }
+    public int physical(int i) {
+        return physical[i];
+    }
+    public int anomaly(int i) {
+        return anomaly[i];
+    }
+    public int radiation(int i) {
+        return radiation[i];
+    }
+    public int ammo(int i) {
+        return ammo[i] & 65535;
+    }
+    public int magazine(int i) {
+        return magazine[i] & 65535;
+    }
+    public int damage(int i) {
+        return damage[i];
+    }
+    public int range(int i) {
+        return range[i];
+    }
+    public int cooldown(int i) {
+        return cooldown[i] & 65535;
+    }
+    public int reload(int i) {
+        return reload[i] & 65535;
+    }
+    public int spread(int i) {
+        return spread[i];
+    }
+    public int durability(int i) {
+        return durability[i];
+    }
+    public int damageBonus(int i) {
+        return damageBonus[i];
+    }
     public boolean containsCoreIds() {
-        return find("npcs", GameIds.NPC_SIDOROVICH) >= 0
+        if (table == null)
+            return false;
+        return find("npcs", GameIds.NPC_SIDOROVICH) >= 0 && find("npcs", GameIds.NPC_WOLF) >= 0
+                && find("npcs", GameIds.NPC_TECHNICIAN) >= 0
+                && find("factions", GameIds.FACTION_LONER) >= 0
                 && find("dialogs", GameIds.DIALOG_INTRO) >= 0
-                && find("quests", GameIds.QUEST_FIND_STASH) >= 0;
+                && find("dialogs", GameIds.DIALOG_TRADE) >= 0
+                && find("dialogs", GameIds.DIALOG_REPAIR) >= 0
+                && find("quests", GameIds.QUEST_FIND_STASH) >= 0
+                && find("quests", GameIds.QUEST_REPORT_WOLF) >= 0;
     }
 }
