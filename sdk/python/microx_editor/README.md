@@ -25,11 +25,20 @@ microx-editor
   PNG atlas `textures.png` до 256×256, 256 кольорів і 96 KiB runtime footprint.
 * OBJ-перегляд перевіряє `v`, `vt`, `f`, `o`/`g room_N`, `usemtl` і Micro X
   comments; Replace перевіряє UV, індекси, вироджені грані та Q16.16.
-* `.level` редагується як 2D/табличне представлення MXL2: рядки rooms, floors,
-  ceilings, edges, portals, spawns, transitions та entities. Serializer зберігає
-  comments/порожні рядки, stable IDs і перевіряє counts/references/bounds/links.
-* gameplay `.txt` має колонки `id|key|description|meta`, зберігає comments і
-  порожні рядки та перевіряє IDs, UTF-8 limits, refs, graph cycles і RMS budget.
+* `.level` має фільтр і окрему таблицю для `room`, `floor`, `ceiling`, `edge`,
+  `portal`, `spawn`, `transition` та `entity`. Кнопки **Add**, **Delete**,
+  **Move Up/Down** змінюють records; serializer автоматично перераховує
+  `counts`, зберігаючи capacity, comments, порожні рядки та stable ID.
+* Gameplay `.txt` має окрему таблицю rows із колонками `id`, `key`,
+  `description`, `metadata`. Metadata-форми залежать від таблиці, а для items —
+  від `weapon`, `armor`, `artifact`, `consumable` або `ammo`; доступні ті самі
+  операції додавання, видалення та впорядкування.
+* **Validate Project** перевіряє одночасно всі gameplay-таблиці. **Save** і
+  **Save All** повторюють повну проєктну перевірку та лише після неї атомарно
+  записують UTF-8. Перемикання файла/проєкту, Replace і закриття використовують
+  один guard **Save/Discard/Cancel**.
+* Raw source показано лише як read-only **Advanced**-режим; структуровані
+  таблиці й форми є авторитетним способом редагування.
 * Згенеровані `.mesh`, `.lvl`, `.tex` і packed gameplay files не редагуються.
 
 Headless-тести: `python -m unittest discover -s tests -v`.
