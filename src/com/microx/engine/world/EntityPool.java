@@ -10,8 +10,10 @@ public final class EntityPool {
                             STATE_LEAP = 4, STATE_INVISIBLE = 5, STATE_PSI = 6, STATE_AOE = 7;
     public static final int FLAG_VISIBLE = 1, FLAG_PERCEIVES_PLAYER = 2, FLAG_INTERACTABLE = 4,
                             FLAG_DEAD = 8, FLAG_UPDATE = 16;
+    public static final int MUTANT_BASIC = 0, MUTANT_BLOODSUCKER = 1, MUTANT_LEAPER = 2,
+                            MUTANT_PSI = 3, MUTANT_AOE = 4;
     public final int[] stableId, x, y, z, type, health, state, roomId, direction, radius, faction,
-            timer, target, flags, spriteId, aux;
+            timer, target, flags, spriteId, aux, archetype;
     public final boolean[] active;
     private int count;
     private final int[] kinds = new int[8];
@@ -32,6 +34,7 @@ public final class EntityPool {
         flags = new int[capacity];
         spriteId = new int[capacity];
         aux = new int[capacity];
+        archetype = new int[capacity];
         active = new boolean[capacity];
     }
     public int spawn(int t, int px, int py, int pz, int hp) {
@@ -61,6 +64,7 @@ public final class EntityPool {
                 flags[i] = FLAG_UPDATE | (t >= ITEM ? FLAG_INTERACTABLE : 0);
                 spriteId[i] = t;
                 aux[i] = 0;
+                archetype[i] = MUTANT_BASIC;
                 count++;
                 if (t < kinds.length)
                     kinds[t]++;

@@ -57,6 +57,7 @@ public final class Engine implements Runnable {
         tables = new GameplayTables();
         if (!tables.load("/data/gameplay.dat") || !ItemCatalog.install(tables))
             return false;
+        tables.installFactionRelations(systems.relations());
         persistent = new SaveData();
         persistent.seed = 0x4d58534d;
         if (!loadLocation("cordon", 0, false))
@@ -308,7 +309,8 @@ public final class Engine implements Runnable {
                                 ItemCatalog.range(player.combat.weapon)),
                         ItemCatalog.spread(player.combat.weapon),
                         ItemCatalog.damage(player.combat.weapon)
-                                + ItemCatalog.damageBonus(ItemCatalog.ammo(player.combat.weapon)));
+                                + ItemCatalog.damageBonus(ItemCatalog.ammo(player.combat.weapon)),
+                        systems.relations(), gameplay.reputation);
         }
         player.ammo = player.combat.magazine;
         stats.entities = level.entities.activeCount();

@@ -9,7 +9,8 @@ public final class MovementSystem {
                     && (p.state[i] == EntityPool.STATE_COMBAT
                             || p.state[i] >= EntityPool.STATE_MELEE)) {
                 long dx = player.x - p.x[i], dz = player.z - p.z[i];
-                int sx = dx > 0 ? step : -step, sz = dz > 0 ? step : -step;
+                int speed = p.state[i] == EntityPool.STATE_LEAP ? step * 3 : step;
+                int sx = dx > 0 ? speed : -speed, sz = dz > 0 ? speed : -speed;
                 for (int j = 0; j < p.capacity(); j++)
                     if (j != i && p.active[j]) {
                         long ox = p.x[i] - p.x[j], oz = p.z[i] - p.z[j],

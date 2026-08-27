@@ -3,6 +3,8 @@ import com.microx.engine.Input;
 import com.microx.engine.math.Fixed;
 import com.microx.engine.world.*;
 import com.microx.engine.gameplay.ItemCatalog;
+import com.microx.engine.gameplay.FactionRelations;
+import com.microx.engine.gameplay.Reputation;
 public final class CombatTest {
     public static void main(String[] a) {
         if (!ItemCatalog.loadDefault())
@@ -13,7 +15,22 @@ public final class CombatTest {
         damageAndEffects();
         stamina();
         deathBecomesCorpse();
+        neutralKillChangesHostility();
         System.out.println("CombatTest: OK");
+    }
+    private static void neutralKillChangesHostility() {
+        FactionRelations relations = new FactionRelations(4);
+        Reputation reputation = new Reputation(4);
+        HitScan hit = new HitScan();
+        for (int n = 0; n < 3; n++) {
+            EntityPool entities = new EntityPool(2);
+            int victim = entities.spawn(EntityPool.HUMAN, Fixed.fromInt(2), 0, 0, 1);
+            entities.faction[victim] = 3;
+            hit.fire(player(), entities, space(false), Fixed.fromInt(5), 0, 2, relations,
+                    reputation);
+        }
+        eq(-300, reputation.get(3));
+        ok(relations.hostile(3, 1));
     }
     private static void deathBecomesCorpse() {
         Player p = player();

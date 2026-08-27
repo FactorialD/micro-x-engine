@@ -130,6 +130,13 @@ public final class GameplayTables {
         int row = find("traders", npc);
         return row < 0 ? 0 : number(meta[row], "faction");
     }
+    public void installFactionRelations(FactionRelations relations) {
+        for (int t = 0; t < table.length; t++)
+            if ("relationships".equals(table[t]))
+                for (int i = first[t] & 65535, end = i + (count[t] & 65535); i < end; i++)
+                    relations.set(number(meta[i], "from"), number(meta[i], "to"),
+                            number(meta[i], "relation"));
+    }
     public int questRequires(int quest) {
         int row = find("quests", quest);
         return row < 0 ? 0 : number(meta[row], "requires");

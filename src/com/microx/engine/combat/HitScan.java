@@ -1,6 +1,8 @@
 package com.microx.engine.combat;
 import com.microx.engine.math.Fixed;
 import com.microx.engine.world.*;
+import com.microx.engine.gameplay.FactionRelations;
+import com.microx.engine.gameplay.Reputation;
 
 /** Deterministic 3-D ray test against level geometry and entity hit cylinders. */
 public final class HitScan {
@@ -41,6 +43,14 @@ public final class HitScan {
                 pool.killToCorpse(best);
         }
         return best;
+    }
+    public int fire(Player p, EntityPool pool, Collision collision, int range, int spread,
+            int damage, FactionRelations relations, Reputation reputation) {
+        int hit = fire(p, pool, collision, range, spread, damage);
+        if (hit >= 0 && pool.type[hit] == EntityPool.CORPSE && relations != null
+                && reputation != null)
+            relations.neutralKilled(pool.faction[hit], p.faction, reputation);
+        return hit;
     }
     public int fire(Player p, EntityPool pool, int range, int spread) {
         return fire(p, pool, null, range, spread, 25);
