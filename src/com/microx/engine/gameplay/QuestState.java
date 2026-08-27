@@ -7,6 +7,10 @@ public final class QuestState {
         int qn = Math.min(questCapacity(), source.questCapacity());
         for (int i = 1; i <= qn; i++) restoreState(i, source.state(i));
         setObjective(source.objective());
+        storyNode = source.storyNode;
+        ending = source.ending;
+        freeplay = source.freeplay;
+        cyclicSeed = source.cyclicSeed;
         int fn = Math.min(flagCapacity(), source.flagCapacity());
         for (int i = 0; i < fn; i++)
             if (source.flag(i))
@@ -18,7 +22,8 @@ public final class QuestState {
     private final byte[] states;
     private final int[] flags;
     private final short[] counters;
-    private int objective = -1;
+    private int objective = -1, storyNode, ending, cyclicSeed;
+    private boolean freeplay;
     public QuestState(int quests, int flagWords, int counterCount) {
         states = new byte[quests + 1];
         flags = new int[flagWords];
@@ -32,6 +37,30 @@ public final class QuestState {
     }
     public void setObjective(int marker) {
         objective = marker;
+    }
+    public int storyNode() {
+        return storyNode;
+    }
+    public void setStoryNode(int value) {
+        storyNode = value;
+    }
+    public int ending() {
+        return ending;
+    }
+    public void setEnding(int value) {
+        ending = value;
+    }
+    public boolean freeplay() {
+        return freeplay;
+    }
+    public void setFreeplay(boolean value) {
+        freeplay = value;
+    }
+    public int cyclicSeed() {
+        return cyclicSeed;
+    }
+    public void setCyclicSeed(int value) {
+        cyclicSeed = value;
     }
     public boolean flag(int id) {
         return id >= 0 && id < flags.length * 32 && (flags[id >>> 5] & (1 << (id & 31))) != 0;
@@ -98,5 +127,7 @@ public final class QuestState {
         for (int i = 0; i < flags.length; i++) flags[i] = 0;
         for (int i = 0; i < counters.length; i++) counters[i] = 0;
         objective = -1;
+        storyNode = ending = cyclicSeed = 0;
+        freeplay = false;
     }
 }

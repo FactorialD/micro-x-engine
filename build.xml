@@ -170,6 +170,7 @@
   <target name="validate-package" depends="create-jar" description="Check mandatory runtime resources and reject source assets in the JAR">
     <fail message="Mandatory Cordon runtime resources are missing from the JAR"><condition><not><resourcecount when="equal" count="2"><zipfileset src="${dist.jar}" includes="levels/cordon/level.lvl,levels/cordon/geometry.mesh"/></resourcecount></not></condition></fail>
     <fail message="Mandatory Garbage runtime resources are missing from the JAR"><condition><not><resourcecount when="equal" count="2"><zipfileset src="${dist.jar}" includes="levels/garbage/level.lvl,levels/garbage/geometry.mesh"/></resourcecount></not></condition></fail>
+    <fail message="Story location runtime resources are missing from the JAR"><condition><not><resourcecount when="equal" count="6"><zipfileset src="${dist.jar}" includes="levels/depot/level.lvl,levels/depot/geometry.mesh,levels/laboratory/level.lvl,levels/laboratory/geometry.mesh,levels/arena/level.lvl,levels/arena/geometry.mesh"/></resourcecount></not></condition></fail>
     <fail message="Mandatory /data/gameplay.dat is missing from the JAR"><condition><not><resourcecount when="greater" count="0"><zipfileset src="${dist.jar}" includes="data/gameplay.dat"/></resourcecount></not></condition></fail>
     <fail message="Editable/source assets are forbidden in the runtime JAR"><condition><resourcecount when="greater" count="0"><zipfileset src="${dist.jar}" includes="**/*.obj,**/geometry.txt,**/*.level,assets-src/**,**/*~"/></resourcecount></condition></fail>
   </target>

@@ -1,0 +1,18 @@
+# arena: authored story location with reciprocal transitions and quest marker.
+MXL2
+counts 1 1 1 2 2 3 2 2 8
+room -8 8 -8 8
+floor 0 -8 8 -8 8 0
+ceiling 0 -8 8 -8 8 4
+edge 0 -8 -8 -8 8 0 4
+edge 0 8 -8 8 8 0 4
+portal 1 0 0 -2 2 0 3 -8 -7 -1 0
+portal 2 0 0 -2 2 0 3 7 8 -1 1
+spawn 0 0 0 0 0 0
+spawn 10 0 0 0 -5 0
+spawn 30 0 0 0 5 180
+transition 1 10 cordon
+transition 2 30 cordon
+# entity type 7 is an interaction/quest marker.
+entity 50002 7 0 0 3 1 0 17 50002
+entity 50003 2 2 0 1 100 3 21 1
