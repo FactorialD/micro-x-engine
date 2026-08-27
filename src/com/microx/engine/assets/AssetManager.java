@@ -8,8 +8,8 @@ import java.io.InputStream;
 public final class AssetManager {
     private static final int MESH_MAGIC = 0x4d584d32, TEXTURE_MAGIC = 0x4d585432,
                              FORMAT_VERSION = 2, MAX_ASSET_BYTES = 768 * 1024;
-    private static final TextureData WHITE =
-            new TextureData(1, 1, new int[] {0xffffff}, new byte[] {0});
+    private static final TextureData MISSING_TEXTURE =
+            new TextureData(1, 1, new int[] {0xff00ff}, new byte[] {0});
     private MeshSection[] sharedSections, locationSections;
     private TextureData[] sharedTextures, locationTextures;
 
@@ -54,7 +54,7 @@ public final class AssetManager {
         int shared = -id - 1;
         if (shared >= 0 && sharedTextures != null && shared < sharedTextures.length)
             return sharedTextures[shared];
-        return WHITE;
+        return MISSING_TEXTURE;
     }
     public void unloadLocation() {
         locationSections = null;

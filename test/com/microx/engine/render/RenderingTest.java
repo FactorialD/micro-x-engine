@@ -1,4 +1,5 @@
 package com.microx.engine.render;
+import com.microx.engine.assets.AssetManager;
 import com.microx.engine.assets.TextureData;
 import com.microx.engine.math.Fixed;
 import com.microx.engine.world.PortalWorld;
@@ -11,6 +12,7 @@ public final class RenderingTest {
         objImport();
         clippingAndWinding();
         depthAndUv();
+        missingTexture();
         portalOcclusion();
         budget();
         System.out.println("RenderingTest: OK");
@@ -59,6 +61,9 @@ public final class RenderingTest {
         ok(rgb[18] == 0x00ff00, "depth ordering");
         TextureData t = new TextureData(2, 1, new int[] {0x112233, 0xabcdef}, new byte[] {0, 1});
         ok(t.sample(0, 0) == 0x112233 && t.sample(Fixed.ONE, 0) == 0xabcdef, "UV sampling");
+    }
+    private static void missingTexture() {
+        ok(new AssetManager().texture(0).sample(0, 0) == 0xff00ff, "missing texture is pink");
     }
     private static void portalOcclusion() {
         PortalWorld w = new PortalWorld(3, 2);

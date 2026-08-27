@@ -16,7 +16,7 @@ class Tests(unittest.TestCase):
    'ceiling':'ceiling 0 0 1 0 1 1', 'edge':'edge 0 0 0 1 0 0 1',
    'portal':'portal 0 0 0 0 1 0 1 0 1 -1 -1',
    'spawn':'spawn 0 0 0 0 0 0', 'transition':'transition 0 0 level_1',
-   'entity':'entity 0 0 0 0 0 0'}
+   'entity':'entity 0 0 0 0 0 0 0 0 0'}
   replacements=replacements or {}
   for kind,count in zip(KINDS,n[:8]):
    rows.extend([replacements.get(kind,samples[kind])]*count)
@@ -144,7 +144,7 @@ class Tests(unittest.TestCase):
    'room':('room -32768 32767 -32768 32767',),
    'spawn':('spawn 65535 0 -32768 32767 0 -32768',),
    'transition':('transition 65535 65535 '+'a'*64,),
-   'entity':('entity 65535 65535 -32768 32767 0 65535',)}
+   'entity':('entity 65535 65535 -32768 32767 0 65535 65535 65535 65535',)}
   for kind,(row,) in valid_rows.items():
    counts=[1,1,1,0,0,1,0,0,1]; counts[KINDS.index(kind)]=1
    with self.subTest(kind=kind): parse_level_text(self.level_text(counts,{kind:row}))
@@ -152,7 +152,7 @@ class Tests(unittest.TestCase):
    'room':('room -32769 1 0 1','room 0 32768 0 1','room nope 1 0 1'),
    'spawn':('spawn -1 0 0 0 0 0','spawn 0 0 0 0 0 32768'),
    'transition':('transition 0 0 bad/location','transition 0 0 '+('a'*65)),
-   'entity':('entity 65536 0 0 0 0 0','entity 0 -1 0 0 0 0','entity 0 0 0 0 0 65536')}
+   'entity':('entity 65536 0 0 0 0 0 0 0 0','entity 0 -1 0 0 0 0 0 0 0','entity 0 0 0 0 0 65536 0 0 0')}
   for kind,rows in invalid_rows.items():
    for row in rows:
     counts=[1,1,1,0,0,1,0,0,1]; counts[KINDS.index(kind)]=1

@@ -27,7 +27,7 @@ public final class Engine implements Runnable {
     private final WorldSystems systems = new WorldSystems(0x4d58534d);
     private SaveStore saves;
     private SettingsStore settings;
-    private String location = "test";
+    private String location = "cordon";
     public LevelLoader level;
     public void attach(GameCanvas3D c) {
         canvas = c;
@@ -55,7 +55,7 @@ public final class Engine implements Runnable {
             return false;
         persistent = new SaveData();
         persistent.seed = 0x4d58534d;
-        if (!loadLocation("test", 0, false))
+        if (!loadLocation("cordon", 0, false))
             return false;
         renderer.load();
         state = RUNNING;

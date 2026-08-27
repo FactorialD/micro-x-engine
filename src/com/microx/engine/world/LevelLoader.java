@@ -5,7 +5,7 @@ import java.io.InputStream;
 
 /** Streaming loader for the versioned MXL2 binary resource. Publishes only complete levels. */
 public final class LevelLoader {
-    public static final int MAGIC = 0x4d584c32, VERSION = 2;
+    public static final int MAGIC = 0x4d584c32, VERSION = 3;
     public PortalWorld world;
     public Collision collision;
     public EntityPool entities;
@@ -94,11 +94,15 @@ public final class LevelLoader {
                 if (tl[i].length() == 0 || tl[i].length() > 64)
                     return false;
             }
-            for (i = 0; i < entityCount; i++)
-                if (e.spawn(in.readInt(), in.readUnsignedShort(), in.readInt(), in.readInt(),
-                            in.readInt(), in.readUnsignedShort())
-                        < 0)
+            for (i = 0; i < entityCount; i++) {
+                int entity = e.spawn(in.readInt(), in.readUnsignedShort(), in.readInt(),
+                        in.readInt(), in.readInt(), in.readUnsignedShort());
+                if (entity < 0)
                     return false;
+                e.faction[entity] = in.readUnsignedShort();
+                e.spriteId[entity] = in.readUnsignedShort();
+                e.aux[entity] = in.readUnsignedShort();
+            }
             if (in.read() != -1)
                 return false;
             world = w;
