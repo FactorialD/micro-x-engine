@@ -17,7 +17,7 @@ public final class Hud {
         int w = g.getClipWidth(), h = g.getClipHeight(), vx = (w - 240) / 2, vy = (h - 320) / 2;
         g.setFont(font);
         bar(g, vx + 4, vy + 5, 70, p.health, 0xb03030, HP);
-        bar(g, vx + 4, vy + 18, 70, p.armor, 0x6080a0, AR);
+        bar(g, vx + 4, vy + 18, 70, p.physicalProtection, 0x6080a0, AR);
         bar(g, vx + 4, vy + 31, 70, p.stamina, 0x70a040, ST);
         g.setColor(0xffffff);
         g.drawString(WEAPONS[p.combat.weapon], vx + 154, vy + 5, Graphics.TOP | Graphics.LEFT);

@@ -8,3 +8,8 @@
 7|crystal|Кристал|type=artifact,cells=1,stack=1,value=1500,physical=0,anomaly=5,radiation=25
 8|ammo_9mm|Набої 9 мм|type=ammo,cells=1,stack=120,value=2,damageBonus=0
 9|ammo_545|Набої 5.45 мм|type=ammo,cells=1,stack=120,value=4,damageBonus=2
+10|food|Консерви|type=consumable,cells=1,stack=5,value=120,health=15,bleeding=0,radiation=0
+11|antirad|Антирад|type=consumable,cells=1,stack=5,value=450,health=0,bleeding=0,radiation=-60
+12|vodka|Горілка|type=consumable,cells=1,stack=3,value=180,health=0,bleeding=0,radiation=-20
+13|bolt|Болт|type=bolt,cells=1,stack=10,value=1
+14|detector|Детектор|type=detector,cells=2,stack=1,value=750

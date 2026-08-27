@@ -13,8 +13,10 @@ ITEM_SCHEMAS={
            "spread":(0,90),"durability":(1,100)},
  "armor":{"physical":(-100,100),"anomaly":(-100,100),"radiation":(-100,100)},
  "artifact":{"physical":(-100,100),"anomaly":(-100,100),"radiation":(-100,100)},
- "consumable":{"health":(0,100),"bleeding":(0,100),"radiation":(0,100)},
+ "consumable":{"health":(0,100),"bleeding":(0,100),"radiation":(-100,100)},
  "ammo":{"damageBonus":(-1000,1000)},
+ "bolt":{},
+ "detector":{},
 }
 TABLE_METADATA={"dialogs":{"next","ref"},"quests":{"requires","ref"},"npcs":{"ref"}}
 

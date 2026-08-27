@@ -198,6 +198,8 @@ public final class GameplayTables {
                             : "consumable".equals(type)    ? 3
                             : "artifact".equals(type)      ? 4
                             : "ammo".equals(type)          ? 5
+                            : "bolt".equals(type)          ? 6
+                            : "detector".equals(type)      ? 7
                                                            : 0);
             if (itemType[item] == 0)
                 return false;

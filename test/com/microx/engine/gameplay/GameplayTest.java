@@ -1,5 +1,7 @@
 package com.microx.engine.gameplay;
 import com.microx.engine.save.*;
+import com.microx.engine.world.Player;
+import com.microx.engine.combat.DamagePipeline;
 
 public final class GameplayTest {
     public static void main(String[] args) {
@@ -7,6 +9,7 @@ public final class GameplayTest {
             throw new AssertionError("gameplay catalog unavailable");
         inventory();
         equipment();
+        fiveArtifactSave();
         loot();
         trade();
         quests();
@@ -14,6 +17,20 @@ public final class GameplayTest {
         tableDrivenScenario();
         tradeRepairAndCorpseSaveLoad();
         System.out.println("GameplayTest OK");
+    }
+    private static void fiveArtifactSave() {
+        SaveData save = new SaveData();
+        for (int i = 0; i < 5; i++)
+            ok(save.gameplay.equipment.restore(
+                    2, i, (i & 1) == 0 ? GameIds.ITEM_STONE : GameIds.ITEM_CRYSTAL));
+        try {
+            SaveData loaded = new SaveCodec().decode(new SaveCodec().encode(save));
+            for (int i = 0; i < 5; i++)
+                eq((i & 1) == 0 ? GameIds.ITEM_STONE : GameIds.ITEM_CRYSTAL,
+                        loaded.gameplay.equipment.artifact(i));
+        } catch (SaveException failure) {
+            throw new AssertionError(failure.toString());
+        }
     }
     private static void tradeRepairAndCorpseSaveLoad() {
         GameplayTables tables = new GameplayTables();
@@ -122,12 +139,19 @@ public final class GameplayTest {
         ok(e.equip(bag, GameIds.ITEM_RIFLE, 1));
         ok(e.equip(bag, GameIds.ITEM_LEATHER_ARMOR, 0));
         ok(e.equip(bag, GameIds.ITEM_STONE, 0));
-        PlayerStats s = new PlayerStats();
+        Player s = new Player();
         s.health = 20;
         e.apply(s);
         eq(30, s.physicalProtection);
+        s.health = 100;
+        int before = s.health;
+        DamagePipeline.apply(s, DamagePipeline.PHYSICAL, 40);
+        eq(before - 28, s.health);
+        s.health = 20;
         ok(e.use(bag, GameIds.ITEM_MEDKIT, s));
         eq(80, s.health);
+        ok(e.unequip(bag, 2, 0, s));
+        eq(25, s.physicalProtection);
     }
     private static void loot() {
         Inventory a = new Inventory(8, 20), b = new Inventory(8, 20);

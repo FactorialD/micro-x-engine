@@ -71,8 +71,8 @@ public final class CombatTest {
     }
     private static void damageAndEffects() {
         Player p = player();
-        p.suit = ItemTypes.SUIT_LEATHER;
-        p.armor = 20;
+        p.physicalProtection = 45;
+        p.radiationProtection = 25;
         int dealt = DamagePipeline.apply(p, DamagePipeline.PHYSICAL, 40);
         ok(dealt < 40);
         ok(p.bleeding > 0);

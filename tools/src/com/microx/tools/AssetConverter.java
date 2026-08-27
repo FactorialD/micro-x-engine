@@ -224,11 +224,11 @@ public final class AssetConverter {
                 allowed.addAll(Arrays.asList("health", "bleeding", "radiation"));
                 rangeRequired(row, m, "health", 0, 100);
                 rangeRequired(row, m, "bleeding", 0, 100);
-                rangeRequired(row, m, "radiation", 0, 100);
+                rangeRequired(row, m, "radiation", -100, 100);
             } else if ("ammo".equals(type)) {
                 allowed.add("damageBonus");
                 rangeRequired(row, m, "damageBonus", -1000, 1000);
-            } else
+            } else if (!"bolt".equals(type) && !"detector".equals(type))
                 throw row.error("unknown item type " + type);
             for (String key : m.keySet())
                 if (!allowed.contains(key))

@@ -31,7 +31,8 @@ microx-editor
   `counts`, зберігаючи capacity, comments, порожні рядки та stable ID.
 * Gameplay `.txt` має окрему таблицю rows із колонками `id`, `key`,
   `description`, `metadata`. Metadata-форми залежать від таблиці, а для items —
-  від `weapon`, `armor`, `artifact`, `consumable` або `ammo`; доступні ті самі
+  від `weapon`, `armor`, `artifact`, `consumable`, `ammo`, `bolt` або `detector`;
+  доступні ті самі
   операції додавання, видалення та впорядкування.
 * **Validate Project** перевіряє одночасно всі gameplay-таблиці. **Save** і
   **Save All** повторюють повну проєктну перевірку та лише після неї атомарно

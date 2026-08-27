@@ -5,11 +5,12 @@ import com.microx.engine.math.Fixed;
 public final class Player {
     public static final int RADIUS = Fixed.ONE / 4, STANDING_HEIGHT = Fixed.fromInt(2),
                             CROUCH_HEIGHT = Fixed.ONE, STEP_HEIGHT = Fixed.ONE / 2;
-    public int x, y, z, vx, vy, vz, yaw, pitch, health = 100, armor = 25, stamina = 100, bleeding,
-                                                radiation, suit = ItemTypes.SUIT_NONE,
-                                                artifact = ItemTypes.ARTIFACT_NONE;
-    public int bleedTimer, radiationTimer;
-    public boolean grounded = true, crouched, aiming, sprinting;
+    /** Authoritative runtime vitals and equipment-derived protections. */
+    public int x, y, z, vx, vy, vz, yaw, pitch, health = 100, stamina = 100, bleeding, radiation,
+                                                physicalProtection, anomalyProtection,
+                                                radiationProtection;
+    public int bleedTimer, radiationTimer, slowTimer;
+    public boolean grounded = true, crouched, aiming, sprinting, detectorActive;
     public final CombatState combat = new CombatState();
     public final int[] reserveAmmo = new int[8];
     /** Compatibility mirror; combat.magazine is authoritative. */ public int ammo = 30;
@@ -20,11 +21,11 @@ public final class Player {
         vx = vy = vz = 0;
         yaw = pitch = 0;
         health = 100;
-        armor = 25;
         stamina = 100;
-        bleeding = radiation = bleedTimer = radiationTimer = 0;
+        bleeding = radiation = bleedTimer = radiationTimer = slowTimer = 0;
+        physicalProtection = anomalyProtection = radiationProtection = 0;
         grounded = true;
-        crouched = aiming = sprinting = false;
+        crouched = aiming = sprinting = detectorActive = false;
         combat.equip(ItemTypes.PISTOL);
         for (int i = 0; i < reserveAmmo.length; i++) reserveAmmo[i] = 0;
         ammo = combat.magazine;
@@ -32,7 +33,9 @@ public final class Player {
     public void update(int dt, Input in, Collision c) {
         combat.update(dt);
         ammo = combat.magazine;
-        int keys = in.down(), speed = Fixed.fromInt(3);
+        if (slowTimer > 0)
+            slowTimer = Math.max(0, slowTimer - dt);
+        int keys = in.down(), speed = slowTimer > 0 ? Fixed.fromInt(3) / 2 : Fixed.fromInt(3);
         sprinting = ((in.doubleTapped() | in.held()) & Input.FORWARD) != 0 && !crouched && !aiming
                 && stamina > 0;
         if (sprinting) {
@@ -91,6 +94,10 @@ public final class Player {
         updateEffects(dt);
         stamina = Fixed.clamp(stamina, 0, 100);
     }
+    public void slow(int duration) {
+        if (duration > slowTimer)
+            slowTimer = duration;
+    }
     private void updateEffects(int dt) {
         if (bleeding > 0) {
             bleedTimer += dt;
@@ -105,7 +112,6 @@ public final class Player {
             while (radiationTimer >= 1000) {
                 radiationTimer -= 1000;
                 health -= Math.max(1, radiation / 25);
-                radiation--;
             }
         }
         if (health < 0)
