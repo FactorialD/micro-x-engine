@@ -20,6 +20,19 @@ ITEM_SCHEMAS={
 }
 TABLE_METADATA={"dialogs":{"next","ref"},"quests":{"requires","ref"},"npcs":{"ref"}}
 
+def metadata_fields(table:str, values=None):
+ """Return the declarative metadata fields used by both validation and the UI."""
+ values=values or {}
+ if table=="items":
+  kind=values.get("type","")
+  return tuple(COMMON_ITEM_FIELDS)+tuple(ITEM_SCHEMAS.get(kind,{}))
+ return tuple(sorted(TABLE_METADATA.get(table,set())))
+
+def serialize_metadata(values:dict[str,str], fields=None):
+ """Serialize populated form values without inventing empty metadata tokens."""
+ order=fields or values.keys()
+ return ",".join(f"{key}={values[key]}" for key in order if values.get(key,"")!="")
+
 @dataclass
 class Row: id:int; key:str; description:str; meta:str=""
 @dataclass

@@ -7,7 +7,8 @@ from .images import inspect_png,replace_atlas
 from .obj import validate_obj,replace_obj
 from .level import KINDS,ARITY,Line,parse_level_text,serialize_level
 from .data import (DataLine,Row,ITEM_SCHEMAS,COMMON_ITEM_FIELDS,TABLE_METADATA,
-                   parse_data,serialize_data,load_tables,validate_tables)
+                   parse_data,parse_metadata,serialize_metadata,metadata_fields,
+                   serialize_data,load_tables,validate_tables)
 
 def resolve_unsaved(dirty, answer, save):
  if not dirty:return True
@@ -29,7 +30,7 @@ class Editor(tk.Tk):
   for label,command in [('Add',self.add),('Delete',self.delete),('Move Up',lambda:self.move(-1)),('Move Down',lambda:self.move(1))]:ttk.Button(tools,text=label,command=command).pack(side='left')
   self.kind=tk.StringVar();self.filter=ttk.Combobox(tools,textvariable=self.kind,state='readonly');self.filter.bind('<<ComboboxSelected>>',lambda e:self.render());self.filter.pack(side='left')
   self.grid=ttk.Treeview(right,show='headings',selectmode='browse');self.grid.bind('<<TreeviewSelect>>',self.load_form);self.grid.pack(fill='both',expand=True)
-  self.form=ttk.Frame(right);self.form.pack(fill='x');self.entries=[]
+  self.form=ttk.Frame(right);self.form.pack(fill='x');self.entries=[];self.form_fields=[]
   self.raw=tk.Text(right,height=5,undo=True);self.raw.pack(fill='x');self.raw.bind('<<Modified>>',self.raw_modified)
   ttk.Label(right,text='Advanced: raw source (read-only mirror; structured forms are authoritative)').pack(anchor='w');self.raw.config(state='disabled')
   self.protocol('WM_DELETE_WINDOW',self.close)
@@ -89,15 +90,16 @@ class Editor(tk.Tk):
   for c in cols:self.grid.heading(c,text=c);self.grid.column(c,width=120)
  def _clear_form(self):
   for child in self.form.winfo_children():child.destroy()
-  self.entries=[]
+  self.entries=[];self.form_fields=[]
  def load_form(self,event=None):
   self._clear_form();selected=self.grid.selection()
   if not selected or self.mode not in ('level','data'):return
   values=list(self.grid.item(selected[0],'values'));labels=list(self.grid['columns'])
   if self.mode=='data':
    table=self.current.stem
-   if table=='items':labels+=sorted(set(COMMON_ITEM_FIELDS)|set().union(*(set(v) for v in ITEM_SCHEMAS.values())))
-   else:labels+=sorted(TABLE_METADATA.get(table,set()))
+   metadata=parse_metadata(values.pop(),f'{self.current}: record {self.grid.index(selected[0])+1}: metadata')
+   labels=list(self.grid['columns'][:-1])+list(metadata_fields(table,metadata));values+= [metadata.get(k,'') for k in labels[3:]]
+  self.form_fields=labels
   for i,(label,value) in enumerate(zip(labels,values)):
    ttk.Label(self.form,text=label).grid(row=i//4*2,column=i%4,sticky='w');var=tk.StringVar(value=value);entry=ttk.Entry(self.form,textvariable=var);entry.grid(row=i//4*2+1,column=i%4,sticky='ew');entry.bind('<FocusOut>',self.apply_form);self.entries.append(var)
  def apply_form(self,event=None):
@@ -107,7 +109,9 @@ class Editor(tk.Tk):
   try:
    if self.mode=='level':self.model.records(self.kind.get())[index].values=values
    else:
-    line=self.model.row_lines()[index];line.row=Row(int(values[0]),values[1],values[2],values[3]);line.had_meta=bool(values[3]) or line.had_meta
+    line=self.model.row_lines()[index];fields=self.form_fields[3:]
+    metadata=serialize_metadata(dict(zip(fields,values[3:])),fields)
+    line.row=Row(int(values[0]),values[1],values[2],metadata);line.had_meta=bool(metadata) or line.had_meta
    self.changed();self.render()
   except Exception as e:self.error(f'{self.current}: record {index+1}: {e}')
  def changed(self):self.dirty=True;self.mark()
@@ -117,7 +121,9 @@ class Editor(tk.Tk):
    for i,line in enumerate(self.model.lines):
     if line.kind in KINDS and KINDS.index(line.kind)>KINDS.index(kind):insert=i;break
    self.model.lines.insert(insert,Line('',kind,['0']*ARITY[kind]))
-  elif self.mode=='data':self.model.lines.append(DataLine('',Row(1,'new_key','', ''),False,len(self.model.lines)+1))
+  elif self.mode=='data':
+   rows=self.model.rows();ident=max((row.id for row in rows),default=0)+1
+   self.model.lines.append(DataLine('',Row(ident,f'new_key_{ident}','', ''),False,len(self.model.lines)+1))
   else:return
   self.changed();self.render()
  def delete(self):

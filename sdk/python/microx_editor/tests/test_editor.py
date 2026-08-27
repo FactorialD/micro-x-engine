@@ -86,6 +86,15 @@ class Tests(unittest.TestCase):
   weapon='3|gun|G|type=weapon,cells=1,stack=1,value=0,ammo=2,magazine=1,damage=1,range=1,cooldown=1,reload=1,spread=0,durability=1\n'
   with self.assertRaisesRegex(DataError,'does not reference'):validate_tables({'items':parse_data(ammo+non_ammo+weapon)})
 
+ def test_declarative_metadata_form_and_serialization(self):
+  values=parse_metadata('type=weapon,cells=1,stack=2,value=3,ammo=7')
+  fields=metadata_fields('items',values)
+  self.assertEqual(fields[:4],('type','cells','stack','value'))
+  self.assertIn('magazine',fields)
+  self.assertEqual(serialize_metadata(values,fields),
+                   'type=weapon,cells=1,stack=2,value=3,ammo=7')
+  self.assertEqual(metadata_fields('dialogs'),('next','ref'))
+
 
  def test_structured_count_update_and_unsaved_guard(self):
   level=parse_level_text(self.level_text())
