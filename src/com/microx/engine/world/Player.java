@@ -10,6 +10,7 @@ public final class Player {
                                                 physicalProtection, anomalyProtection,
                                                 radiationProtection;
     public int bleedTimer, radiationTimer, slowTimer;
+    public int faction = 1;
     public boolean grounded = true, crouched, aiming, sprinting, detectorActive;
     public final CombatState combat = new CombatState();
     public final int[] reserveAmmo = new int[8];

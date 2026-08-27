@@ -4,6 +4,7 @@ import com.microx.engine.math.Fixed;
 /** Deterministic AI, anomaly and corpse state transitions. */
 public final class StateMachineSystem {
     private int seed;
+    private static final long MELEE_RANGE2 = (long) Fixed.ONE * Fixed.ONE * 3;
     public StateMachineSystem(int value) {
         seed = value;
     }
@@ -30,28 +31,46 @@ public final class StateMachineSystem {
                         p.timer[i] = 600;
                     }
                 } else if (p.type[i] == EntityPool.MUTANT) {
-                    if ((p.flags[i] & EntityPool.FLAG_PERCEIVES_PLAYER) != 0
-                            && p.state[i] == EntityPool.STATE_IDLE)
-                        p.state[i] = EntityPool.STATE_MELEE;
-                    if (p.timer[i] <= 0 && p.state[i] >= EntityPool.STATE_MELEE) {
-                        int mask = p.aux[i];
-                        int choices = 1 + (mask & 1) + ((mask >> 1) & 1) + ((mask >> 2) & 1)
-                                + ((mask >> 3) & 1),
-                            pick = random() % choices, s = EntityPool.STATE_MELEE;
-                        for (int b = 0; b < 4; b++)
-                            if ((mask & (1 << b)) != 0 && pick-- == 0) {
-                                s = EntityPool.STATE_LEAP + b;
-                                break;
-                            }
-                        p.state[i] = s;
-                        p.timer[i] = 800;
-                        if (s == EntityPool.STATE_MELEE
-                                && distance2(p.x[i], p.z[i], player.x, player.z)
-                                        < (long) Fixed.ONE * Fixed.ONE * 3)
-                            DamagePipeline.apply(player, DamagePipeline.MELEE, 8);
-                    }
+                    mutant(p, i, player);
                 }
             }
+    }
+    private void mutant(EntityPool p, int i, Player player) {
+        boolean sees = (p.flags[i] & EntityPool.FLAG_PERCEIVES_PLAYER) != 0;
+        int kind = p.archetype[i];
+        if (!sees) {
+            p.state[i] = EntityPool.STATE_IDLE;
+            if (kind == EntityPool.MUTANT_BLOODSUCKER)
+                p.flags[i] &= ~EntityPool.FLAG_VISIBLE;
+            return;
+        }
+        if (p.timer[i] > 0)
+            return;
+        long d2 = distance2(p.x[i], p.z[i], player.x, player.z);
+        int state = EntityPool.STATE_MELEE, cooldown = 700;
+        if (kind == EntityPool.MUTANT_LEAPER && d2 > MELEE_RANGE2) {
+            state = EntityPool.STATE_LEAP;
+            cooldown = 1400;
+        } else if (kind == EntityPool.MUTANT_PSI) {
+            state = EntityPool.STATE_PSI;
+            cooldown = 1800;
+            int turn = (random() & 1) == 0 ? -12 : 12;
+            player.yaw += turn;
+            player.pitch = Fixed.clamp(player.pitch + turn / 3, -70, 70);
+            DamagePipeline.apply(player, DamagePipeline.ANOMALY, 7);
+        } else if (kind == EntityPool.MUTANT_AOE) {
+            state = EntityPool.STATE_AOE;
+            cooldown = 1600;
+            if (d2 <= (long) Fixed.fromInt(5) * Fixed.fromInt(5) && player.grounded)
+                DamagePipeline.apply(player, DamagePipeline.ANOMALY, 12);
+        } else if (d2 < MELEE_RANGE2) {
+            DamagePipeline.apply(
+                    player, DamagePipeline.MELEE, kind == EntityPool.MUTANT_BLOODSUCKER ? 12 : 8);
+        }
+        p.state[i] = state;
+        p.timer[i] = cooldown;
+        if (kind == EntityPool.MUTANT_BLOODSUCKER)
+            p.flags[i] |= EntityPool.FLAG_VISIBLE;
     }
     private static long distance2(int x, int z, int a, int b) {
         long dx = x - a, dz = z - b;

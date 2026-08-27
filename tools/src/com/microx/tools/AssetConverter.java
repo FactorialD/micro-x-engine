@@ -156,6 +156,8 @@ public final class AssetConverter {
                     allowed.add("ref");
                 else if ("traders".equals(table.getKey()))
                     allowed.addAll(Arrays.asList("faction", "money", "stock"));
+                else if ("relationships".equals(table.getKey()))
+                    allowed.addAll(Arrays.asList("from", "to", "relation"));
                 for (String key : values.keySet())
                     if (!allowed.contains(key))
                         throw row.error("unknown metadata key " + key);
@@ -182,6 +184,15 @@ public final class AssetConverter {
                         if (find(tables.get("items"), item) == null || amount < 1 || amount > 32767)
                             throw row.error("invalid stock entry " + entry);
                     }
+                }
+                if ("relationships".equals(table.getKey())) {
+                    rangeRequired(row, values, "from", 1, 65535);
+                    rangeRequired(row, values, "to", 1, 65535);
+                    rangeRequired(row, values, "relation", -1, 1);
+                    if (find(tables.get("factions"), Integer.parseInt(values.get("from"))) == null
+                            || find(tables.get("factions"), Integer.parseInt(values.get("to")))
+                                    == null)
+                        throw row.error("unknown faction in relationship");
                 }
             }
     }

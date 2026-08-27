@@ -8,8 +8,54 @@ public final class SimulationTest {
         statesAndSight();
         corpseAndCapacity();
         determinism();
+        mutantArchetypes();
+        squadBudget();
         anomalies();
         System.out.println("SimulationTest OK");
+    }
+    private static void mutantArchetypes() {
+        for (int kind = EntityPool.MUTANT_BASIC; kind <= EntityPool.MUTANT_AOE; kind++) {
+            EntityPool p = new EntityPool(8);
+            int m = p.spawn(EntityPool.MUTANT, 0, 0, 0, 50);
+            p.archetype[m] = kind;
+            p.flags[m] |= EntityPool.FLAG_PERCEIVES_PLAYER;
+            Player player = new Player();
+            player.reset(kind == EntityPool.MUTANT_LEAPER ? Fixed.fromInt(6) : Fixed.ONE, 0, 0);
+            int health = player.health, yaw = player.yaw;
+            new StateMachineSystem(9).update(p, player, 20);
+            int expected = kind == EntityPool.MUTANT_LEAPER ? EntityPool.STATE_LEAP
+                    : kind == EntityPool.MUTANT_PSI         ? EntityPool.STATE_PSI
+                    : kind == EntityPool.MUTANT_AOE         ? EntityPool.STATE_AOE
+                                                            : EntityPool.STATE_MELEE;
+            eq(expected, p.state[m]);
+            if (kind != EntityPool.MUTANT_LEAPER)
+                ok(player.health < health);
+            if (kind == EntityPool.MUTANT_PSI)
+                ok(player.yaw != yaw);
+            if (kind == EntityPool.MUTANT_BLOODSUCKER)
+                ok((p.flags[m] & EntityPool.FLAG_VISIBLE) != 0);
+        }
+        EntityPool aoe = new EntityPool(2);
+        int m = aoe.spawn(EntityPool.MUTANT, 0, 0, 0, 10);
+        aoe.archetype[m] = EntityPool.MUTANT_AOE;
+        aoe.flags[m] |= EntityPool.FLAG_PERCEIVES_PLAYER;
+        Player jumping = new Player();
+        jumping.reset(Fixed.ONE, Fixed.ONE, 0);
+        jumping.grounded = false;
+        new StateMachineSystem(1).update(aoe, jumping, 20);
+        eq(100, jumping.health);
+    }
+    private static void squadBudget() {
+        EntityPool p = new EntityPool(96);
+        Player player = new Player();
+        PortalWorld world = new PortalWorld(1, 0);
+        world.room(0, Fixed.fromInt(-100), Fixed.fromInt(100), Fixed.fromInt(-100),
+                Fixed.fromInt(100));
+        world.updateVisibility(0, 0);
+        WorldSystems systems = new WorldSystems(77);
+        for (int i = 0; i < 1000; i++) systems.update(p, player, space(), world, 20);
+        ok(p.typeCount(EntityPool.MUTANT) <= EntityPool.MAX_MUTANTS);
+        ok(p.activeCount() <= p.capacity());
     }
     private static void anomalies() {
         EntityPool entities = new EntityPool(16);
