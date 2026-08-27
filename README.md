@@ -34,6 +34,20 @@ fallback: у `build.properties` явно задані `toolchain.jdk.home` і `w
 `assets-src/` до JAR, тому OBJ, коментарі вихідних рівнів і editor metadata не
 потрапляють у дистрибутив.
 
+### Контракт вихідних ресурсів і desktop-редактор
+
+Усі редаговані gameplay/data-файли в `assets-src/data/` **обов'язково є
+текстовими UTF-8 файлами з розширенням `.txt`**. Це правило стосується саме
+таблиць gameplay data. Моделі `.obj`, рівні `.level` і атласи PNG залишаються
+своїми форматами вихідних ресурсів. Файли `.mesh`, `.lvl`, `.tex` і packed
+gameplay output є згенерованими runtime-файлами: їх не редагують, і правило
+про текстові data-файли на них не поширюється.
+
+Окремий desktop-пакет редактора міститься в `sdk/python/microx_editor/` і не
+входить до J2ME JAR. Запуск, можливості та обмеження описані в README пакета.
+Перевірки запускаються цілями `ant python-sdk-test`, `ant
+check-data-extensions` або разом із host-перевірками через `ant ci`.
+
 ## Acceptance criteria вертикального зрізу
 
 Release candidate приймається лише одним безперервним проходженням на чистому

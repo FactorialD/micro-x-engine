@@ -1,0 +1,17 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "microx-editor"
+version = "0.1.0"
+description = "Desktop source-asset editor for Micro X"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = []
+
+[project.scripts]
+microx-editor = "microx_editor.app:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
