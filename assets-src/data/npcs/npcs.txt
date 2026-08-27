@@ -1,3 +1,3 @@
-1|sidorovich|Сидорович|ref=factions:1
+1|sidorovich|Сидорович|ref=dialogs:1
 2|wolf|Вовк|ref=factions:1
-3|technician|Технік|ref=factions:1
+3|technician|Технік|ref=dialogs:3

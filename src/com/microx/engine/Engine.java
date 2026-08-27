@@ -25,6 +25,7 @@ public final class Engine implements Runnable {
     private final HitScan hit = new HitScan();
     private final InteractionSystem interaction = new InteractionSystem();
     private final WorldSystems systems = new WorldSystems(0x4d58534d);
+    private GameplayTables tables;
     private SaveStore saves;
     private SettingsStore settings;
     private String location = "cordon";
@@ -50,7 +51,7 @@ public final class Engine implements Runnable {
             resume();
             return true;
         }
-        GameplayTables tables = new GameplayTables();
+        tables = new GameplayTables();
         if (!tables.load("/data/gameplay.dat") || !ItemCatalog.install(tables))
             return false;
         persistent = new SaveData();
@@ -311,10 +312,13 @@ public final class Engine implements Runnable {
         int type = e.type[i], stable = e.stableId[i], content = e.aux[i];
         if (type == EntityPool.HUMAN) {
             gameplay.actorId = content == 0 ? GameIds.NPC_SIDOROVICH : content;
-            short[] rows = {(short) GameIds.DIALOG_INTRO, (short) GameIds.DIALOG_TRADE};
-            canvas.ui.fillList(rows, rows.length);
+            short[] rows = new short[32];
+            int count = DialogueSystem.available(tables, gameplay, gameplay.actorId, rows);
+            canvas.ui.fillList(rows, count);
             canvas.ui.show(UIStateMachine.DIALOGUE);
         } else if (type == EntityPool.CORPSE || type == EntityPool.CONTAINER) {
+            if (type == EntityPool.CONTAINER)
+                gameplay.foundStash(stable);
             gameplay.containerId = stable;
             gameplay.loot.clear();
             if (content != 0 && gameplay.containers.get(stable, content) >= 0)
@@ -344,17 +348,17 @@ public final class Engine implements Runnable {
         short[] list = canvas.ui.listBuffer();
         int id = selection < canvas.ui.listSize() ? list[selection] & 65535 : 0;
         if (screen == UIStateMachine.DIALOGUE) {
-            if (id == GameIds.DIALOG_INTRO) {
-                if (gameplay.quests.state(GameIds.QUEST_FIND_STASH) == 0)
-                    gameplay.acceptFindStash();
-                else
-                    gameplay.rewardFindStash();
-            } else {
+            int action = DialogueSystem.select(tables, gameplay, gameplay.actorId, id);
+            if (action == DialogueSystem.TRADE || action == DialogueSystem.REPAIR) {
                 gameplay.trader.clear();
                 gameplay.trader.setMoney(5000);
                 gameplay.trader.add(GameIds.ITEM_MEDKIT, 2, 100);
                 fillInventory(canvas.ui, gameplay.trader);
                 canvas.ui.show(UIStateMachine.TRADE);
+            } else {
+                short[] rows = new short[32];
+                int count = DialogueSystem.available(tables, gameplay, gameplay.actorId, rows);
+                canvas.ui.fillList(rows, count);
             }
         } else if (screen == UIStateMachine.TRADE && id != 0) {
             if (alternate && gameplay.actorId == GameIds.NPC_TECHNICIAN)
