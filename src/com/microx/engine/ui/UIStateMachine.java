@@ -12,6 +12,7 @@ public final class UIStateMachine {
     private static final byte[] MODAL = {1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1};
     private int state = MAIN_MENU, previous = GAMEPLAY, selection, action;
     private final short[] list = new short[32];
+    private final byte[] side = new byte[32];
     private int listSize;
     public int state() {
         return state;
@@ -33,11 +34,19 @@ public final class UIStateMachine {
     public int listSize() {
         return listSize;
     }
+    public int sideAt(int row) {
+        return row >= 0 && row < listSize ? side[row] : 0;
+    }
     public void fillList(short[] source, int count) {
         listSize = count < list.length ? count : list.length;
         for (int i = 0; i < listSize; i++) list[i] = source[i];
+        for (int i = 0; i < listSize; i++) side[i] = 0;
         if (selection >= listSize)
             selection = listSize == 0 ? 0 : listSize - 1;
+    }
+    public void fillTrade(short[] ids, byte[] sides, int count) {
+        fillList(ids, count);
+        for (int i = 0; i < listSize; i++) side[i] = sides[i];
     }
     public void show(int next) {
         if (next < 0 || next > ERROR)

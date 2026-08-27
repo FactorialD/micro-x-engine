@@ -1,0 +1,3 @@
+# Profile stable id is the NPC id. stock uses item-id:quantity entries.
+1|sidorovich_stock|Асортимент Сидоровича|faction=1,money=5000,stock=4:2;5:5;8:60
+3|technician_stock|Майстерня техніка|faction=1,money=3000,stock=8:30;9:30

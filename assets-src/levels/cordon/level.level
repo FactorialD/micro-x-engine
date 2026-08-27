@@ -1,7 +1,7 @@
 # Cordon: starting camp and northern road. Entity fields end with faction, sprite, aux.
 MXL2
 # rooms floors ceilings edges portals spawns transitions entities capacity
-counts 1 1 1 3 1 2 1 3 12
+counts 1 1 1 3 1 2 1 4 12
 room -8 8 -8 8
 floor 0 -8 8 -8 8 0
 ceiling 0 -8 8 -8 8 4
@@ -18,3 +18,5 @@ transition 1000 20 garbage
 entity 10001 1 -3 0 0 100 2 11 2
 entity 10002 1 2 0 -2 100 1 12 1
 entity 10003 7 4 0 3 1 0 17 4
+# Stable technician NPC, with the technician gameplay id in aux.
+entity 10004 1 -2 0 3 100 1 13 3

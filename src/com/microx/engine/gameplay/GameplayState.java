@@ -11,7 +11,7 @@ public final class GameplayState {
     /** Bounded working inventories backing the currently open trade/loot screens. */
     public final Inventory trader = new Inventory(24, 40);
     public final Inventory loot = new Inventory(24, 40);
-    public int actorId, containerId;
+    public int actorId, containerId, traderActorId;
 
     public boolean acceptFindStash() {
         return quests.transition(GameIds.QUEST_FIND_STASH, 0, 1, 0, 0, -1, -1, 0, 1);

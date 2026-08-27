@@ -12,9 +12,9 @@ public final class AssetConverter {
     private static final int MAGIC = 0x4d584c32, VERSION = 3, MAX_FIXED = 32767;
     // GameplayTables wire-format contract. Keep these values synchronized with
     // GameplayTables and sdk/python/microx_editor/data.py.
-    static final int GAMEPLAY_MAGIC = 0x4d584732, MAX_GAMEPLAY_TABLES = 16,
-            MAX_GAMEPLAY_ROWS = 256, MAX_GAMEPLAY_TOTAL_ROWS = 1024,
-            MAX_GAMEPLAY_BYTES = 32768, MAX_MODIFIED_UTF_BYTES = 65535;
+    static final int GAMEPLAY_MAGIC = 0x4d584732, MAX_GAMEPLAY_TABLES = 16, MAX_GAMEPLAY_ROWS = 256,
+                     MAX_GAMEPLAY_TOTAL_ROWS = 1024, MAX_GAMEPLAY_BYTES = 32768,
+                     MAX_MODIFIED_UTF_BYTES = 65535;
     private AssetConverter() {}
     public static void main(String[] args) throws Exception {
         if (args.length != 2)
@@ -118,8 +118,8 @@ public final class AssetConverter {
                 }
                 Path previous = tablePaths.put(table, p);
                 if (previous != null)
-                    throw new IOException("duplicate table name " + table + ": " + previous
-                            + " and " + p);
+                    throw new IOException(
+                            "duplicate table name " + table + ": " + previous + " and " + p);
                 result.put(table, rows);
             }
         }
@@ -154,6 +154,8 @@ public final class AssetConverter {
                     allowed.addAll(Arrays.asList("requires", "ref"));
                 else if ("npcs".equals(table.getKey()))
                     allowed.add("ref");
+                else if ("traders".equals(table.getKey()))
+                    allowed.addAll(Arrays.asList("faction", "money", "stock"));
                 for (String key : values.keySet())
                     if (!allowed.contains(key))
                         throw row.error("unknown metadata key " + key);
@@ -161,6 +163,26 @@ public final class AssetConverter {
                     range(row, values, "next", 1, 65535);
                 if (values.containsKey("requires"))
                     range(row, values, "requires", 1, 65535);
+                if ("traders".equals(table.getKey())) {
+                    if (find(tables.get("npcs"), row.id) == null)
+                        throw row.error("trader profile does not match a stable NPC id");
+                    rangeRequired(row, values, "faction", 1, 65535);
+                    int faction = Integer.parseInt(values.get("faction"));
+                    if (find(tables.get("factions"), faction) == null)
+                        throw row.error("unknown trader faction " + faction);
+                    rangeRequired(row, values, "money", 0, 32767);
+                    required(row, values, "stock");
+                    String[] entries = values.get("stock").split(";");
+                    for (String entry : entries) {
+                        String[] pair = entry.split(":");
+                        if (pair.length != 2)
+                            throw row.error("invalid stock entry " + entry);
+                        int item = parseInt(pair[0], row.file, row.line, "stock item");
+                        int amount = parseInt(pair[1], row.file, row.line, "stock amount");
+                        if (find(tables.get("items"), item) == null || amount < 1 || amount > 32767)
+                            throw row.error("invalid stock entry " + entry);
+                    }
+                }
             }
     }
     private static void validateItemMetadata(Map<String, List<DataRow>> tables) throws IOException {
@@ -326,8 +348,8 @@ public final class AssetConverter {
         for (Map.Entry<String, List<DataRow>> table : tables.entrySet()) {
             utfSize(table.getKey(), "table name " + table.getKey());
             if (table.getValue().size() > MAX_GAMEPLAY_ROWS)
-                throw new IOException("table " + table.getKey() + " exceeds "
-                        + MAX_GAMEPLAY_ROWS + " rows");
+                throw new IOException(
+                        "table " + table.getKey() + " exceeds " + MAX_GAMEPLAY_ROWS + " rows");
             total += table.getValue().size();
         }
         if (total > MAX_GAMEPLAY_TOTAL_ROWS)
