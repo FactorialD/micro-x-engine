@@ -76,6 +76,60 @@ public final class GameplayTables {
     public String meta(int row) {
         return meta[row];
     }
+    public int id(int row) {
+        return id[row] & 65535;
+    }
+    public int dialogRow(int dialog) {
+        return find("dialogs", dialog);
+    }
+    public int dialogNext(int dialog) {
+        int row = dialogRow(dialog);
+        return row < 0 ? 0 : number(meta[row], "next");
+    }
+    public String dialogText(int dialog) {
+        int row = dialogRow(dialog);
+        return row < 0 ? null : text[row];
+    }
+    public String dialogRefTable(int dialog) {
+        return referencePart(dialogRow(dialog), true);
+    }
+    public int dialogRef(int dialog) {
+        return referenceNumber(dialogRow(dialog));
+    }
+    public int npcDialog(int npc) {
+        return referenced("npcs", npc, "dialogs");
+    }
+    public int questRequires(int quest) {
+        int row = find("quests", quest);
+        return row < 0 ? 0 : number(meta[row], "requires");
+    }
+    public String questText(int quest) {
+        int row = find("quests", quest);
+        return row < 0 ? null : text[row];
+    }
+    public String questRefTable(int quest) {
+        return referencePart(find("quests", quest), true);
+    }
+    public int questRef(int quest) {
+        return referenceNumber(find("quests", quest));
+    }
+    private int referenced(String tableName, int stableId, String expectedTable) {
+        int row = find(tableName, stableId);
+        if (row < 0 || !expectedTable.equals(referencePart(row, true)))
+            return 0;
+        return referenceNumber(row);
+    }
+    private String referencePart(int row, boolean tablePart) {
+        if (row < 0)
+            return null;
+        String ref = field(meta[row], "ref");
+        int colon = ref == null ? -1 : ref.indexOf(':');
+        return colon < 0 ? null : (tablePart ? ref.substring(0, colon) : ref.substring(colon + 1));
+    }
+    private int referenceNumber(int row) {
+        String value = referencePart(row, false);
+        return value == null ? 0 : Integer.parseInt(value);
+    }
     private boolean buildItems() {
         int max = 0, tableIndex = -1;
         for (int t = 0; t < table.length; t++)
@@ -235,7 +289,7 @@ public final class GameplayTables {
                 && find("dialogs", GameIds.DIALOG_INTRO) >= 0
                 && find("dialogs", GameIds.DIALOG_TRADE) >= 0
                 && find("dialogs", GameIds.DIALOG_REPAIR) >= 0
-                && find("quests", GameIds.QUEST_FIND_STASH) >= 0
-                && find("quests", GameIds.QUEST_REPORT_WOLF) >= 0;
+                && find("dialogs", GameIds.DIALOG_STASH_REPORT) >= 0
+                && find("quests", GameIds.QUEST_FIND_STASH) >= 0;
     }
 }

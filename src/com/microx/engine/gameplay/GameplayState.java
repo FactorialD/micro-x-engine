@@ -16,9 +16,13 @@ public final class GameplayState {
     public boolean acceptFindStash() {
         return quests.transition(GameIds.QUEST_FIND_STASH, 0, 1, 0, 0, -1, -1, 0, 1);
     }
-    public void foundStash() {
-        if (quests.state(GameIds.QUEST_FIND_STASH) == 1)
-            quests.addCounter(0, 1);
+    public boolean foundStash(int stableId) {
+        if (stableId != GameIds.CONTAINER_FIND_STASH
+                || quests.state(GameIds.QUEST_FIND_STASH) != QuestState.ACTIVE || quests.flag(0))
+            return false;
+        quests.setFlag(0, true);
+        quests.addCounter(0, 1);
+        return true;
     }
     public boolean rewardFindStash() {
         if (!quests.dialogAllowed(GameIds.QUEST_FIND_STASH, 1, -1, 0, 1))

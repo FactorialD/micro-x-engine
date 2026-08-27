@@ -8,7 +8,9 @@ public final class GameIds {
     public static final int NPC_SIDOROVICH = 1, NPC_WOLF = 2, NPC_TECHNICIAN = 3;
     public static final int FACTION_LONER = 1, FACTION_BANDIT = 2, FACTION_DUTY = 3,
                             FACTION_FREEDOM = 4;
-    public static final int DIALOG_INTRO = 1, DIALOG_TRADE = 2, DIALOG_REPAIR = 3;
+    public static final int DIALOG_INTRO = 1, DIALOG_TRADE = 2, DIALOG_REPAIR = 3,
+                            DIALOG_STASH_REPORT = 4;
     public static final int QUEST_FIND_STASH = 1, QUEST_REPORT_WOLF = 2;
+    public static final int CONTAINER_FIND_STASH = 10003;
     private GameIds() {}
 }

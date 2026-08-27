@@ -10,13 +10,16 @@ public final class GameplayTest {
         trade();
         quests();
         verticalSlice();
+        tableDrivenScenario();
         System.out.println("GameplayTest OK");
     }
     private static void verticalSlice() {
         GameplayState g = new GameplayState();
         g.inventory.setMoney(1000);
         ok(g.acceptFindStash());
-        g.foundStash();
+        no(g.foundStash(999));
+        ok(g.foundStash(GameIds.CONTAINER_FIND_STASH));
+        no(g.foundStash(GameIds.CONTAINER_FIND_STASH));
         ok(g.rewardFindStash());
         eq(2, g.quests.state(GameIds.QUEST_FIND_STASH));
         g.trader.add(GameIds.ITEM_BANDAGE, 1, 100);
@@ -27,6 +30,35 @@ public final class GameplayTest {
                 g.reputation));
         g.inventory.add(GameIds.ITEM_PISTOL, 1, 40);
         ok(TradeSystem.repair(g.inventory, GameIds.ITEM_PISTOL, 100));
+    }
+    private static void tableDrivenScenario() {
+        GameplayTables tables = new GameplayTables();
+        ok(tables.load("/data/gameplay.dat"));
+        eq(GameIds.DIALOG_INTRO, tables.npcDialog(GameIds.NPC_SIDOROVICH));
+        eq(GameIds.DIALOG_STASH_REPORT, tables.dialogNext(GameIds.DIALOG_INTRO));
+        ok(tables.dialogText(GameIds.DIALOG_INTRO).length() > 0);
+        ok(tables.questText(GameIds.QUEST_FIND_STASH).length() > 0);
+        eq(GameIds.NPC_SIDOROVICH, tables.questRef(GameIds.QUEST_FIND_STASH));
+
+        GameplayState g = new GameplayState();
+        short[] dialogs = new short[8];
+        int count = DialogueSystem.available(tables, g, GameIds.NPC_SIDOROVICH, dialogs);
+        eq(2, count);
+        eq(GameIds.DIALOG_INTRO, dialogs[0] & 65535);
+        eq(DialogueSystem.QUEST,
+                DialogueSystem.select(tables, g, GameIds.NPC_SIDOROVICH, dialogs[0] & 65535));
+        eq(1, g.quests.state(GameIds.QUEST_FIND_STASH));
+        ok(g.foundStash(GameIds.CONTAINER_FIND_STASH));
+
+        count = DialogueSystem.available(tables, g, GameIds.NPC_SIDOROVICH, dialogs);
+        eq(2, count);
+        eq(GameIds.DIALOG_STASH_REPORT, dialogs[0] & 65535);
+        eq(DialogueSystem.QUEST,
+                DialogueSystem.select(tables, g, GameIds.NPC_SIDOROVICH, dialogs[0] & 65535));
+        eq(QuestState.COMPLETE, g.quests.state(GameIds.QUEST_FIND_STASH));
+        eq(500, g.inventory.money());
+        eq(1, g.inventory.count(GameIds.ITEM_MEDKIT));
+        eq(10, g.reputation.get(GameIds.FACTION_LONER));
     }
     private static void inventory() {
         Inventory a = new Inventory(2, 2);
