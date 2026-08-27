@@ -48,8 +48,7 @@ public final class StateMachineSystem {
                                         < (long) Fixed.ONE * Fixed.ONE * 3)
                             DamagePipeline.apply(player, DamagePipeline.MELEE, 8);
                     }
-                } else if (p.type[i] == EntityPool.CORPSE && p.timer[i] <= 0)
-                    p.remove(i);
+                }
             }
     }
     private static long distance2(int x, int z, int a, int b) {

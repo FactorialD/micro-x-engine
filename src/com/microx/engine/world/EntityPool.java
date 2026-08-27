@@ -110,4 +110,25 @@ public final class EntityPool {
     public int typeCount(int t) {
         return t >= 0 && t < kinds.length ? kinds[t] : 0;
     }
+    /** Keeps the stable entity and its metadata so corpse loot can survive save/load. */
+    public boolean killToCorpse(int i) {
+        if (i < 0 || i >= active.length || !active[i] || (type[i] != HUMAN && type[i] != MUTANT))
+            return false;
+        kinds[type[i]]--;
+        type[i] = CORPSE;
+        kinds[CORPSE]++;
+        health[i] = 0;
+        state[i] = STATE_IDLE;
+        flags[i] = FLAG_DEAD | FLAG_INTERACTABLE | FLAG_VISIBLE;
+        timer[i] = 0;
+        return true;
+    }
+    public void restoreType(int i, int restored) {
+        if (i >= 0 && i < active.length && active[i] && restored > 0 && restored < kinds.length
+                && type[i] != restored) {
+            kinds[type[i]]--;
+            type[i] = restored;
+            kinds[restored]++;
+        }
+    }
 }

@@ -1,4 +1,5 @@
 package com.microx.engine.gameplay;
+import com.microx.engine.save.*;
 
 public final class GameplayTest {
     public static void main(String[] args) {
@@ -11,7 +12,44 @@ public final class GameplayTest {
         quests();
         verticalSlice();
         tableDrivenScenario();
+        tradeRepairAndCorpseSaveLoad();
         System.out.println("GameplayTest OK");
+    }
+    private static void tradeRepairAndCorpseSaveLoad() {
+        GameplayTables tables = new GameplayTables();
+        ok(tables.load("/data/gameplay.dat"));
+        GameplayState g = new GameplayState();
+        g.inventory.setMoney(4000);
+        ok(tables.traderProfile(GameIds.NPC_SIDOROVICH, g.trader));
+        eq(GameIds.FACTION_LONER, tables.npcFaction(GameIds.NPC_SIDOROVICH));
+        ok(TradeSystem.buy(g.inventory, g.trader, GameIds.ITEM_MEDKIT, 1,
+                tables.npcFaction(GameIds.NPC_SIDOROVICH), g.reputation));
+        ok(TradeSystem.sell(g.inventory, g.trader, GameIds.ITEM_MEDKIT, 1,
+                tables.npcFaction(GameIds.NPC_SIDOROVICH), g.reputation));
+        g.inventory.add(GameIds.ITEM_PISTOL, 1, 20);
+        int quoted = TradeSystem.repairPrice(g.inventory, GameIds.ITEM_PISTOL, 100);
+        ok(quoted > 0);
+        ok(TradeSystem.repair(g.inventory, GameIds.ITEM_PISTOL, 100));
+        eq(100, g.inventory.conditionOf(GameIds.ITEM_PISTOL));
+
+        Inventory corpse = new Inventory(24, 40);
+        ok(LootSystem.generateCorpse(corpse, 20001, 77, 1234, GameIds.FACTION_DUTY, 2));
+        int taken = corpse.idAt(0), original = corpse.count(taken);
+        ok(corpse.moveTo(g.inventory, taken, 1));
+        g.containers.put(20001, taken, -1);
+        SaveData save = new SaveData();
+        save.gameplay.copyPersistentFrom(g);
+        try {
+            SaveData loaded = new SaveCodec().decode(new SaveCodec().encode(save));
+            Inventory searchedAgain = new Inventory(24, 40);
+            ok(LootSystem.generateCorpse(searchedAgain, 20001, 77, 1234, GameIds.FACTION_DUTY, 2));
+            int delta = loaded.gameplay.containers.get(20001, taken);
+            if (delta < 0)
+                searchedAgain.remove(taken, -delta);
+            eq(original - 1, searchedAgain.count(taken));
+        } catch (SaveException failure) {
+            throw new AssertionError(failure.toString());
+        }
     }
     private static void verticalSlice() {
         GameplayState g = new GameplayState();

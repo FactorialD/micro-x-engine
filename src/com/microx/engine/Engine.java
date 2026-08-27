@@ -29,6 +29,9 @@ public final class Engine implements Runnable {
     private SaveStore saves;
     private SettingsStore settings;
     private String location = "cordon";
+    private int actorFaction;
+    private boolean repairing;
+    private String operationResult;
     public LevelLoader level;
     public void attach(GameCanvas3D c) {
         canvas = c;
@@ -120,7 +123,8 @@ public final class Engine implements Runnable {
                             || (level.entities.flags[i] & EntityPool.FLAG_DEAD) != 0))
                 persistent.addEntityDelta(level.entities.stableId[i],
                         (!level.entities.active[i] ? Integer.MIN_VALUE
-                                                   : (level.entities.state[i] << 16)
+                                                   : (level.entities.type[i] << 24)
+                                                | (level.entities.state[i] << 16)
                                                 | (level.entities.flags[i] & 65535)));
     }
     private void applyEntityDeltas(SaveData s) {
@@ -132,7 +136,10 @@ public final class Engine implements Runnable {
                     continue;
                 }
                 level.entities.flags[i] = s.entityFlags[n] & 65535;
-                level.entities.state[i] = s.entityFlags[n] >>> 16;
+                level.entities.state[i] = (s.entityFlags[n] >>> 16) & 255;
+                int type = (s.entityFlags[n] >>> 24) & 127;
+                if (type != 0)
+                    level.entities.restoreType(i, type);
             }
         }
     }
@@ -309,9 +316,10 @@ public final class Engine implements Runnable {
     }
     private void interact(int i) {
         EntityPool e = level.entities;
-        int type = e.type[i], stable = e.stableId[i], content = e.aux[i];
+        int type = e.type[i], stable = e.stableId[i], content = e.aux[i] & 65535;
         if (type == EntityPool.HUMAN) {
             gameplay.actorId = content == 0 ? GameIds.NPC_SIDOROVICH : content;
+            actorFaction = e.faction[i];
             short[] rows = new short[32];
             int count = DialogueSystem.available(tables, gameplay, gameplay.actorId, rows);
             canvas.ui.fillList(rows, count);
@@ -321,9 +329,16 @@ public final class Engine implements Runnable {
                 gameplay.foundStash(stable);
             gameplay.containerId = stable;
             gameplay.loot.clear();
-            if (content != 0 && gameplay.containers.get(stable, content) >= 0)
-                gameplay.loot.add(content, 1, 100);
-            fillInventory(canvas.ui, gameplay.loot);
+            if (type == EntityPool.CORPSE) {
+                LootSystem.generateCorpse(gameplay.loot, stable, persistent.seed, locationId(),
+                        e.faction[i], corpseRank(e, i));
+                applyContainerDeltas(stable, gameplay.loot);
+            } else if (content != 0) {
+                int amount = 1 + gameplay.containers.get(stable, content);
+                if (amount > 0)
+                    gameplay.loot.add(content, amount, 100);
+            }
+            fillLoot();
             canvas.ui.show(UIStateMachine.LOOT);
         } else if (type == EntityPool.ITEM) {
             int item = content == 0 ? GameIds.ITEM_STONE : content;
@@ -344,16 +359,55 @@ public final class Engine implements Runnable {
                 rows[n++] = (short) bag.idAt(i);
         ui.fillList(rows, n);
     }
+    private void fillTrade() {
+        short[] rows = new short[32];
+        byte[] sides = new byte[32];
+        int n = 0;
+        if (!repairing)
+            for (int i = 0; i < gameplay.trader.slots() && n < rows.length; i++)
+                if (gameplay.trader.idAt(i) != 0) {
+                    rows[n] = (short) gameplay.trader.idAt(i);
+                    sides[n++] = 0;
+                }
+        for (int i = 0; i < gameplay.inventory.slots() && n < rows.length; i++)
+            if (gameplay.inventory.idAt(i) != 0) {
+                rows[n] = (short) gameplay.inventory.idAt(i);
+                sides[n++] = 1;
+            }
+        canvas.ui.fillTrade(rows, sides, n);
+    }
+    private void fillLoot() {
+        short[] rows = new short[32];
+        byte[] sides = new byte[32];
+        int n = 0;
+        for (int i = 0; i < gameplay.loot.slots() && n < rows.length; i++)
+            if (gameplay.loot.idAt(i) != 0) {
+                rows[n] = (short) gameplay.loot.idAt(i);
+                sides[n++] = 0;
+            }
+        for (int i = 0; i < gameplay.inventory.slots() && n < rows.length; i++)
+            if (gameplay.inventory.idAt(i) != 0) {
+                rows[n] = (short) gameplay.inventory.idAt(i);
+                sides[n++] = 1;
+            }
+        canvas.ui.fillTrade(rows, sides, n);
+    }
     public void uiAction(int screen, int selection, boolean alternate) {
         short[] list = canvas.ui.listBuffer();
         int id = selection < canvas.ui.listSize() ? list[selection] & 65535 : 0;
         if (screen == UIStateMachine.DIALOGUE) {
             int action = DialogueSystem.select(tables, gameplay, gameplay.actorId, id);
             if (action == DialogueSystem.TRADE || action == DialogueSystem.REPAIR) {
-                gameplay.trader.clear();
-                gameplay.trader.setMoney(5000);
-                gameplay.trader.add(GameIds.ITEM_MEDKIT, 2, 100);
-                fillInventory(canvas.ui, gameplay.trader);
+                repairing = action == DialogueSystem.REPAIR;
+                operationResult = null;
+                if (!repairing && gameplay.traderActorId != gameplay.actorId) {
+                    if (!tables.traderProfile(gameplay.actorId, gameplay.trader))
+                        return;
+                    gameplay.traderActorId = gameplay.actorId;
+                }
+                if (actorFaction == 0)
+                    actorFaction = tables.npcFaction(gameplay.actorId);
+                fillTrade();
                 canvas.ui.show(UIStateMachine.TRADE);
             } else {
                 short[] rows = new short[32];
@@ -361,23 +415,58 @@ public final class Engine implements Runnable {
                 canvas.ui.fillList(rows, count);
             }
         } else if (screen == UIStateMachine.TRADE && id != 0) {
-            if (alternate && gameplay.actorId == GameIds.NPC_TECHNICIAN)
-                TradeSystem.repair(gameplay.inventory, id, 100);
-            else if (alternate)
-                TradeSystem.sell(
-                        gameplay.inventory, gameplay.trader, id, 1, 1, gameplay.reputation);
+            boolean success;
+            if (repairing)
+                success = TradeSystem.repair(gameplay.inventory, id, 100);
+            else if (canvas.ui.sideAt(selection) == 1)
+                success = TradeSystem.sell(gameplay.inventory, gameplay.trader, id, 1, actorFaction,
+                        gameplay.reputation);
             else
-                TradeSystem.buy(gameplay.inventory, gameplay.trader, id, 1, 1, gameplay.reputation);
-        } else if (screen == UIStateMachine.LOOT && id != 0
-                && gameplay.loot.moveTo(gameplay.inventory, id, 1)) {
-            gameplay.containers.put(gameplay.containerId, id, -1);
-            fillInventory(canvas.ui, gameplay.loot);
+                success = TradeSystem.buy(gameplay.inventory, gameplay.trader, id, 1, actorFaction,
+                        gameplay.reputation);
+            operationResult = success ? (repairing ? "REPAIRED" : "TRADE OK") : "FAILED";
+            fillTrade();
+        } else if (screen == UIStateMachine.LOOT && id != 0) {
+            int direction = canvas.ui.sideAt(selection) == 1 ? 1 : -1;
+            Inventory source = direction < 0 ? gameplay.loot : gameplay.inventory;
+            Inventory target = direction < 0 ? gameplay.inventory : gameplay.loot;
+            if (source.moveTo(target, id, 1)) {
+                gameplay.containers.put(gameplay.containerId, id,
+                        gameplay.containers.get(gameplay.containerId, id) + direction);
+                fillLoot();
+            }
         } else if (screen == UIStateMachine.INVENTORY && id != 0) {
             if (ItemCatalog.type(id) == ItemCatalog.TYPE_CONSUMABLE)
                 gameplay.equipment.use(gameplay.inventory, id, gameplay.stats);
             else
                 gameplay.equipment.equip(gameplay.inventory, id, alternate ? 1 : 0);
         }
+    }
+    private void applyContainerDeltas(int container, Inventory inventory) {
+        for (int item = 1; item <= ItemCatalog.maxId(); item++) {
+            int delta = gameplay.containers.get(container, item);
+            if (delta < 0)
+                inventory.remove(item, Math.min(inventory.count(item), -delta));
+            else if (delta > 0)
+                inventory.add(item, delta, 100);
+        }
+    }
+    private int locationId() {
+        int hash = 0;
+        for (int i = 0; i < location.length(); i++) hash = hash * 31 + location.charAt(i);
+        return hash;
+    }
+    private static int corpseRank(EntityPool e, int i) {
+        return e.spriteId[i] >= 20 ? 2 : 1;
+    }
+    public int tradeFaction() {
+        return actorFaction;
+    }
+    public boolean repairMode() {
+        return repairing;
+    }
+    public String tradeResult() {
+        return operationResult;
     }
     public int state() {
         return state;

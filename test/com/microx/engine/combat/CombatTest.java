@@ -12,7 +12,19 @@ public final class CombatTest {
         magazineReloadAndJam();
         damageAndEffects();
         stamina();
+        deathBecomesCorpse();
         System.out.println("CombatTest: OK");
+    }
+    private static void deathBecomesCorpse() {
+        Player p = player();
+        EntityPool entities = new EntityPool(2);
+        int victim = entities.spawn(77, EntityPool.HUMAN, Fixed.fromInt(2), 0, 0, 5);
+        entities.faction[victim] = 3;
+        new HitScan().fire(p, entities, space(false), Fixed.fromInt(5), 0, 10);
+        ok(entities.active[victim]);
+        eq(EntityPool.CORPSE, entities.type[victim]);
+        eq(77, entities.stableId[victim]);
+        eq(3, entities.faction[victim]);
     }
     private static void wallAndNearest() {
         Player p = player();

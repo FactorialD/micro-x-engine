@@ -99,6 +99,37 @@ public final class GameplayTables {
     public int npcDialog(int npc) {
         return referenced("npcs", npc, "dialogs");
     }
+    public String itemName(int item) {
+        int row = find("items", item);
+        return row < 0 ? "?" : text[row];
+    }
+    /** Loads the inventory profile belonging to a stable NPC id. */
+    public boolean traderProfile(int npc, Inventory inventory) {
+        int row = find("traders", npc);
+        if (row < 0)
+            return false;
+        inventory.clear();
+        inventory.setMoney(number(meta[row], "money"));
+        String stock = field(meta[row], "stock");
+        int from = 0;
+        while (stock != null && from < stock.length()) {
+            int end = stock.indexOf(';', from);
+            if (end < 0)
+                end = stock.length();
+            String entry = stock.substring(from, end);
+            int colon = entry.indexOf(':');
+            if (colon < 1
+                    || !inventory.add(Integer.parseInt(entry.substring(0, colon)),
+                            Integer.parseInt(entry.substring(colon + 1)), 100))
+                return false;
+            from = end + 1;
+        }
+        return true;
+    }
+    public int npcFaction(int npc) {
+        int row = find("traders", npc);
+        return row < 0 ? 0 : number(meta[row], "faction");
+    }
     public int questRequires(int quest) {
         int row = find("quests", quest);
         return row < 0 ? 0 : number(meta[row], "requires");

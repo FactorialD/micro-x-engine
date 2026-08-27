@@ -39,6 +39,9 @@ public final class ItemCatalog {
     public static int value(int id) {
         return get().value(id);
     }
+    public static String name(int id) {
+        return get().itemName(id);
+    }
     public static int health(int id) {
         return get().health(id);
     }

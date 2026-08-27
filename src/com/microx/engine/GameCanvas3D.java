@@ -89,6 +89,8 @@ public final class GameCanvas3D extends GameCanvas {
             engine.hud.paint(g, engine.player, engine.level.world, engine.stats.fps,
                     engine.stats.entities, engine.stats.rooms, settings.debug);
         }
+        view.bind(
+                engine.gameplay, engine.tradeFaction(), engine.repairMode(), engine.tradeResult());
         if (ui.state() != UIStateMachine.GAMEPLAY)
             view.paint(g, ui, settings);
         flushGraphics();

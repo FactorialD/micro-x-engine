@@ -38,7 +38,7 @@ public final class HitScan {
         if (best >= 0) {
             pool.health[best] -= damage;
             if (pool.health[best] <= 0)
-                pool.remove(best);
+                pool.killToCorpse(best);
         }
         return best;
     }
