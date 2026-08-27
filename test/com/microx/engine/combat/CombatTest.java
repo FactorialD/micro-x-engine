@@ -2,8 +2,11 @@ package com.microx.engine.combat;
 import com.microx.engine.Input;
 import com.microx.engine.math.Fixed;
 import com.microx.engine.world.*;
+import com.microx.engine.gameplay.ItemCatalog;
 public final class CombatTest {
     public static void main(String[] a) {
+        if (!ItemCatalog.loadDefault())
+            throw new AssertionError("gameplay catalog unavailable");
         wallAndNearest();
         seededSpread();
         magazineReloadAndJam();
@@ -56,7 +59,7 @@ public final class CombatTest {
     }
     private static void damageAndEffects() {
         Player p = player();
-        p.suit = ItemTypes.SUIT_STALKER;
+        p.suit = ItemTypes.SUIT_LEATHER;
         p.armor = 20;
         int dealt = DamagePipeline.apply(p, DamagePipeline.PHYSICAL, 40);
         ok(dealt < 40);

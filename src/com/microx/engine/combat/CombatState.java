@@ -1,5 +1,5 @@
 package com.microx.engine.combat;
-
+import com.microx.engine.gameplay.ItemCatalog;
 /** Allocation-free weapon state machine, advanced only by fixed simulation steps. */
 public final class CombatState {
     public static final int READY = 0, COOLDOWN = 1, RELOADING = 2, JAMMED = 3, CLEARING = 4;
@@ -11,13 +11,14 @@ public final class CombatState {
     }
     public CombatState(int rngSeed) {
         seed = rngSeed;
-        magazine = ItemTypes.WEAPON_MAGAZINE[weapon];
+        if (ItemCatalog.valid(weapon))
+            magazine = ItemCatalog.magazine(weapon);
     }
-    public void equip(int type) {
-        if (type < 0 || type >= ItemTypes.WEAPON_MAGAZINE.length)
+    public void equip(int item) {
+        if (!ItemCatalog.valid(item) || ItemCatalog.type(item) != ItemCatalog.TYPE_WEAPON)
             return;
-        weapon = type;
-        magazine = ItemTypes.WEAPON_MAGAZINE[type];
+        weapon = item;
+        magazine = ItemCatalog.magazine(item);
         state = READY;
         timer = 0;
     }
@@ -29,17 +30,17 @@ public final class CombatState {
             return false;
         }
         seed = seed * 1103515245 + 12345;
-        int jamChance = durability < 60 ? (60 - durability) / 3 : 0;
-        if (((seed >>> 16) & 255) < jamChance) {
+        int jam = durability < 60 ? (60 - durability) / 3 : 0;
+        if (((seed >>> 16) & 255) < jam) {
             state = JAMMED;
             return false;
         }
         magazine--;
-        durability -= ItemTypes.WEAPON_DURABILITY_COST[weapon];
+        durability -= ItemCatalog.durability(weapon);
         if (durability < 0)
             durability = 0;
         state = COOLDOWN;
-        timer = ItemTypes.WEAPON_COOLDOWN_MS[weapon];
+        timer = ItemCatalog.cooldown(weapon);
         return true;
     }
     public void clearJam() {
@@ -49,9 +50,9 @@ public final class CombatState {
         }
     }
     public void startReload() {
-        if (state == READY && magazine < ItemTypes.WEAPON_MAGAZINE[weapon] && reserve > 0) {
+        if (state == READY && magazine < ItemCatalog.magazine(weapon) && reserve > 0) {
             state = RELOADING;
-            timer = ItemTypes.WEAPON_RELOAD_MS[weapon];
+            timer = ItemCatalog.reload(weapon);
         }
     }
     public void update(int ms) {
@@ -62,7 +63,7 @@ public final class CombatState {
                 state = READY;
                 timer = 0;
                 if (old == RELOADING) {
-                    int need = ItemTypes.WEAPON_MAGAZINE[weapon] - magazine,
+                    int need = ItemCatalog.magazine(weapon) - magazine,
                         take = need < reserve ? need : reserve;
                     magazine += take;
                     reserve -= take;

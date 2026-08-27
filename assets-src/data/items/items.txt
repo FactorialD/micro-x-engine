@@ -1,10 +1,10 @@
 # Stable IDs must never be reused.
-1|pistol|Пістолет
-2|rifle|Автомат
-3|leather_armor|Шкіряний костюм
-4|medkit|Аптечка
-5|bandage|Бинт
-6|stone|Кам'яна кров
-7|crystal|Кристал
-8|ammo_9mm|Набої 9 мм
-9|ammo_545|Набої 5.45 мм
+1|pistol|Пістолет|type=weapon,cells=3,stack=1,value=500,ammo=8,magazine=12,damage=24,range=24,cooldown=260,reload=1200,spread=3,durability=1
+2|rifle|Автомат|type=weapon,cells=5,stack=1,value=2400,ammo=9,magazine=30,damage=31,range=40,cooldown=100,reload=1700,spread=2,durability=1
+3|leather_armor|Шкіряний костюм|type=armor,cells=6,stack=1,value=1800,physical=25,anomaly=10,radiation=5
+4|medkit|Аптечка|type=consumable,cells=1,stack=5,value=300,health=60,bleeding=0,radiation=0
+5|bandage|Бинт|type=consumable,cells=1,stack=10,value=80,health=0,bleeding=60,radiation=0
+6|stone|Кам'яна кров|type=artifact,cells=1,stack=1,value=900,physical=5,anomaly=20,radiation=-5
+7|crystal|Кристал|type=artifact,cells=1,stack=1,value=1500,physical=0,anomaly=5,radiation=25
+8|ammo_9mm|Набої 9 мм|type=ammo,cells=1,stack=120,value=2,damageBonus=0
+9|ammo_545|Набої 5.45 мм|type=ammo,cells=1,stack=120,value=4,damageBonus=2

@@ -77,35 +77,42 @@ public final class AssetConverter {
                 Path p = all.next();
                 String name = p.getFileName().toString();
                 if (name.endsWith(".data"))
-                    throw new IOException(p + ": legacy .data gameplay file is forbidden; rename it to .txt");
-                if (name.endsWith(".txt")) files.add(p);
+                    throw new IOException(
+                            p + ": legacy .data gameplay file is forbidden; rename it to .txt");
+                if (name.endsWith(".txt"))
+                    files.add(p);
             }
-            for (Iterator<Path> it = files.iterator();
-                    it.hasNext();) {
+            for (Iterator<Path> it = files.iterator(); it.hasNext();) {
                 Path p = it.next();
                 String fileName = p.getFileName().toString();
                 String table = fileName.substring(0, fileName.length() - 4);
                 List<DataRow> rows = new ArrayList<DataRow>();
                 int line = 0;
                 Set<Integer> ids = new HashSet<Integer>();
+                Set<String> keys = new HashSet<String>();
                 for (String raw : Files.readAllLines(p, StandardCharsets.UTF_8)) {
                     line++;
                     if (raw.trim().length() == 0 || raw.trim().startsWith("#"))
                         continue;
                     String[] q = raw.split("\\|", -1);
-                    if (q.length < 3)
+                    if (q.length < 3 || q.length > 4)
                         throw new IOException(p + ":" + line + ": expected id|key|description");
                     int id = parseInt(q[0], p, line, "id");
                     if (id <= 0 || id > 65535 || !ids.add(Integer.valueOf(id)))
                         throw new IOException(p + ":" + line + ": duplicate or invalid stable id");
+                    if (q[1].length() == 0 || !keys.add(q[1]))
+                        throw new IOException(p + ":" + line + ": duplicate or empty stable key");
                     rows.add(new DataRow(id, q[1], q[2], q.length > 3 ? q[3] : "", p, line));
                 }
-                result.put(table, rows);
+                if (result.put(table, rows) != null)
+                    throw new IOException(p + ": duplicate table name " + table);
             }
         }
         return result;
     }
     public static void validateReferences(Map<String, List<DataRow>> t) throws IOException {
+        validateItemMetadata(t);
+        validateMetadataSchemas(t);
         Set<String> all = new HashSet<String>();
         for (Map.Entry<String, List<DataRow>> e : t.entrySet())
             for (DataRow r : e.getValue()) all.add(e.getKey() + ":" + r.id);
@@ -117,6 +124,121 @@ public final class AssetConverter {
                         if (!all.contains(ref))
                             throw r.error("unknown reference " + ref);
                     }
+    }
+    private static void validateMetadataSchemas(Map<String, List<DataRow>> tables)
+            throws IOException {
+        for (Map.Entry<String, List<DataRow>> table : tables.entrySet())
+            for (DataRow row : table.getValue()) {
+                Map<String, String> values = metadata(row);
+                if ("items".equals(table.getKey()))
+                    continue;
+                Set<String> allowed = new HashSet<String>();
+                if ("dialogs".equals(table.getKey()))
+                    allowed.addAll(Arrays.asList("next", "ref"));
+                else if ("quests".equals(table.getKey()))
+                    allowed.addAll(Arrays.asList("requires", "ref"));
+                else if ("npcs".equals(table.getKey()))
+                    allowed.add("ref");
+                for (String key : values.keySet())
+                    if (!allowed.contains(key))
+                        throw row.error("unknown metadata key " + key);
+                if (values.containsKey("next"))
+                    range(row, values, "next", 1, 65535);
+                if (values.containsKey("requires"))
+                    range(row, values, "requires", 1, 65535);
+            }
+    }
+    private static void validateItemMetadata(Map<String, List<DataRow>> tables) throws IOException {
+        List<DataRow> items = tables.get("items");
+        if (items == null || items.size() == 0)
+            throw new IOException("required items table is missing or empty");
+        Set<Integer> itemIds = new HashSet<Integer>();
+        for (DataRow row : items) itemIds.add(Integer.valueOf(row.id));
+        String[] common = {"type", "cells", "stack", "value"};
+        for (DataRow row : items) {
+            Map<String, String> m = metadata(row);
+            for (String key : common) required(row, m, key);
+            String type = m.get("type");
+            range(row, m, "cells", 1, 64);
+            range(row, m, "stack", 1, 32767);
+            range(row, m, "value", 0, 32767);
+            Set<String> allowed = new HashSet<String>(Arrays.asList(common));
+            if ("weapon".equals(type)) {
+                String[] keys = {"ammo", "magazine", "damage", "range", "cooldown", "reload",
+                        "spread", "durability"};
+                allowed.addAll(Arrays.asList(keys));
+                for (String key : keys) required(row, m, key);
+                int ammo = range(row, m, "ammo", 1, 65535);
+                if (!itemIds.contains(Integer.valueOf(ammo)))
+                    throw row.error("unknown ammo item " + ammo);
+                range(row, m, "magazine", 1, 255);
+                range(row, m, "damage", 1, 32767);
+                range(row, m, "range", 1, 32767);
+                range(row, m, "cooldown", 1, 32767);
+                range(row, m, "reload", 1, 32767);
+                range(row, m, "spread", 0, 90);
+                range(row, m, "durability", 1, 100);
+            } else if ("armor".equals(type) || "artifact".equals(type)) {
+                allowed.addAll(Arrays.asList("physical", "anomaly", "radiation"));
+                rangeRequired(row, m, "physical", -100, 100);
+                rangeRequired(row, m, "anomaly", -100, 100);
+                rangeRequired(row, m, "radiation", -100, 100);
+            } else if ("consumable".equals(type)) {
+                allowed.addAll(Arrays.asList("health", "bleeding", "radiation"));
+                rangeRequired(row, m, "health", 0, 100);
+                rangeRequired(row, m, "bleeding", 0, 100);
+                rangeRequired(row, m, "radiation", 0, 100);
+            } else if ("ammo".equals(type)) {
+                allowed.add("damageBonus");
+                rangeRequired(row, m, "damageBonus", -1000, 1000);
+            } else
+                throw row.error("unknown item type " + type);
+            for (String key : m.keySet())
+                if (!allowed.contains(key))
+                    throw row.error("unknown metadata key " + key);
+        }
+        for (DataRow row : items)
+            if ("weapon".equals(metadata(row).get("type"))) {
+                int ammo = Integer.parseInt(metadata(row).get("ammo"));
+                if (!"ammo".equals(metadata(find(items, ammo)).get("type")))
+                    throw row.error("ammo does not reference an ammo item");
+            }
+    }
+    private static DataRow find(List<DataRow> rows, int id) {
+        for (DataRow r : rows)
+            if (r.id == id)
+                return r;
+        return null;
+    }
+    private static Map<String, String> metadata(DataRow row) throws IOException {
+        Map<String, String> values = new LinkedHashMap<String, String>();
+        if (row.meta.length() == 0)
+            return values;
+        for (String token : row.meta.split(",", -1)) {
+            int at = token.indexOf('=');
+            if (at < 1 || at == token.length() - 1)
+                throw row.error("invalid metadata token " + token);
+            String key = token.substring(0, at), value = token.substring(at + 1);
+            if (values.put(key, value) != null)
+                throw row.error("duplicate metadata key " + key);
+        }
+        return values;
+    }
+    private static void required(DataRow r, Map<String, String> m, String k) throws IOException {
+        if (!m.containsKey(k))
+            throw r.error("missing metadata key " + k);
+    }
+    private static int rangeRequired(DataRow r, Map<String, String> m, String k, int lo, int hi)
+            throws IOException {
+        required(r, m, k);
+        return range(r, m, k, lo, hi);
+    }
+    private static int range(DataRow r, Map<String, String> m, String k, int lo, int hi)
+            throws IOException {
+        int n = parseInt(m.get(k), r.file, r.line, k);
+        if (n < lo || n > hi)
+            throw r.error(k + " outside " + lo + ".." + hi);
+        return n;
     }
     public static void validateStringSizes(Map<String, List<DataRow>> t) throws IOException {
         for (List<DataRow> rows : t.values())
