@@ -210,9 +210,14 @@ def validate_level(level: Level, declared=None):
 
 
 def serialize_level(level: Level) -> str:
+    # Structural editors mutate records, so counts are derived data. Keep only
+    # the explicitly authored entity capacity and refresh the eight row counts.
+    count_line = level.records("counts")[0]
+    capacity = count_line.values[8]
+    count_line.values = [str(len(level.records(kind))) for kind in KINDS] + [capacity]
     validate_level(level)
     counts = [len(level.records(kind)) for kind in KINDS]
-    capacity = _integer(level.records("counts")[0].values[8], "capacity count")
+    capacity = _integer(capacity, "capacity count")
     output = []
     for line in level.lines:
         suffix = " " + line.comment if line.comment else ""
