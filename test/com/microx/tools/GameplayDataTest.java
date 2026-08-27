@@ -3,6 +3,7 @@ import com.microx.engine.gameplay.*;
 import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
+import java.util.*;
 public final class GameplayDataTest {
     public static void main(String[] args) throws Exception {
         Path source = Paths.get("assets-src/data"), d = Files.createTempDirectory("microx-data");
@@ -35,7 +36,46 @@ public final class GameplayDataTest {
         ok(!missingCore.hasRequiredData(), "missing core item ID accepted");
         Files.write(d.resolve("old.data"), "1|old|Old\n".getBytes(StandardCharsets.UTF_8));
         rejected(d, out, "legacy .data accepted");
+        formatLimits(source);
         System.out.println("GameplayDataTest OK");
+    }
+    private static void formatLimits(Path source) throws Exception {
+        Path d = Files.createTempDirectory("microx-data-limits"), out = d.resolve("gameplay.dat");
+        copy(source, d);
+        for (int i = 0; i < 12; i++) writeRows(d.resolve("extra/t" + i + ".txt"), 0);
+        rejected(d, out, "17 tables accepted");
+
+        d = Files.createTempDirectory("microx-data-rows"); copy(source, d); out=d.resolve("x.dat");
+        writeRows(d.resolve("extra/large.txt"), 257);
+        rejected(d, out, "257 rows accepted");
+        d = Files.createTempDirectory("microx-data-total"); copy(source, d); out=d.resolve("x.dat");
+        for (int i=0;i<5;i++) writeRows(d.resolve("extra/t"+i+".txt"), 205);
+        rejected(d, out, "more than 1024 rows accepted");
+
+        Path columns=Files.createTempDirectory("microx-data-columns");
+        Files.write(columns.resolve("items.txt"), "1|k|d|m|extra\n".getBytes(StandardCharsets.UTF_8));
+        rejected(columns, columns.resolve("x.dat"), "fifth column accepted");
+        Files.delete(columns.resolve("items.txt"));
+        Path a=columns.resolve("a/same.txt"), b=columns.resolve("b/same.txt");
+        Files.createDirectories(a.getParent()); Files.createDirectories(b.getParent());
+        Files.write(a,"1|a|A\n".getBytes(StandardCharsets.UTF_8));
+        Files.write(b,"2|b|B\n".getBytes(StandardCharsets.UTF_8));
+        try { AssetConverter.readData(columns); throw new AssertionError("duplicate basename accepted"); }
+        catch (IOException e) { ok(e.getMessage().contains(a.toString()) && e.getMessage().contains(b.toString()), "duplicate error omits paths"); }
+
+        Map<String,List<AssetConverter.DataRow>> packed=new TreeMap<String,List<AssetConverter.DataRow>>();
+        Path fake=Paths.get("unicode.txt");
+        char[] huge = new char[65536]; Arrays.fill(huge, 'x');
+        packed.put("items", Arrays.asList(new AssetConverter.DataRow(1,"nul\0é€😀","d",new String(huge),fake,1)));
+        try { AssetConverter.validateRecordStoreLimits(packed); throw new AssertionError("oversized metadata accepted"); }
+        catch (IOException e) { ok(e.getMessage().contains("modified UTF-8"), "wrong modified UTF error"); }
+        packed.put("items", Arrays.asList(new AssetConverter.DataRow(1,"nul\0é€😀","d","",fake,1)));
+        AssetConverter.validateRecordStoreLimits(packed);
+    }
+    private static void writeRows(Path file, int count) throws IOException {
+        Files.createDirectories(file.getParent()); StringBuilder text=new StringBuilder();
+        for(int i=1;i<=count;i++) text.append(i).append("|k").append(i).append("|d\n");
+        Files.write(file,text.toString().getBytes(StandardCharsets.UTF_8));
     }
     private static void rejected(Path d, Path out, String message) throws Exception {
         boolean failed = false;

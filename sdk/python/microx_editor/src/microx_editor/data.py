@@ -2,6 +2,10 @@
 from dataclasses import dataclass
 from .io import Project
 class DataError(ValueError): pass
+# GameplayTables wire-format contract. Keep synchronized with GameplayTables.java
+# and AssetConverter.java.
+MAX_TABLES=16; MAX_ROWS=256; MAX_TOTAL_ROWS=1024
+MAX_PACKED_BYTES=32768; MAX_MODIFIED_UTF_BYTES=65535
 @dataclass
 class Row: id:int; key:str; description:str; meta:str=""
 @dataclass
@@ -28,6 +32,12 @@ def serialize_data(table:Table)->str:
             r=line.row; out.append(f"{r.id}|{r.key}|{r.description}"+(f"|{r.meta}" if r.meta or line.had_meta else ""))
     return "\n".join(out)+"\n"
 def validate_tables(tables:dict[str,Table]):
+    if len(tables)>MAX_TABLES: raise DataError(f"gameplay table count exceeds {MAX_TABLES}")
+    total=sum(len(t.rows()) for t in tables.values())
+    for name,t in tables.items():
+        modified_utf_size(name,f"table name {name}")
+        if len(t.rows())>MAX_ROWS: raise DataError(f"table {name} exceeds {MAX_ROWS} rows")
+    if total>MAX_TOTAL_ROWS: raise DataError(f"gameplay row count exceeds {MAX_TOTAL_ROWS}")
     allrefs=set()
     for name,t in tables.items():
         ids=set()
@@ -54,13 +64,34 @@ def validate_tables(tables:dict[str,Table]):
                     try: cur=by.get(int(nxt))
                     except ValueError: raise DataError(f"{name}:{start.id}: invalid {edge}")
                     if cur is None: raise DataError(f"{name}:{start.id}: unknown {edge} {nxt}")
-    budget=16+sum(8+len(r.key.encode())+len(r.description.encode()) for t in tables.values() for r in t.rows())
-    if budget>32768: raise DataError("gameplay tables exceed 32768-byte RecordStore budget")
+    budget=5
+    for name,t in tables.items():
+        budget+=modified_utf_size(name,f"table name {name}")+2
+        for r in t.rows():
+            budget+=2+modified_utf_size(r.key,f"{name}:{r.id}: key")
+            budget+=modified_utf_size(r.description,f"{name}:{r.id}: description")
+            budget+=modified_utf_size(r.meta,f"{name}:{r.id}: metadata")
+    if budget>MAX_PACKED_BYTES: raise DataError(f"gameplay tables exceed {MAX_PACKED_BYTES}-byte RecordStore budget (serialized size {budget})")
+def modified_utf_size(value:str,label="string"):
+    """Return Java DataOutput.writeUTF size, including its two-byte prefix."""
+    size=0
+    for c in value:
+        n=ord(c)
+        if n==0: size+=2
+        elif n<=0x7f: size+=1
+        elif n<=0x7ff: size+=2
+        elif n<=0xffff: size+=3
+        else: size+=6 # Java writes the UTF-16 surrogate pair as two 3-byte units.
+        if size>MAX_MODIFIED_UTF_BYTES: raise DataError(f"{label} exceeds modified UTF-8 limit of {MAX_MODIFIED_UTF_BYTES} bytes")
+    return size+2
 def load_tables(project:Project):
     root=project.path("assets-src/data",existing=True); result={}
     old=list(root.rglob("*.data"))
     if old: raise DataError(f"legacy .data file is forbidden: {old[0]}")
-    for p in sorted(root.rglob("*.txt")): result[p.stem]=parse_data(p.read_text(encoding="utf-8"))
+    paths={}
+    for p in sorted(root.rglob("*.txt")):
+        if p.stem in paths: raise DataError(f"duplicate table name {p.stem}: {paths[p.stem]} and {p}")
+        paths[p.stem]=p; result[p.stem]=parse_data(p.read_text(encoding="utf-8"))
     validate_tables(result); return result
 def save_table(project:Project,path,table:Table,all_tables:dict[str,Table]):
     target=project.path(path)

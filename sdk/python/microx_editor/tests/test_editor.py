@@ -18,6 +18,24 @@ class Tests(unittest.TestCase):
   s='# c\n\n1|ключ|Опис|\n'; t=parse_data(s); self.assertEqual(serialize_data(t),s); validate_tables({'items':t})
   with self.assertRaises(DataError):validate_tables({'items':parse_data('1|a|A\n1|b|B\n')})
   with self.assertRaises(DataError):validate_tables({'dialogs':parse_data('1|a|A|next=2\n2|b|B|next=1\n')})
+ def test_gameplay_format_limits_and_modified_utf(self):
+  row=lambda i:DataLine('',Row(i,f'k{i}','d'))
+  table=lambda n:Table([row(i) for i in range(1,n+1)])
+  with self.assertRaises(DataError):validate_tables({f't{i}':Table([]) for i in range(17)})
+  with self.assertRaises(DataError):validate_tables({'items':table(257)})
+  with self.assertRaises(DataError):validate_tables({f't{i}':table(205) for i in range(5)})
+  with self.assertRaises(DataError):parse_data('1|key|description|meta|extra\n')
+  self.assertEqual(modified_utf_size('\0'),4)
+  self.assertEqual(modified_utf_size('é'),4)
+  self.assertEqual(modified_utf_size('€'),5)
+  self.assertEqual(modified_utf_size('😀'),8)
+  huge=Table([DataLine('',Row(1,'key','description','x'*65536))])
+  with self.assertRaisesRegex(DataError,'modified UTF-8'):validate_tables({'items':huge})
+ def test_duplicate_gameplay_basename_reports_both_paths(self):
+  p=self.project(); a=p.path('assets-src/data/a/same.txt'); b=p.path('assets-src/data/b/same.txt')
+  a.parent.mkdir(); b.parent.mkdir(); a.write_text('1|a|A\n'); b.write_text('2|b|B\n')
+  with self.assertRaises(DataError) as error:load_tables(p)
+  self.assertIn(str(a),str(error.exception)); self.assertIn(str(b),str(error.exception))
  def test_level_roundtrip_and_links(self):
   s='MXL2\n# hi\ncounts 1 1 1 0 0 1 0 0 1\nroom 0 2 0 2\nfloor 0 0 2 0 2 0\nceiling 0 0 2 0 2 2\nspawn 1 0 1 0 1 0\n'
   self.assertEqual(serialize_level(parse_level_text(s)),s)
