@@ -10,6 +10,11 @@ import java.awt.image.BufferedImage;
 /** Desktop converter and strict validator for editable assets. */
 public final class AssetConverter {
     private static final int MAGIC = 0x4d584c32, VERSION = 2, MAX_FIXED = 32767;
+    // GameplayTables wire-format contract. Keep these values synchronized with
+    // GameplayTables and sdk/python/microx_editor/data.py.
+    static final int GAMEPLAY_MAGIC = 0x4d584732, MAX_GAMEPLAY_TABLES = 16,
+            MAX_GAMEPLAY_ROWS = 256, MAX_GAMEPLAY_TOTAL_ROWS = 1024,
+            MAX_GAMEPLAY_BYTES = 32768, MAX_MODIFIED_UTF_BYTES = 65535;
     private AssetConverter() {}
     public static void main(String[] args) throws Exception {
         if (args.length != 2)
@@ -47,6 +52,7 @@ public final class AssetConverter {
     /** Validates and packs stable-id description tables. Source rows are id|key|description. */
     public static void writeGameplayData(Path data, Path output) throws IOException {
         Map<String, List<DataRow>> tables = readData(data);
+        validateGameplayShape(tables);
         validateReferences(tables);
         validateStringSizes(tables);
         validateDialogCycles(tables);
@@ -54,7 +60,7 @@ public final class AssetConverter {
         validateRecordStoreLimits(tables);
         Files.createDirectories(output.getParent());
         try (DataOutputStream out = new DataOutputStream(Files.newOutputStream(output))) {
-            out.writeInt(0x4d584732);
+            out.writeInt(GAMEPLAY_MAGIC);
             out.writeByte(tables.size());
             for (Map.Entry<String, List<DataRow>> e : tables.entrySet()) {
                 out.writeUTF(e.getKey());
@@ -70,6 +76,7 @@ public final class AssetConverter {
     }
     static Map<String, List<DataRow>> readData(Path root) throws IOException {
         Map<String, List<DataRow>> result = new TreeMap<String, List<DataRow>>();
+        Map<String, Path> tablePaths = new HashMap<String, Path>();
         try (Stream<Path> paths = Files.walk(root)) {
             List<Path> files = new ArrayList<Path>();
             for (Iterator<Path> all = paths.filter(Files::isRegularFile).sorted().iterator();
@@ -104,8 +111,11 @@ public final class AssetConverter {
                         throw new IOException(p + ":" + line + ": duplicate or empty stable key");
                     rows.add(new DataRow(id, q[1], q[2], q.length > 3 ? q[3] : "", p, line));
                 }
-                if (result.put(table, rows) != null)
-                    throw new IOException(p + ": duplicate table name " + table);
+                Path previous = tablePaths.put(table, p);
+                if (previous != null)
+                    throw new IOException("duplicate table name " + table + ": " + previous
+                            + " and " + p);
+                result.put(table, rows);
             }
         }
         return result;
@@ -289,13 +299,46 @@ public final class AssetConverter {
         }
     }
     public static void validateRecordStoreLimits(Map<String, List<DataRow>> t) throws IOException {
-        long bytes = 16;
-        for (List<DataRow> rows : t.values())
-            for (DataRow r : rows)
-                bytes += 8 + r.key.getBytes(StandardCharsets.UTF_8).length
-                        + r.text.getBytes(StandardCharsets.UTF_8).length;
-        if (bytes > 32768)
-            throw new IOException("gameplay tables exceed 32768-byte RecordStore budget");
+        long bytes = 4 + 1;
+        for (Map.Entry<String, List<DataRow>> table : t.entrySet()) {
+            bytes += utfSize(table.getKey(), "table name " + table.getKey()) + 2;
+            for (DataRow r : table.getValue()) {
+                bytes += 2;
+                bytes += utfSize(r.key, r.file + ":" + r.line + ": key");
+                bytes += utfSize(r.text, r.file + ":" + r.line + ": description");
+                bytes += utfSize(r.meta, r.file + ":" + r.line + ": metadata");
+            }
+        }
+        if (bytes > MAX_GAMEPLAY_BYTES)
+            throw new IOException("gameplay tables exceed " + MAX_GAMEPLAY_BYTES
+                    + "-byte RecordStore budget (serialized size " + bytes + ")");
+    }
+    private static void validateGameplayShape(Map<String, List<DataRow>> tables)
+            throws IOException {
+        if (tables.size() > MAX_GAMEPLAY_TABLES)
+            throw new IOException("gameplay table count exceeds " + MAX_GAMEPLAY_TABLES);
+        int total = 0;
+        for (Map.Entry<String, List<DataRow>> table : tables.entrySet()) {
+            utfSize(table.getKey(), "table name " + table.getKey());
+            if (table.getValue().size() > MAX_GAMEPLAY_ROWS)
+                throw new IOException("table " + table.getKey() + " exceeds "
+                        + MAX_GAMEPLAY_ROWS + " rows");
+            total += table.getValue().size();
+        }
+        if (total > MAX_GAMEPLAY_TOTAL_ROWS)
+            throw new IOException("gameplay row count exceeds " + MAX_GAMEPLAY_TOTAL_ROWS);
+    }
+    /** Bytes emitted by DataOutput.writeUTF, including its unsigned-short prefix. */
+    private static int utfSize(String value, String label) throws IOException {
+        int bytes = 0;
+        for (int i = 0; i < value.length(); i++) {
+            int c = value.charAt(i);
+            bytes += c >= 0x0001 && c <= 0x007f ? 1 : c <= 0x07ff ? 2 : 3;
+            if (bytes > MAX_MODIFIED_UTF_BYTES)
+                throw new IOException(label + " exceeds modified UTF-8 limit of "
+                        + MAX_MODIFIED_UTF_BYTES + " bytes");
+        }
+        return bytes + 2;
     }
     private static int metaInt(DataRow r, String name, int fallback) throws IOException {
         for (String s : r.meta.split(","))
