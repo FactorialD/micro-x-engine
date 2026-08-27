@@ -33,6 +33,13 @@ public final class LocationPackageTest {
         ok(engine.contains(
                    "loadLocation(level.transitionLocation[t], level.transitionSpawn[t], true)"),
                 "cross-location transitions request autosave");
+        int load = engine.indexOf("private boolean loadLocation"),
+            commit = engine.indexOf("location = name;", load),
+            autosave = engine.indexOf("if (autosave && !saveGame())", load);
+        ok(commit >= 0 && autosave > commit,
+                "transition autosave captures the committed target location and spawn");
+        ok(engine.indexOf("if (autosave && !saveGame())", load) == autosave,
+                "transition does not overwrite the valid save before loading its target");
         System.out.println("LocationPackageTest: OK");
     }
     private static LevelLoader load(Path generated, String name, boolean hasMedia)

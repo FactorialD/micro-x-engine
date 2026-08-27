@@ -32,6 +32,17 @@ public final class UIStateMachineTest {
         check(ui.modal(), "loot modal");
         ui.show(UIStateMachine.GAMEPLAY);
         check(!ui.modal(), "gameplay nonmodal");
+        ui.show(UIStateMachine.CUTSCENE);
+        ui.command(Input.ACCEPT);
+        eq(UIStateMachine.ACTION_LIST_ACCEPT, ui.action(), "cutscene advance action");
+        ui.show(UIStateMachine.ARENA);
+        ui.command(Input.ACCEPT);
+        eq(UIStateMachine.ACTION_LIST_ACCEPT, ui.action(), "arena leave action");
+        ui.show(UIStateMachine.CYCLIC_QUEST);
+        check(ui.modal(), "cyclic quest notification modal");
+        ui.show(UIStateMachine.FREEPLAY);
+        ui.command(Input.ACCEPT);
+        eq(UIStateMachine.ACTION_LIST_ACCEPT, ui.action(), "freeplay acknowledge action");
         ui.show(UIStateMachine.PAUSE);
         ui.command(Input.DOWN);
         ui.command(Input.DOWN);

@@ -135,13 +135,28 @@ public final class GameplayTest {
         eq(4, story.node());
         ok(story.choose(false));
         eq(1, story.ending());
-        ok(story.enterFreeplay(3));
-        ok(g.quests.freeplay());
+        GameplayState survivor = new GameplayState();
+        StorySystem survivorStory = new StorySystem(tables, survivor.quests);
+        ok(survivorStory.start());
+        ok(survivorStory.choose(false));
+        ok(survivorStory.choose(false));
+        eq(3, survivorStory.node());
+        ok(survivorStory.choose(false));
+        eq(5, survivorStory.node());
+        ok(survivorStory.choose(false));
+        eq(2, survivorStory.ending());
+        ok(survivorStory.enterFreeplay(3));
+        ok(survivor.quests.freeplay());
 
-        CyclicQuestSystem cyclic = new CyclicQuestSystem(tables, g.quests);
+        CyclicQuestSystem cyclic = new CyclicQuestSystem(tables, survivor.quests);
         eq(1, cyclic.current());
-        cyclic.complete();
+        ok(cyclic.issue(10));
+        no(cyclic.issue(10));
+        ok(cyclic.complete(10));
         eq(2, cyclic.current());
+        eq(3, cyclic.cooldownRemaining(10));
+        no(cyclic.issue(12));
+        ok(cyclic.issue(13));
 
         GameplayState fighter = new GameplayState();
         fighter.inventory.setMoney(1000);
@@ -157,6 +172,14 @@ public final class GameplayTest {
         eq(1, fighter.inventory.count(GameIds.ITEM_MEDKIT));
         eq(2, fighter.inventory.count(GameIds.ITEM_BANDAGE));
         eq(20, arena.returnSpawn());
+
+        GameplayState quitter = new GameplayState();
+        quitter.inventory.setMoney(1000);
+        quitter.inventory.add(GameIds.ITEM_MEDKIT, 1, 100);
+        ok(arena.enter(1, quitter, "cordon", 10));
+        ok(arena.leave(quitter, false));
+        eq(500, quitter.inventory.money());
+        eq(1, quitter.inventory.count(GameIds.ITEM_MEDKIT));
     }
     private static void inventory() {
         Inventory a = new Inventory(2, 2);

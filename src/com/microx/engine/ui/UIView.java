@@ -6,7 +6,8 @@ import com.microx.engine.world.*;
 /** Responsive, allocation-conscious painter for every modal game screen. */
 public final class UIView {
     private static final String[] TITLES = {"MICRO X", "GAME", "PAUSED", "PDA", "INVENTORY", "MAP",
-            "QUESTS", "DIALOGUE", "TRADE", "LOOT", "SETTINGS", "LOAD ERROR", "ПРО ГРУ"};
+            "QUESTS", "DIALOGUE", "TRADE", "LOOT", "SETTINGS", "LOAD ERROR", "ПРО ГРУ", "SCENE",
+            "ENDING", "ARENA", "CYCLIC QUEST", "FREEPLAY"};
     private static final String[] MAIN = {"NEW GAME", "LOAD", "SETTINGS", "ПРО ГРУ", "EXIT"},
                                   PAUSE = {"RESUME", "SAVE", "LOAD", "SETTINGS", "MAIN MENU"},
                                   PDA = {"INVENTORY", "MAP", "QUESTS", "BACK"},
@@ -22,6 +23,10 @@ public final class UIView {
     private int faction;
     private boolean repair;
     private String result;
+    private StorySystem story;
+    private CutsceneSystem cutscene;
+    private CyclicQuestSystem cyclic;
+    private ArenaSystem arena;
 
     public void bind(GameplayState state, GameplayTables data, Player p, LevelLoader map,
             String locationName, int npcFaction, boolean repairMode, String message) {
@@ -33,6 +38,13 @@ public final class UIView {
         faction = npcFaction;
         repair = repairMode;
         result = message;
+    }
+    public void bindNarrative(StorySystem storySystem, CutsceneSystem cutsceneSystem,
+            CyclicQuestSystem cyclicSystem, ArenaSystem arenaSystem) {
+        story = storySystem;
+        cutscene = cutsceneSystem;
+        cyclic = cyclicSystem;
+        arena = arenaSystem;
     }
     public void paint(Graphics g, UIStateMachine ui, UISettings settings) {
         int w = g.getClipWidth(), h = g.getClipHeight();
@@ -52,10 +64,26 @@ public final class UIView {
             drawDialogue(g, ui, w, h);
         else if (ui.state() == UIStateMachine.TRADE || ui.state() == UIStateMachine.LOOT)
             drawTransfer(g, ui, w, h);
+        else if (ui.state() == UIStateMachine.CUTSCENE)
+            drawText(g, cutscene == null ? null : cutscene.text(), w, h);
+        else if (ui.state() == UIStateMachine.ENDING)
+            drawText(g, story == null ? null : story.text(), w, h);
+        else if (ui.state() == UIStateMachine.ARENA)
+            drawText(g, arena == null ? null : "WAVE " + arena.wave() + "/" + arena.waves(), w, h);
+        else if (ui.state() == UIStateMachine.CYCLIC_QUEST)
+            drawText(g, cyclic == null ? null : cyclic.text(), w, h);
+        else if (ui.state() == UIStateMachine.FREEPLAY)
+            drawText(g, "FREEPLAY", w, h);
         else if (ui.state() == UIStateMachine.ABOUT)
             drawAbout(g, w);
         else
             drawMenu(g, ui, settings, w, h);
+    }
+    private void drawText(Graphics g, String text, int w, int h) {
+        g.setColor(0xffffff);
+        g.drawString(text == null ? "..." : text, w / 2, h / 2, Graphics.TOP | Graphics.HCENTER);
+        g.setColor(0x809090);
+        g.drawString("OK", w / 2, h - 24, Graphics.TOP | Graphics.HCENTER);
     }
     private void drawTabs(Graphics g, int state, int w) {
         if (state < UIStateMachine.INVENTORY || state > UIStateMachine.QUESTS)

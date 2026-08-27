@@ -26,6 +26,10 @@ public final class Engine implements Runnable {
     private final InteractionSystem interaction = new InteractionSystem();
     private final WorldSystems systems = new WorldSystems(0x4d58534d);
     private GameplayTables tables;
+    private StorySystem story;
+    private CutsceneSystem cutscene;
+    private CyclicQuestSystem cyclic;
+    private ArenaSystem arena;
     private SaveStore saves;
     private SettingsStore settings;
     private String location = "cordon";
@@ -59,6 +63,10 @@ public final class Engine implements Runnable {
         if (!tables.load("/data/gameplay.dat") || !ItemCatalog.install(tables))
             return false;
         tables.installFactionRelations(systems.relations());
+        story = new StorySystem(tables, gameplay.quests);
+        cutscene = new CutsceneSystem(tables);
+        cyclic = new CyclicQuestSystem(tables, gameplay.quests);
+        arena = new ArenaSystem(tables);
         persistent = new SaveData();
         persistent.seed = 0x4d58534d;
         if (!loadLocation("cordon", 0, false))
@@ -163,17 +171,27 @@ public final class Engine implements Runnable {
         level.world.updateVisibility(player.x, player.z);
     }
     private boolean loadLocation(String name, int spawn, boolean autosave) {
-        if (autosave && !saveGame())
-            return false;
         LevelLoader candidate = new LevelLoader();
         if (!candidate.load("/levels/" + name + "/level.lvl"))
             return false;
-        audio.leaveLocation();
-        assets.release();
-        if (!candidate.selectSpawn(spawn) || !assets.loadLocation(name, 0)) {
+        if (!candidate.selectSpawn(spawn)) {
             candidate.clear();
             return false;
         }
+        LevelLoader oldLevel = level;
+        String oldLocation = location;
+        int oldX = player.x, oldY = player.y, oldZ = player.z, oldYaw = player.yaw;
+        try {
+            if (!assets.loadLocation(name, 0)) {
+                candidate.clear();
+                return false;
+            }
+        } catch (RuntimeException failure) {
+            assets.loadLocation(oldLocation, 0);
+            candidate.clear();
+            return false;
+        }
+        audio.leaveLocation();
         location = name;
         level = candidate;
         player.reset(candidate.startX, candidate.startY, candidate.startZ);
@@ -181,6 +199,19 @@ public final class Engine implements Runnable {
         candidate.world.updateVisibility(player.x, player.z);
         systems.enter(candidate.entities);
         audio.enterLocation(name);
+        if (autosave && !saveGame()) {
+            level = oldLevel;
+            location = oldLocation;
+            player.reset(oldX, oldY, oldZ);
+            player.yaw = oldYaw;
+            assets.loadLocation(oldLocation, 0);
+            systems.enter(oldLevel.entities);
+            audio.enterLocation(oldLocation);
+            candidate.clear();
+            return false;
+        }
+        if (oldLevel != null)
+            oldLevel.clear();
         return true;
     }
     public void applySettings() {
@@ -321,6 +352,8 @@ public final class Engine implements Runnable {
     private void interact(int i) {
         EntityPool e = level.entities;
         int type = e.type[i], stable = e.stableId[i], content = e.aux[i] & 65535;
+        if (gameplay.quests.objective() == stable && completeObjective(stable))
+            return;
         if (type == EntityPool.HUMAN) {
             gameplay.actorId = content == 0 ? GameIds.NPC_SIDOROVICH : content;
             actorFaction = e.faction[i];
@@ -403,7 +436,17 @@ public final class Engine implements Runnable {
     public void uiAction(int screen, int selection, boolean alternate) {
         short[] list = canvas.ui.listBuffer();
         int id = selection < canvas.ui.listSize() ? list[selection] & 65535 : 0;
-        if (screen == UIStateMachine.DIALOGUE) {
+        if (screen == UIStateMachine.CUTSCENE) {
+            advanceCutscene();
+        } else if (screen == UIStateMachine.ENDING) {
+            enterFreeplay();
+        } else if (screen == UIStateMachine.ARENA) {
+            leaveArena(false);
+        } else if (screen == UIStateMachine.CYCLIC_QUEST) {
+            canvas.ui.show(UIStateMachine.GAMEPLAY);
+        } else if (screen == UIStateMachine.FREEPLAY) {
+            canvas.ui.show(UIStateMachine.GAMEPLAY);
+        } else if (screen == UIStateMachine.DIALOGUE) {
             int action = DialogueSystem.select(tables, gameplay, gameplay.actorId, id);
             if (action == DialogueSystem.TRADE || action == DialogueSystem.REPAIR) {
                 repairing = action == DialogueSystem.REPAIR;
@@ -455,6 +498,96 @@ public final class Engine implements Runnable {
                 gameplay.equipment.equip(gameplay.inventory, id, alternate ? 1 : 0, player);
         }
     }
+    /** Runtime event: starts the main graph and presents its optional opening scene. */
+    public boolean startStory() {
+        if (story == null || !story.start())
+            return false;
+        showStoryScene();
+        return true;
+    }
+    /** Runtime event emitted by interaction/travel/destruction objectives. */
+    public boolean completeObjective(int marker) {
+        if (story == null || gameplay.quests.objective() != marker || !story.choose(false))
+            return false;
+        showStoryScene();
+        return true;
+    }
+    /** Runtime event for an explicit branch choice. */
+    public boolean chooseStoryBranch(boolean alternate) {
+        if (story == null || !story.choose(alternate))
+            return false;
+        showStoryScene();
+        return true;
+    }
+    private void showStoryScene() {
+        int scene = story.scene();
+        if (scene != 0 && cutscene.start(scene))
+            canvas.ui.show(story.ending() == 0 ? UIStateMachine.CUTSCENE : UIStateMachine.ENDING);
+        else if (story.ending() != 0)
+            canvas.ui.show(UIStateMachine.ENDING);
+    }
+    /** Runtime event: advances the currently presented slideshow frame. */
+    public boolean advanceCutscene() {
+        if (cutscene != null && cutscene.next())
+            return true;
+        canvas.ui.show(story != null && story.ending() != 0 ? UIStateMachine.ENDING
+                                                            : UIStateMachine.GAMEPLAY);
+        return false;
+    }
+    /** Runtime event that hands a completed ending back to the persistent world. */
+    public boolean enterFreeplay() {
+        if (story == null || !story.enterFreeplay(3))
+            return false;
+        int row = tables.find("endings", 3);
+        String target = tables.fieldAt(row, "location");
+        if (target != null && !loadLocation(target, tables.numberAt(row, "spawn"), true))
+            return false;
+        canvas.ui.show(UIStateMachine.FREEPLAY);
+        return true;
+    }
+    /** Runtime event: issues a repeatable quest if its persisted cooldown permits it. */
+    public boolean issueCyclicQuest(int cycle) {
+        if (cyclic == null || !cyclic.issue(cycle))
+            return false;
+        canvas.ui.show(UIStateMachine.CYCLIC_QUEST);
+        return true;
+    }
+    public boolean completeCyclicQuest(int cycle) {
+        return cyclic != null && cyclic.complete(cycle);
+    }
+    /** Runtime event: atomically swaps the player's inventory for the configured arena kit. */
+    public boolean enterArena(int id) {
+        int row = tables == null ? -1 : tables.find("arena", id);
+        int returnSpawn = level == null ? 0 : level.nearestSpawn(player.x, player.z);
+        if (row < 0 || !arena.enter(id, gameplay, location, returnSpawn))
+            return false;
+        String target = tables.fieldAt(row, "location");
+        if (target == null || !loadLocation(target, 0, false)) {
+            arena.leave(gameplay, false);
+            return false;
+        }
+        gameplay.equipment.apply(player);
+        canvas.ui.show(UIStateMachine.ARENA);
+        return true;
+    }
+    /** Runtime event: reports a cleared wave and returns victorious fighters after the last one. */
+    public boolean arenaWaveComplete() {
+        if (arena == null || !arena.clearWave())
+            return false;
+        return leaveArena(true);
+    }
+    public boolean leaveArena(boolean victorious) {
+        if (arena == null || !arena.active())
+            return false;
+        String target = arena.returnLocation();
+        int spawn = arena.returnSpawn();
+        if (!arena.leave(gameplay, victorious))
+            return false;
+        gameplay.equipment.apply(player);
+        boolean loaded = loadLocation(target, spawn, true);
+        canvas.ui.show(loaded ? UIStateMachine.GAMEPLAY : UIStateMachine.ERROR);
+        return loaded;
+    }
     /** A thrown bolt forces nearby anomalies to reveal their next activation. */
     private void probeAnomalies() {
         EntityPool e = level.entities;
@@ -495,6 +628,18 @@ public final class Engine implements Runnable {
     }
     public GameplayTables gameplayTables() {
         return tables;
+    }
+    public StorySystem storySystem() {
+        return story;
+    }
+    public CutsceneSystem cutsceneSystem() {
+        return cutscene;
+    }
+    public CyclicQuestSystem cyclicQuestSystem() {
+        return cyclic;
+    }
+    public ArenaSystem arenaSystem() {
+        return arena;
     }
     public String locationName() {
         return location;
