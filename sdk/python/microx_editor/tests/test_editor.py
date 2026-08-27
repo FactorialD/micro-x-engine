@@ -8,6 +8,18 @@ from microx_editor.level import *
 from microx_editor.obj import validate_obj,ObjError
 from microx_editor.images import inspect_png,AssetError
 class Tests(unittest.TestCase):
+ def level_text(self, counts=(1,1,1,0,0,1,0,0,1), replacements=None):
+  n=list(counts); rows=['MXL2','counts '+' '.join(map(str,n))]
+  samples={
+   'room':'room 0 1 0 1', 'floor':'floor 0 0 1 0 1 0',
+   'ceiling':'ceiling 0 0 1 0 1 1', 'edge':'edge 0 0 0 1 0 0 1',
+   'portal':'portal 0 0 0 0 1 0 1 0 1 -1 -1',
+   'spawn':'spawn 0 0 0 0 0 0', 'transition':'transition 0 0 level_1',
+   'entity':'entity 0 0 0 0 0 0'}
+  replacements=replacements or {}
+  for kind,count in zip(KINDS,n[:8]):
+   rows.extend([replacements.get(kind,samples[kind])]*count)
+  return '\n'.join(rows)+'\n'
  def project(self):
   d=Path(tempfile.mkdtemp()); (d/'assets-src/levels').mkdir(parents=True); (d/'assets-src/data').mkdir(); return Project(d)
  def test_confined_atomic_utf8(self):
@@ -40,6 +52,66 @@ class Tests(unittest.TestCase):
   s='MXL2\n# hi\ncounts 1 1 1 0 0 1 0 0 1\nroom 0 2 0 2\nfloor 0 0 2 0 2 0\nceiling 0 0 2 0 2 2\nspawn 1 0 1 0 1 0\n'
   self.assertEqual(serialize_level(parse_level_text(s)),s)
   with self.assertRaises(LevelError):parse_level_text(s.replace('counts 1','counts 2',1))
+ def test_level_count_boundaries_match_converter(self):
+  limits=((1,256),(1,1024),(1,1024),(0,2048),(0,1024),(1,256),(0,256),(0,1024),(1,1024))
+  baseline=[1,1,1,0,0,1,0,0,1]
+  for index,(low,high) in enumerate(limits):
+   for value in (low,high):
+    counts=baseline.copy(); counts[index]=value
+    if index==7: counts[8]=max(counts[8],value)
+    if index==8 and counts[7]>value: counts[7]=value
+    with self.subTest(field=index,value=value): parse_level_text(self.level_text(counts))
+   for value in (low-1,high+1):
+    counts=baseline.copy(); counts[index]=value
+    with self.subTest(field=index,value=value),self.assertRaises(LevelError):
+     parse_level_text(self.level_text(counts))
+ def test_level_capacity_and_portal_link_boundaries(self):
+  with self.assertRaisesRegex(LevelError,'exceeds capacity'):
+   parse_level_text(self.level_text((1,1,1,0,0,1,0,2,1)))
+  valid='portal 0 0 0 0 1 0 1 0 1 -1 -1'
+  parse_level_text(self.level_text((1,1,1,0,1,1,0,0,1),{'portal':valid}))
+  cases=(
+   ('portal 0 0 0 0 1 0 1 0 1 -2 -1',(1,1,1,0,1,1,0,0,1),'reverse index'),
+   ('portal 0 0 0 0 1 0 1 0 1 1 -1',(1,1,1,0,1,1,0,0,1),'reverse index'),
+   ('portal 0 0 0 0 1 0 1 0 1 -1 -2',(1,1,1,0,1,1,0,0,1),'transition index'),
+   ('portal 0 0 0 0 1 0 1 0 1 -1 1',(1,1,1,0,1,1,1,0,1),'transition index'))
+  for portal,counts,message in cases:
+   with self.subTest(portal=portal),self.assertRaisesRegex(LevelError,message):
+    parse_level_text(self.level_text(counts,{'portal':portal}))
+  linked=self.level_text((1,1,1,0,2,1,0,0,1),
+                         {'portal':'portal 0 0 0 0 1 0 1 0 1 0 -1'})
+  with self.assertRaisesRegex(LevelError,'bidirectional'): parse_level_text(linked)
+ def test_level_header_contract(self):
+  good=self.level_text()
+  invalid=(good.replace('MXL2\n','MXL2\nMXL2\n'),
+           good.replace('counts ','counts 1 1 1 0 0 1 0 0 1\ncounts ',1),
+           good.replace('MXL2\ncounts 1 1 1 0 0 1 0 0 1\n','counts 1 1 1 0 0 1 0 0 1\nMXL2\n'),
+           good.replace('MXL2\n','MXL2\nroom 0 1 0 1\n'))
+  for text in invalid:
+   with self.subTest(text=text[:30]),self.assertRaises(LevelError): parse_level_text(text)
+ def test_level_numeric_and_location_fields(self):
+  valid_rows={
+   'room':('room -32768 32767 -32768 32767',),
+   'spawn':('spawn 65535 0 -32768 32767 0 -32768',),
+   'transition':('transition 65535 65535 '+'a'*64,),
+   'entity':('entity 65535 65535 -32768 32767 0 65535',)}
+  for kind,(row,) in valid_rows.items():
+   counts=[1,1,1,0,0,1,0,0,1]; counts[KINDS.index(kind)]=1
+   with self.subTest(kind=kind): parse_level_text(self.level_text(counts,{kind:row}))
+  invalid_rows={
+   'room':('room -32769 1 0 1','room 0 32768 0 1','room nope 1 0 1'),
+   'spawn':('spawn -1 0 0 0 0 0','spawn 0 0 0 0 0 32768'),
+   'transition':('transition 0 0 bad/location','transition 0 0 '+('a'*65)),
+   'entity':('entity 65536 0 0 0 0 0','entity 0 -1 0 0 0 0','entity 0 0 0 0 0 65536')}
+  for kind,rows in invalid_rows.items():
+   for row in rows:
+    counts=[1,1,1,0,0,1,0,0,1]; counts[KINDS.index(kind)]=1
+    with self.subTest(kind=kind,row=row),self.assertRaises(LevelError):
+     parse_level_text(self.level_text(counts,{kind:row}))
+ def test_serialize_rejects_capacity_instead_of_repairing_it(self):
+  level=parse_level_text(self.level_text((1,1,1,0,0,1,0,1,1)))
+  level.records('counts')[0].values[8]='0'
+  with self.assertRaisesRegex(LevelError,'capacity count'): serialize_level(level)
  def test_obj_contract(self):
   d=Path(tempfile.mkdtemp()); good=d/'a.obj'; good.write_text('v 0 0 0\nv 1 0 0\nv 0 1 0\nvt 0 0\nvt 1 0\nvt 0 1\nf 1/1 2/2 3/3\n')
   self.assertEqual(validate_obj(good)['triangles'],1)
