@@ -96,14 +96,14 @@
   </target>
 
   <target name="desktop-static-test" depends="desktop-test" description="Run host-side static and persistence tests without MIDP packaging">
-    <fail message="Java sources must not import editable assets from assets-src">
-      <condition><resourcecount when="greater" count="0"><fileset dir="src"><contains text="assets-src/"/></fileset></resourcecount></condition>
+    <fail message="Java sources must not import editable assets from res">
+      <condition><resourcecount when="greater" count="0"><fileset dir="src"><contains text="res/"/></fileset></resourcecount></condition>
     </fail>
   </target>
 
   <target name="check-data-extensions" description="Reject obsolete editable gameplay .data files">
-    <fail message="assets-src/data contains obsolete .data files; gameplay tables must use .txt">
-      <condition><resourcecount when="greater" count="0"><fileset dir="assets-src/data" includes="**/*.data"/></resourcecount></condition>
+    <fail message="res/data contains obsolete .data files; gameplay tables must use .txt">
+      <condition><resourcecount when="greater" count="0"><fileset dir="res/data" includes="**/*.data"/></resourcecount></condition>
     </fail>
   </target>
 
@@ -173,7 +173,7 @@
     <fail message="Mandatory Garbage runtime resources are missing from the JAR"><condition><not><resourcecount when="equal" count="2"><zipfileset src="${dist.jar}" includes="levels/garbage/level.lvl,levels/garbage/geometry.mesh"/></resourcecount></not></condition></fail>
     <fail message="Story location runtime resources are missing from the JAR"><condition><not><resourcecount when="equal" count="22"><zipfileset src="${dist.jar}" includes="levels/depot/level.lvl,levels/depot/geometry.mesh,levels/laboratory/level.lvl,levels/laboratory/geometry.mesh,levels/arena/level.lvl,levels/arena/geometry.mesh,levels/agroprom/level.lvl,levels/agroprom/geometry.mesh,levels/bar/level.lvl,levels/bar/geometry.mesh,levels/wild_territory/level.lvl,levels/wild_territory/geometry.mesh,levels/yantar/level.lvl,levels/yantar/geometry.mesh,levels/army_warehouses/level.lvl,levels/army_warehouses/geometry.mesh,levels/radar/level.lvl,levels/radar/geometry.mesh,levels/pripyat/level.lvl,levels/pripyat/geometry.mesh,levels/cnpp/level.lvl,levels/cnpp/geometry.mesh"/></resourcecount></not></condition></fail>
     <fail message="Mandatory /data/gameplay.dat is missing from the JAR"><condition><not><resourcecount when="greater" count="0"><zipfileset src="${dist.jar}" includes="data/gameplay.dat"/></resourcecount></not></condition></fail>
-    <fail message="Editable/source assets are forbidden in the runtime JAR"><condition><resourcecount when="greater" count="0"><zipfileset src="${dist.jar}" includes="**/*.obj,**/geometry.txt,**/*.level,assets-src/**,**/*~"/></resourcecount></condition></fail>
+    <fail message="Editable/source assets are forbidden in the runtime JAR"><condition><resourcecount when="greater" count="0"><zipfileset src="${dist.jar}" includes="**/*.obj,**/geometry.txt,**/*.level,**/*~"/></resourcecount></condition></fail>
   </target>
 
   <target name="create-jad" depends="validate-package" description="Create a JAD matching the packaged JAR">

@@ -22,10 +22,10 @@ class Tests(unittest.TestCase):
    rows.extend([replacements.get(kind,samples[kind])]*count)
   return '\n'.join(rows)+'\n'
  def project(self):
-  d=Path(tempfile.mkdtemp()); (d/'assets-src/levels').mkdir(parents=True); (d/'assets-src/data').mkdir(); return Project(d)
+  d=Path(tempfile.mkdtemp()); (d/'res/levels').mkdir(parents=True); (d/'res/data').mkdir(); return Project(d)
  def test_confined_atomic_utf8(self):
-  p=self.project(); p.atomic_write('assets-src/data/x.txt','привіт')
-  self.assertEqual(p.read_text('assets-src/data/x.txt'),'привіт')
+  p=self.project(); p.atomic_write('res/data/x.txt','привіт')
+  self.assertEqual(p.read_text('res/data/x.txt'),'привіт')
   with self.assertRaises(ProjectError):p.atomic_write('../escape','x')
  def test_data_roundtrip_comments_and_validation(self):
   s='# c\n\n1|ключ|Опис|type=ammo,cells=1,stack=1,value=0,damageBonus=0\n'; t=parse_data(s); self.assertEqual(serialize_data(t),s); validate_tables({'items':t})
@@ -44,7 +44,7 @@ class Tests(unittest.TestCase):
   self.assertEqual(modified_utf_size('😀'),8)
   with self.assertRaisesRegex(DataError,'modified UTF-8'):modified_utf_size('x'*65536)
  def test_duplicate_gameplay_basename_reports_both_paths(self):
-  p=self.project(); a=p.path('assets-src/data/a/same.txt'); b=p.path('assets-src/data/b/same.txt')
+  p=self.project(); a=p.path('res/data/a/same.txt'); b=p.path('res/data/b/same.txt')
   a.parent.mkdir(); b.parent.mkdir(); a.write_text('1|a|A\n'); b.write_text('2|b|B\n')
   with self.assertRaises(DataError) as error:load_tables(p)
   self.assertIn(str(a),str(error.exception)); self.assertIn(str(b),str(error.exception))

@@ -6,7 +6,7 @@ import java.nio.file.*;
 import java.util.*;
 public final class GameplayDataTest {
     public static void main(String[] args) throws Exception {
-        Path source = Paths.get("assets-src/data"), d = Files.createTempDirectory("microx-data");
+        Path source = Paths.get("res/data"), d = Files.createTempDirectory("microx-data");
         copy(source, d);
         Path out = d.resolve("gameplay.dat");
         AssetConverter.writeGameplayData(d, out);
