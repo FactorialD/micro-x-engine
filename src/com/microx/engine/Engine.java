@@ -337,7 +337,7 @@ public final class Engine implements Runnable {
                 acc %= STEP;
             }
             long r = System.currentTimeMillis();
-            canvas.renderFrame();
+            canvas.requestFrame();
             int render = (int) (System.currentTimeMillis() - r);
             stats.timing(totalUpdate, render);
             stats.rendererBudget(assets.residentBytes()

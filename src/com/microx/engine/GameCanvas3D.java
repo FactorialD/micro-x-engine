@@ -13,7 +13,7 @@ public final class GameCanvas3D extends GameCanvas {
     private boolean started;
     private final Object previewLock = new Object();
     private Thread previewThread;
-    private boolean previewActive, previewShutdown;
+    private boolean previewActive, previewShutdown, frameRequested;
     public GameCanvas3D(Engine e, boolean d) {
         super(false);
         engine = e;
@@ -35,6 +35,7 @@ public final class GameCanvas3D extends GameCanvas {
             }
             if (key == -6 || key == -7) {
                 ui.show(UIStateMachine.PAUSE);
+                signalRendering(false);
                 return;
             }
             engine.input.key(key, gameAction, true, System.currentTimeMillis());
@@ -46,13 +47,12 @@ public final class GameCanvas3D extends GameCanvas {
                 && (cmd == Input.UI_LEFT || cmd == Input.UI_RIGHT)) {
             settings.change(ui.selection(), cmd == Input.UI_RIGHT ? 1 : -1);
             ui.setDebugMenu(settings.debug);
-            renderFrame();
+            signalRendering(false);
             return;
         }
         ui.command(cmd);
         handleAction();
-        setPreviewActive(CanvasFramePlan.preview(ui.state()));
-        renderFrame();
+        signalRendering(CanvasFramePlan.preview(ui.state()));
     }
     protected void keyReleased(int key) {
         int gameAction = gameAction(key);
@@ -101,17 +101,21 @@ public final class GameCanvas3D extends GameCanvas {
         else if (action == UIStateMachine.ACTION_TEST_OPEN) {
             if (!testScene.open(ui.selection()))
                 ui.error();
-            else
-                setPreviewActive(true);
         }
     }
     public boolean gameplayBlocked() {
         return ui.modal();
     }
     public void showInitial() {
-        renderFrame();
+        requestFrame();
     }
-    public synchronized void renderFrame() {
+
+    /** Queues a frame; the preview thread is the sole owner of all LCDUI drawing calls. */
+    public void requestFrame() {
+        signalRendering(CanvasFramePlan.preview(ui.state()));
+    }
+
+    private void renderFrame() {
         Graphics g = getGraphics();
         int state = ui.state();
         if (CanvasFramePlan.preview(state)) {
@@ -135,12 +139,13 @@ public final class GameCanvas3D extends GameCanvas {
         flushGraphics();
     }
 
-    private void setPreviewActive(boolean active) {
+    private void signalRendering(boolean active) {
         synchronized (previewLock) {
             if (previewShutdown)
                 return;
             previewActive = active;
-            if (active && previewThread == null) {
+            frameRequested = true;
+            if (previewThread == null) {
                 previewThread = new Thread(new Runnable() {
                     public void run() {
                         previewLoop();
@@ -154,18 +159,22 @@ public final class GameCanvas3D extends GameCanvas {
 
     private void previewLoop() {
         while (true) {
+            boolean render;
             synchronized (previewLock) {
-                while (!previewActive && !previewShutdown)
-                    try {
+                while (!frameRequested && !previewActive && !previewShutdown) try {
                         previewLock.wait();
                     } catch (InterruptedException ignored) {
                     }
                 if (previewShutdown)
                     return;
+                render = frameRequested || previewActive;
+                frameRequested = false;
             }
-            renderFrame();
+            // Never hold previewLock (or the canvas monitor) across LCDUI operations.
+            if (render)
+                renderFrame();
             synchronized (previewLock) {
-                if (!previewActive || previewShutdown)
+                if (frameRequested || !previewActive || previewShutdown)
                     continue;
                 try {
                     previewLock.wait(33);
