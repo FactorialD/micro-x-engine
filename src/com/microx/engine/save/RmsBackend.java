@@ -17,23 +17,30 @@ public final class RmsBackend implements RecordBackend {
     }
     private static final class MidpRecords implements RecordBackend {
         private final RecordStore store;
-        MidpRecords(RecordStore value) { store = value; }
+        MidpRecords(RecordStore value) {
+            store = value;
+        }
         public int add(byte[] b) throws Exception {
             return store.addRecord(b, 0, b.length);
         }
-        public byte[] get(int id) throws RecordStoreException { return store.getRecord(id); }
+        public byte[] get(int id) throws RecordStoreException {
+            return store.getRecord(id);
+        }
         public int[] ids() throws RecordStoreException {
             int[] a = new int[store.getNumRecords()];
             int n = 0;
             RecordEnumeration e = store.enumerateRecords(null, null, false);
             while (e.hasNextElement()) a[n++] = e.nextRecordId();
             e.destroy();
-            if (n == a.length) return a;
+            if (n == a.length)
+                return a;
             int[] exact = new int[n];
             System.arraycopy(a, 0, exact, 0, n);
             return exact;
         }
-        public void close() throws RecordStoreException { store.closeRecordStore(); }
+        public void close() throws RecordStoreException {
+            store.closeRecordStore();
+        }
     }
     private static final RmsAdapter MIDP = new MidpAdapter();
     private final RecordBackend store;
@@ -41,8 +48,7 @@ public final class RmsBackend implements RecordBackend {
     public RmsBackend(String name) throws Exception {
         this(name, MIDP, false);
     }
-    private RmsBackend(String name, RmsAdapter adapter, boolean confirmedCorrupt)
-            throws Exception {
+    private RmsBackend(String name, RmsAdapter adapter, boolean confirmedCorrupt) throws Exception {
         RecordBackend opened = null;
         String status = null;
         if (!confirmedCorrupt) {
@@ -55,7 +61,12 @@ public final class RmsBackend implements RecordBackend {
             } catch (RecordStoreException ignored) {
             }
             if (opened != null) {
-                opened.close();
+                try {
+                    opened.close();
+                } catch (Exception ignored) {
+                    // Deletion is the authoritative close for an unusable store. A broken
+                    // handle must not prevent the one centralized recovery attempt.
+                }
                 opened = null;
             }
             adapter.delete(name);
@@ -73,9 +84,8 @@ public final class RmsBackend implements RecordBackend {
     public static RmsBackend recoverCorruptStore(String name) throws Exception {
         return recoverCorruptStore(name, MIDP);
     }
-    /** Test seam; recovery must only be invoked after explicit corruption confirmation. */
-    public static RmsBackend recoverCorruptStore(String name, RmsAdapter adapter)
-            throws Exception {
+    /** Test seam used by the save recovery coordinator after an unusable store is detected. */
+    public static RmsBackend recoverCorruptStore(String name, RmsAdapter adapter) throws Exception {
         return new RmsBackend(name, adapter, true);
     }
     /** Test seam for verifying ordinary open failures remain non-destructive. */

@@ -42,7 +42,7 @@ public final class Engine implements Runnable {
     private boolean repairing;
     private String operationResult;
     private int containerSubtype;
-    private boolean saveRecoveryPending, settingsRecoveryPending;
+    private boolean saveLoadErrorPending;
     public LevelLoader level;
     public void attach(GameCanvas3D c) {
         canvas = c;
@@ -52,9 +52,7 @@ public final class Engine implements Runnable {
             saves = new SaveStore(new RmsBackend("microx-saves"));
             saveError = null;
         } catch (Exception failure) {
-            saves = null;
-            saveError = diagnostic("save store unavailable", failure);
-            saveRecoveryPending = true;
+            recoverSaveStore(diagnostic("save store unavailable", failure));
         }
         try {
             settings = new SettingsStore(new RmsBackend("microx-settings"));
@@ -65,37 +63,40 @@ public final class Engine implements Runnable {
         } catch (Exception failure) {
             settings = null;
             settingsError = diagnostic("settings store unavailable", failure);
-            settingsRecoveryPending = true;
         }
     }
-    void showRecoveryPrompt() {
-        if (saveRecoveryPending)
-            canvas.confirmStoreRecovery("microx-saves", saveError);
-        else if (settingsRecoveryPending)
-            canvas.confirmStoreRecovery("microx-settings", settingsError);
+    void showSaveLoadError() {
+        if (saveLoadErrorPending) {
+            saveLoadErrorPending = false;
+            canvas.showSaveLoadError(saveError);
+        }
     }
-    void confirmStoreRecovery(String name, boolean confirmedCorrupt) {
-        if ("microx-saves".equals(name))
-            saveRecoveryPending = false;
-        else if ("microx-settings".equals(name))
-            settingsRecoveryPending = false;
-        if (confirmedCorrupt) try {
-            RmsBackend recovered = RmsBackend.recoverCorruptStore(name);
-            if ("microx-saves".equals(name)) {
-                saves = new SaveStore(recovered);
-                saveError = recovered.recoveryStatus();
-            } else {
-                settings = new SettingsStore(recovered);
-                settings.load(canvas.settings);
-                settingsError = recovered.recoveryStatus();
-            }
+    private void recoverSaveStore(String detail) {
+        if (saves != null)
+            saves.close();
+        saves = null;
+        resetSaveDerivedState();
+        saveError = detail;
+        saveLoadErrorPending = true;
+        try {
+            saves = new SaveStore(RmsBackend.recoverCorruptStore("microx-saves"));
         } catch (Exception failure) {
-            if ("microx-saves".equals(name))
-                saveError = diagnostic("save store recovery failed", failure);
-            else
-                settingsError = diagnostic("settings store recovery failed", failure);
+            saveError = diagnostic("save store recovery failed", failure);
         }
-        showRecoveryPrompt();
+    }
+    private void resetSaveDerivedState() {
+        persistent = new SaveData();
+        persistent.seed = 0x4d58534d;
+        gameplay.clearPersistent();
+        location = "cordon";
+        stateSource = "NEW";
+        actorFaction = 0;
+        repairing = false;
+        operationResult = null;
+        containerSubtype = 0;
+        autosaveError = null;
+        if (thread != null && tables != null)
+            loadLocation("cordon", 0, false);
     }
     public synchronized boolean start() {
         return startNewGame();
@@ -158,6 +159,11 @@ public final class Engine implements Runnable {
             stateSource = loaded.recovered || !validPosition ? "FALLBACK" : "SAVE";
             return true;
         } catch (SaveException invalid) {
+            if (!invalid.isEmptySlot()) {
+                recoverSaveStore(diagnostic("save load failed", invalid));
+                canvas.ui.show(UIStateMachine.MAIN_MENU);
+                showSaveLoadError();
+            }
             return false;
         }
     }

@@ -40,6 +40,8 @@ public final class SaveStoreTest {
             throw new AssertionError("gameplay catalog unavailable");
         codecValidation();
         unavailableStoresAreIndependent();
+        emptySlotIsNotCorruption();
+        committedFailuresAreUnusable();
         Memory m = new Memory();
         SaveStore store = new SaveStore(m);
         SaveData s = new SaveData();
@@ -92,6 +94,73 @@ public final class SaveStoreTest {
         if (m.data.size() != before + 1)
             throw new AssertionError();
         System.out.println("SaveStoreTest OK");
+    }
+    private static void emptySlotIsNotCorruption() throws Exception {
+        try {
+            new SaveStore(new Memory()).load(0);
+            throw new AssertionError("empty slot loaded");
+        } catch (SaveException expected) {
+            if (!expected.isEmptySlot())
+                throw new AssertionError("empty slot reported as corruption");
+        }
+    }
+    private static void committedFailuresAreUnusable() throws Exception {
+        try {
+            new SaveStore(new Failing()).load(0);
+            throw new AssertionError("record access failure loaded");
+        } catch (SaveException expected) {
+            if (expected.isEmptySlot() || expected.getMessage().indexOf("RecordStore read") < 0)
+                throw new AssertionError("record access failure signal lost");
+        }
+        Memory checksum = savedMemory();
+        checksum.corrupt(1);
+        unusable(checksum, "checksum");
+
+        Memory metadata = savedMemory();
+        metadata.get(2)[9] = 0x7f;
+        unusable(metadata, "metadata");
+
+        Memory decode = savedMemory();
+        decode.get(1)[13] = 0;
+        int length = readInt(decode.get(1), 9);
+        int sum = SaveCodec.checksum(decode.get(1), 13, length);
+        writeInt(decode.get(1), 13 + length, sum);
+        writeInt(decode.get(2), 13, sum);
+        unusable(decode, "decode");
+
+        Memory malformedCommit = savedMemory();
+        byte[] commit = malformedCommit.get(2);
+        byte[] shortCommit = new byte[commit.length - 1];
+        System.arraycopy(commit, 0, shortCommit, 0, shortCommit.length);
+        malformedCommit.data.setElementAt(shortCommit, 1);
+        unusable(malformedCommit, "commit structure");
+    }
+    private static Memory savedMemory() throws Exception {
+        Memory memory = new Memory();
+        SaveData data = new SaveData();
+        data.sequence = 1;
+        data.seed = 9;
+        new SaveStore(memory).save(data);
+        return memory;
+    }
+    private static void unusable(Memory memory, String label) throws Exception {
+        try {
+            new SaveStore(memory).load(0);
+            throw new AssertionError(label + " failure loaded");
+        } catch (SaveException expected) {
+            if (expected.isEmptySlot())
+                throw new AssertionError(label + " failure reported as empty");
+        }
+    }
+    private static int readInt(byte[] b, int p) {
+        return ((b[p] & 255) << 24) | ((b[p + 1] & 255) << 16) | ((b[p + 2] & 255) << 8)
+                | (b[p + 3] & 255);
+    }
+    private static void writeInt(byte[] b, int p, int value) {
+        b[p] = (byte) (value >>> 24);
+        b[p + 1] = (byte) (value >>> 16);
+        b[p + 2] = (byte) (value >>> 8);
+        b[p + 3] = (byte) value;
     }
     private static void unavailableStoresAreIndependent() throws Exception {
         SaveStore unavailableSaves = new SaveStore(new Failing());

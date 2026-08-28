@@ -110,24 +110,22 @@ public final class GameCanvas3D extends GameCanvas {
     }
     public void showInitial() {
         requestFrame();
-        engine.showRecoveryPrompt();
+        engine.showSaveLoadError();
     }
 
-    /** MIDP cannot distinguish a corrupt store from many access failures, so deletion is opt-in. */
-    void confirmStoreRecovery(final String name, String detail) {
-        final Alert alert = new Alert("Storage recovery",
-                name + " could not be opened. Recover only if the store is structurally corrupt. "
-                        + "Recovery permanently deletes its data.\n" + detail,
-                null, AlertType.WARNING);
-        final Command recover = new Command("Recover", Command.OK, 1);
-        final Command keep = new Command("Keep data", Command.CANCEL, 2);
-        alert.addCommand(recover);
-        alert.addCommand(keep);
+    /** Reports destructive automatic recovery once, without asking the user to diagnose RMS. */
+    void showSaveLoadError(String detail) {
+        final Alert alert = new Alert("Save load error",
+                "The saved game could not be loaded. A clean save store was created.\n" + detail,
+                null, AlertType.ERROR);
+        final Command ok = new Command("OK", Command.OK, 1);
+        alert.addCommand(ok);
         alert.setTimeout(Alert.FOREVER);
         alert.setCommandListener(new CommandListener() {
             public void commandAction(Command command, Displayable source) {
+                ui.show(UIStateMachine.MAIN_MENU);
                 display.setCurrent(GameCanvas3D.this);
-                engine.confirmStoreRecovery(name, command == recover);
+                requestFrame();
             }
         });
         display.setCurrent(alert);
