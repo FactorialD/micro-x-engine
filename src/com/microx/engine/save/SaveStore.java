@@ -47,8 +47,16 @@ public final class SaveStore {
             SaveData best = null;
             for (int i = ids.length - 1; i >= 0; i--) {
                 byte[] commit = records.get(ids[i]);
-                if (commit == null || commit.length != 17 || readInt(commit, 0) != COMMIT
-                        || (commit[4] & 255) != slot)
+                int marker = commit == null || commit.length < 4 ? 0 : readInt(commit, 0);
+                if (marker == PREP)
+                    continue; // An uncommitted PREP is a normal interrupted save.
+                if (marker != COMMIT)
+                    continue;
+                if (commit.length != 17) {
+                    rejected = new SaveException("invalid commit record");
+                    continue;
+                }
+                if ((commit[4] & 255) != slot)
                     continue;
                 int sequence = readInt(commit, 5), prepared = readInt(commit, 9),
                     expected = readInt(commit, 13);
@@ -87,7 +95,7 @@ public final class SaveStore {
                 throw new SaveException("no valid save; newest and fallback records are invalid: "
                                 + rejected.toString(),
                         rejected);
-            throw new SaveException("save slot is empty");
+            throw SaveException.emptySlot();
         } catch (SaveException e) {
             throw e;
         } catch (Exception e) {
