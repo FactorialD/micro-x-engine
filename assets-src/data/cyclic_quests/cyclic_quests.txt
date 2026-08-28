@@ -1,2 +1,0 @@
-1|artifact_run|Знайти випадковий артефакт|objective=1,reward=1,cooldown=3,next=2
-2|mutant_hunt|Зачистити лігво мутантів|objective=2,reward=1,cooldown=4,next=1

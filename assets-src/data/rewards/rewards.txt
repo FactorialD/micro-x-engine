@@ -1,3 +1,0 @@
-1|signal_reward|Оплата за знайдений сигнал|money=750,item=4,amount=2,faction=1,reputation=10
-2|story_reward|Нагорода за порятунок Зони|money=2500,item=8,amount=1,faction=1,reputation=25
-3|arena_reward|Нагорода переможцю Арени|money=1200,item=5,amount=2,faction=1,reputation=5

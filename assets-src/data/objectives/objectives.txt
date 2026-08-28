@@ -1,3 +1,0 @@
-1|find_stash|Знайти схованку на Кордоні|quest=1,marker=10003,kind=interact,target=10003,amount=1
-2|reach_lab|Дістатися входу до лабораторії|quest=2,marker=30003,kind=travel,target=30003,amount=1
-3|destroy_core|Знищити ядро лабораторії|quest=3,marker=40002,kind=destroy,target=40002,amount=1

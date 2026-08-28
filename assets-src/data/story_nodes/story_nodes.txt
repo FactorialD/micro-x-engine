@@ -1,6 +1,0 @@
-# Data-driven main story graph. Branch 2 is a real ending; branch 3 continues to freeplay.
-1|arrival|Прибуття до Зони|entry=1,next=2,quest=1,objective=1,scene=1,location=cordon,spawn=0
-2|signal|Сигнал із лабораторії|next=3,alt=4,quest=2,objective=2,reward=1,location=garbage,spawn=0
-3|destroy_core|Знищити ядро|next=5,quest=3,objective=3,scene=2,location=laboratory,spawn=0
-4|join_core|Приєднатися до мережі|ending=1,scene=3
-5|escape|Повернутися на поверхню|ending=2,reward=2,scene=4,location=cordon,spawn=10
