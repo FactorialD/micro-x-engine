@@ -11,6 +11,9 @@ public final class GameCanvas3D extends GameCanvas {
     private final UIView view = new UIView();
     private final TestScene testScene = new TestScene();
     private boolean started;
+    private final Object previewLock = new Object();
+    private Thread previewThread;
+    private boolean previewActive, previewShutdown;
     public GameCanvas3D(Engine e, boolean d) {
         super(false);
         engine = e;
@@ -48,6 +51,7 @@ public final class GameCanvas3D extends GameCanvas {
         }
         ui.command(cmd);
         handleAction();
+        setPreviewActive(CanvasFramePlan.preview(ui.state()));
         renderFrame();
     }
     protected void keyReleased(int key) {
@@ -97,6 +101,8 @@ public final class GameCanvas3D extends GameCanvas {
         else if (action == UIStateMachine.ACTION_TEST_OPEN) {
             if (!testScene.open(ui.selection()))
                 ui.error();
+            else
+                setPreviewActive(true);
         }
     }
     public boolean gameplayBlocked() {
@@ -105,9 +111,10 @@ public final class GameCanvas3D extends GameCanvas {
     public void showInitial() {
         renderFrame();
     }
-    public void renderFrame() {
+    public synchronized void renderFrame() {
         Graphics g = getGraphics();
-        if (ui.state() == UIStateMachine.TEST_VIEW) {
+        int state = ui.state();
+        if (CanvasFramePlan.preview(state)) {
             testScene.paint(g, getWidth(), getHeight(), System.currentTimeMillis());
         } else if (engine.level != null) {
             engine.renderer.render(g, engine.player, engine.level.world, engine.level.entities);
@@ -117,13 +124,62 @@ public final class GameCanvas3D extends GameCanvas {
             engine.hud.paint(g, engine.player, engine.level.world, engine.stats,
                     engine.locationName(), engine.stateSource(), settings.debug);
         }
-        view.bind(engine.gameplay, engine.gameplayTables(), engine.player, engine.level,
-                engine.locationName(), engine.tradeFaction(), engine.repairMode(),
-                engine.tradeResult(), engine.containerTitle());
-        view.bindNarrative(engine.storySystem(), engine.cutsceneSystem(),
-                engine.cyclicQuestSystem(), engine.arenaSystem());
-        if (ui.state() != UIStateMachine.GAMEPLAY)
+        if (CanvasFramePlan.paintView(state)) {
+            view.bind(engine.gameplay, engine.gameplayTables(), engine.player, engine.level,
+                    engine.locationName(), engine.tradeFaction(), engine.repairMode(),
+                    engine.tradeResult(), engine.containerTitle());
+            view.bindNarrative(engine.storySystem(), engine.cutsceneSystem(),
+                    engine.cyclicQuestSystem(), engine.arenaSystem());
             view.paint(g, ui, settings);
+        }
         flushGraphics();
+    }
+
+    private void setPreviewActive(boolean active) {
+        synchronized (previewLock) {
+            if (previewShutdown)
+                return;
+            previewActive = active;
+            if (active && previewThread == null) {
+                previewThread = new Thread(new Runnable() {
+                    public void run() {
+                        previewLoop();
+                    }
+                });
+                previewThread.start();
+            }
+            previewLock.notifyAll();
+        }
+    }
+
+    private void previewLoop() {
+        while (true) {
+            synchronized (previewLock) {
+                while (!previewActive && !previewShutdown)
+                    try {
+                        previewLock.wait();
+                    } catch (InterruptedException ignored) {
+                    }
+                if (previewShutdown)
+                    return;
+            }
+            renderFrame();
+            synchronized (previewLock) {
+                if (!previewActive || previewShutdown)
+                    continue;
+                try {
+                    previewLock.wait(33);
+                } catch (InterruptedException ignored) {
+                }
+            }
+        }
+    }
+
+    void shutdownPreviewTicker() {
+        synchronized (previewLock) {
+            previewShutdown = true;
+            previewActive = false;
+            previewLock.notifyAll();
+        }
     }
 }

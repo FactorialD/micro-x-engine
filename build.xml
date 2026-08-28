@@ -52,6 +52,8 @@
       <include name="com/microx/engine/gameplay/**"/>
       <include name="com/microx/engine/Input.java"/>
       <include name="com/microx/engine/Telemetry.java"/>
+      <include name="com/microx/engine/CanvasFramePlan.java"/>
+      <include name="com/microx/engine/CanvasFramePlanTest.java"/>
       <include name="com/microx/engine/ui/UIStateMachine.java"/>
       <include name="com/microx/engine/ui/UISettings.java"/>
       <include name="com/microx/tools/AssetConverter.java"/>
@@ -60,6 +62,7 @@
       <include name="com/microx/engine/assets/AssetManager.java"/>
       <include name="com/microx/engine/assets/MeshSection.java"/>
       <include name="com/microx/engine/assets/GeometryLoader.java"/>
+      <include name="com/microx/engine/assets/TestGeometry.java"/>
       <include name="com/microx/engine/assets/TextureData.java"/>
       <include name="com/microx/engine/render/Clipper.java"/>
       <include name="com/microx/engine/render/Rasterizer.java"/>
@@ -96,6 +99,7 @@
       <arg value="${basedir}"/><arg value="${generated.resources.dir}"/>
     </java>
     <java classname="com.microx.engine.ui.UIStateMachineTest" fork="true" failonerror="true"><classpath><pathelement location="${desktop.test.classes.dir}"/></classpath></java>
+    <java classname="com.microx.engine.CanvasFramePlanTest" fork="true" failonerror="true"><classpath><pathelement location="${desktop.test.classes.dir}"/><pathelement location="${resources.stage.dir}"/></classpath></java>
     <java classname="com.microx.engine.save.SaveStoreTest" fork="true" failonerror="true"><classpath><pathelement location="${desktop.test.classes.dir}"/></classpath></java>
   </target>
 
