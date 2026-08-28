@@ -1,5 +1,6 @@
 # bar: connected MXL2 story location; open floor provides accessible routes.
 MXL2
+environment 252d42 6f6675 403b48
 counts 1 1 1 4 2 3 2 3 12
 room -8 8 -8 8
 floor 0 -8 8 -8 8 0

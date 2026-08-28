@@ -27,6 +27,9 @@ public final class SoftwareRenderer {
     public void setAssets(AssetManager assets) {
         frame.setAssets(assets);
     }
+    public void setEnvironment(int sky, int wall, int floor) {
+        frame.setEnvironment(sky, wall, floor);
+    }
     /** Recreates buffers at full, half or quarter internal resolution. */
     public void setResolutionMode(int mode) {
         resolutionMode = mode < 0 ? 0 : mode > 2 ? 2 : mode;

@@ -10,8 +10,15 @@ import java.util.*;
 public final class LocationPackageTest {
     public static void main(String[] args) throws Exception {
         Path generated = Paths.get(args[1]);
-        String[] names = {"cordon", "garbage", "agroprom", "depot", "bar", "wild_territory",
-                "yantar", "laboratory", "army_warehouses", "radar", "pripyat", "cnpp", "arena"};
+        List<String> discovered = new ArrayList<String>();
+        try (DirectoryStream<Path> directories =
+                        Files.newDirectoryStream(Paths.get(args[0], "res", "levels"))) {
+            for (Path directory : directories)
+                if (Files.isDirectory(directory))
+                    discovered.add(directory.getFileName().toString());
+        }
+        Collections.sort(discovered);
+        String[] names = discovered.toArray(new String[discovered.size()]);
         Map<String, LevelLoader> levels = new LinkedHashMap<String, LevelLoader>();
         Set<Integer> entityIds = new HashSet<Integer>(), portalIds = new HashSet<Integer>();
         for (String name : names) levels.put(name, load(generated, name));
@@ -66,8 +73,19 @@ public final class LocationPackageTest {
         Path directory = generated.resolve("levels").resolve(name);
         ok(Files.size(directory.resolve("level.txt")) > 0, name + " level.txt");
         ok(Files.size(directory.resolve("geometry.mesh")) > 0, name + " geometry.mesh");
+        ok(Files.size(directory.resolve("textures.tex")) > 0, name + " textures.tex");
         LevelLoader level = new LevelLoader();
         ok(level.load(new FileInputStream(directory.resolve("level.txt").toFile())), name);
+        ok(level.skyColor != level.wallColor && level.skyColor != level.floorColor
+                        && level.wallColor != level.floorColor,
+                name + " distinct environment colors");
+        com.microx.engine.assets.AssetManager assets = new com.microx.engine.assets.AssetManager();
+        ok(assets.loadLocation(name, 0), name + " runtime mesh");
+        ok(assets.locationSectionCount() > 0, name + " non-empty mesh section");
+        String geometry = new String(
+                Files.readAllBytes(Paths.get("res", "levels", name, "geometry.txt")), "US-ASCII");
+        ok(geometry.contains("usemtl floor"), name + " floor geometry");
+        ok(geometry.contains("usemtl wall"), name + " wall geometry");
         return level;
     }
     private static void ok(boolean value, String message) {

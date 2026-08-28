@@ -12,6 +12,7 @@ public final class AssetManager {
             new TextureData(1, 1, new int[] {0xff00ff}, new byte[] {0});
     private MeshSection[] sharedSections, locationSections;
     private TextureData[] sharedTextures, locationTextures;
+    private String locationErrorPath;
 
     public boolean loadShared(String root) {
         MeshSection[] sections = readMesh(root + "/geometry.mesh");
@@ -25,14 +26,23 @@ public final class AssetManager {
     }
     public boolean loadLocation(String name, int volume) {
         String root = "/levels/" + name;
-        MeshSection[] sections = readMesh(root + "/geometry.mesh");
+        String meshPath = root + "/geometry.mesh";
+        MeshSection[] sections = readMesh(meshPath);
+        if (sections == null || sections.length == 0) {
+            locationErrorPath = meshPath;
+            return false;
+        }
         TextureData[] textures = readTextures(root + "/textures.tex");
         if (bytes(sections, textures) > MAX_ASSET_BYTES)
             throw new OutOfMemoryError("location asset pack exceeds 768 KiB");
         unloadLocation();
         locationSections = sections;
         locationTextures = textures;
+        locationErrorPath = null;
         return true;
+    }
+    public String locationErrorPath() {
+        return locationErrorPath;
     }
     public int locationSectionCount() {
         return locationSections == null ? 0 : locationSections.length;

@@ -1,11 +1,26 @@
-# microx material ground 0
+# Complete inward-facing room; material ids map to generated palette textures.
+# microx material floor 0
+# microx material wall 1
+# microx material ceiling 2
+o room_0
 v -8 0 -8
 v 8 0 -8
 v 8 0 8
 v -8 0 8
+v -8 4 -8
+v 8 4 -8
+v 8 4 8
+v -8 4 8
 vt 0 0
 vt 1 0
 vt 1 1
 vt 0 1
-usemtl ground
-f 1/1 2/2 3/3 4/4
+usemtl floor
+f 1/1 4/4 3/3 2/2
+usemtl wall
+f 1/1 2/2 6/3 5/4
+f 2/1 3/2 7/3 6/4
+f 3/1 4/2 8/3 7/4
+f 4/1 1/2 5/3 8/4
+usemtl ceiling
+f 5/1 6/2 7/3 8/4

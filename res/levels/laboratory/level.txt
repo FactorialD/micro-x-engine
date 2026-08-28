@@ -1,5 +1,6 @@
 # laboratory: connected MXL2 story location; open floor provides accessible routes.
 MXL2
+environment 18212d 53606b 303943
 counts 1 1 1 5 3 4 3 4 12
 room -8 8 -8 8
 floor 0 -8 8 -8 8 0

@@ -1,5 +1,6 @@
 # cordon: connected MXL2 story location; open floor provides accessible routes.
 MXL2
+environment 46627a 8b8065 4c493d
 counts 1 1 1 5 3 4 3 5 12
 room -8 8 -8 8
 floor 0 -8 8 -8 8 0
