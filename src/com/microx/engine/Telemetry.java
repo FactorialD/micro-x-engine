@@ -1,8 +1,10 @@
 package com.microx.engine;
 public final class Telemetry {
+    public String locationName;
     public int fps, updateMs, renderMs, updateP50, updateP95, renderP50, renderP95, entities, rooms,
             submittedTriangles, clippedTriangles, drawnTriangles, droppedFixedSteps,
-            rendererBudgetBytes, rendererUsedBytes, rendererBudgetPercent;
+            rendererBudgetBytes, rendererUsedBytes, rendererBudgetPercent, npcCount, mutantCount,
+            itemCount, anomalyCount, corpseCount, textureCount, meshSectionCount;
     public long freeMemory, totalMemory, peakUsedMemory;
     private int frames, samples;
     private long epoch;
@@ -38,6 +40,10 @@ public final class Telemetry {
             renderP50 = percentile(renders, n, 50);
             renderP95 = percentile(renders, n, 95);
         }
+    }
+    /** Integer-only conversion shared by the HUD and host-side telemetry tests. */
+    public static long kib(long bytes) {
+        return bytes / 1024L;
     }
     private int percentile(short[] source, int n, int percent) {
         if (n == 0)

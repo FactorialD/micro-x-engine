@@ -1,18 +1,24 @@
 package com.microx.engine.ui;
 import javax.microedition.lcdui.*;
+import com.microx.engine.Telemetry;
 import com.microx.engine.world.*;
 import com.microx.engine.combat.ItemTypes;
 /** HUD uses only cached labels and primitive drawing during paint. */
 public final class Hud {
     private static final String HP = "HP", AR = "AR", ST = "ST", AMMO = "AMMO", BLEED = "BLEED",
-                                RAD = "RAD", USE = "5 USE", FPS = "FPS", ENTS = " E", ROOMS = " R";
+                                RAD = "RAD", USE = "5 USE", FPS = "FPS ", UP = "UP ", RP = " RP ",
+                                TRI = "TRI ", TEX = "TEX ", MESH = " MESH ", HEAP = "HEAP ",
+                                PEAK = "PEAK ", RENDERER = "REND ", PERCENT = "REND% ",
+                                LOC = "LOC ", NPC = "NPC ", MUT = " MUT ", ITEM = "ITEM ",
+                                ANOM = " ANOM ", CORPSE = "CORPSE ", ROOMS = " ROOM ",
+                                DROP = " DROP ";
     private static final String[] WEAPONS = {"PM", "AK-74", "TOZ-34"};
     private final Font font = Font.getFont(Font.FACE_SYSTEM, Font.STYLE_PLAIN, Font.SIZE_SMALL);
     private boolean interaction;
     public void setInteraction(boolean value) {
         interaction = value;
     }
-    public void paint(Graphics g, Player p, PortalWorld world, int fps, int entities, int rooms,
+    public void paint(Graphics g, Player p, PortalWorld world, Telemetry stats, String location,
             boolean debug) {
         int w = g.getClipWidth(), h = g.getClipHeight(), vx = Math.max(0, (w - 240) / 2),
             vy = Math.max(0, (h - 320) / 2);
@@ -44,14 +50,98 @@ public final class Hud {
         g.drawLine(cx - 5, cy, cx + 5, cy);
         g.drawLine(cx, cy - 5, cx, cy + 5);
         if (debug) {
-            int debugY = Math.max(0, h - 16);
-            g.drawString(FPS, vx + 4, debugY, Graphics.TOP | Graphics.LEFT);
-            number(g, fps, vx + 28, debugY);
-            g.drawString(ENTS, vx + 47, debugY, Graphics.TOP | Graphics.LEFT);
-            number(g, entities, vx + 61, debugY);
-            g.drawString(ROOMS, vx + 80, debugY, Graphics.TOP | Graphics.LEFT);
-            number(g, rooms, vx + 94, debugY);
+            debug(g, stats, location, vx + 3, vy + 58);
         }
+    }
+    private void debug(Graphics g, Telemetry s, String location, int x, int y) {
+        int line = font.getHeight(), width = 114, rows = 13, p;
+        g.setColor(0x101010);
+        g.fillRect(x, y, width, rows * line);
+        g.setColor(0xffffff);
+        p = label(g, FPS, x + 2, y);
+        value(g, s.fps, p, y);
+        y += line;
+        p = label(g, UP, x + 2, y);
+        p = value(g, s.updateP95, p, y);
+        p = label(g, RP, p, y);
+        value(g, s.renderP95, p, y);
+        y += line;
+        p = label(g, TRI, x + 2, y);
+        p = value(g, s.submittedTriangles, p, y);
+        p = slash(g, p, y);
+        p = value(g, s.clippedTriangles, p, y);
+        p = slash(g, p, y);
+        value(g, s.drawnTriangles, p, y);
+        y += line;
+        p = label(g, TEX, x + 2, y);
+        p = value(g, s.textureCount, p, y);
+        p = label(g, MESH, p, y);
+        value(g, s.meshSectionCount, p, y);
+        y += line;
+        p = label(g, HEAP, x + 2, y);
+        p = value(g, Telemetry.kib(s.totalMemory - s.freeMemory), p, y);
+        p = slash(g, p, y);
+        value(g, Telemetry.kib(s.totalMemory), p, y);
+        y += line;
+        p = label(g, PEAK, x + 2, y);
+        value(g, Telemetry.kib(s.peakUsedMemory), p, y);
+        y += line;
+        p = label(g, RENDERER, x + 2, y);
+        p = value(g, Telemetry.kib(s.rendererUsedBytes), p, y);
+        p = slash(g, p, y);
+        value(g, Telemetry.kib(s.rendererBudgetBytes), p, y);
+        y += line;
+        p = label(g, PERCENT, x + 2, y);
+        p = value(g, s.rendererBudgetPercent, p, y);
+        g.drawChar('%', p, y, Graphics.TOP | Graphics.LEFT);
+        y += line;
+        p = label(g, LOC, x + 2, y);
+        g.drawString(location == null ? "-" : location, p, y, Graphics.TOP | Graphics.LEFT);
+        y += line;
+        p = label(g, NPC, x + 2, y);
+        p = value(g, s.npcCount, p, y);
+        p = label(g, MUT, p, y);
+        value(g, s.mutantCount, p, y);
+        y += line;
+        p = label(g, ITEM, x + 2, y);
+        p = value(g, s.itemCount, p, y);
+        p = label(g, ANOM, p, y);
+        value(g, s.anomalyCount, p, y);
+        y += line;
+        p = label(g, CORPSE, x + 2, y);
+        value(g, s.corpseCount, p, y);
+        y += line;
+        p = label(g, ROOMS, x + 2, y);
+        p = value(g, s.rooms, p, y);
+        p = label(g, DROP, p, y);
+        value(g, s.droppedFixedSteps, p, y);
+    }
+    private int label(Graphics g, String text, int x, int y) {
+        g.drawString(text, x, y, Graphics.TOP | Graphics.LEFT);
+        return x + font.stringWidth(text);
+    }
+    private int slash(Graphics g, int x, int y) {
+        g.drawChar('/', x, y, Graphics.TOP | Graphics.LEFT);
+        return x + font.charWidth('/');
+    }
+    /** Draws directly from the negative domain, including Long.MIN_VALUE, without a buffer. */
+    private int value(Graphics g, long number, int x, int y) {
+        boolean negative = number < 0;
+        long n = negative ? number : -number, power = -1;
+        if (negative) {
+            g.drawChar('-', x, y, Graphics.TOP | Graphics.LEFT);
+            x += font.charWidth('-');
+        }
+        while (power >= n / 10) power *= 10;
+        while (power != 0) {
+            int digit = (int) (n / power);
+            char c = (char) ('0' + digit);
+            g.drawChar(c, x, y, Graphics.TOP | Graphics.LEFT);
+            x += font.charWidth(c);
+            n %= power;
+            power /= 10;
+        }
+        return x;
     }
     private void bar(Graphics g, int x, int y, int width, int value, int color, String label) {
         g.setColor(0x202020);

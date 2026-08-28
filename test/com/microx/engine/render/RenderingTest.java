@@ -1,8 +1,10 @@
 package com.microx.engine.render;
 import com.microx.engine.assets.AssetManager;
+import com.microx.engine.Telemetry;
 import com.microx.engine.assets.TextureData;
 import com.microx.engine.math.Fixed;
 import com.microx.engine.world.PortalWorld;
+import com.microx.engine.world.EntityPool;
 import com.microx.tools.AssetConverter;
 import java.io.*;
 import java.nio.charset.StandardCharsets;
@@ -15,6 +17,7 @@ public final class RenderingTest {
         missingTexture();
         portalOcclusion();
         budget();
+        telemetryCounters();
         System.out.println("RenderingTest: OK");
     }
     private static void objImport() throws Exception {
@@ -83,6 +86,27 @@ public final class RenderingTest {
         TextureData t = new TextureData(256, 256, new int[256], new byte[65536]);
         ok(t.memoryBytes() == 66576, "atlas footprint");
         ok(240L * 320L * 6L < 2L * 1024L * 1024L * 45L / 100L, "buffer budget");
+    }
+    private static void telemetryCounters() {
+        EntityPool entities = new EntityPool(8);
+        entities.spawn(EntityPool.HUMAN, 0, 0, 0, 100);
+        int mutant = entities.spawn(EntityPool.MUTANT, 0, 0, 0, 100);
+        entities.spawn(EntityPool.ITEM, 0, 0, 0, 1);
+        entities.spawn(EntityPool.ANOMALY, 0, 0, 0, 1);
+        ok(entities.typeCount(EntityPool.HUMAN) == 1 && entities.typeCount(EntityPool.MUTANT) == 1
+                        && entities.typeCount(EntityPool.ITEM) == 1
+                        && entities.typeCount(EntityPool.ANOMALY) == 1,
+                "entity type counters");
+        ok(entities.killToCorpse(mutant) && entities.typeCount(EntityPool.MUTANT) == 0
+                        && entities.typeCount(EntityPool.CORPSE) == 1,
+                "corpse type counter");
+        ok(Telemetry.kib(1023) == 0 && Telemetry.kib(1024) == 1
+                        && Telemetry.kib(Long.MAX_VALUE) == Long.MAX_VALUE / 1024L,
+                "long KiB conversion");
+        AssetManager assets = new AssetManager();
+        ok(assets.locationTextureCount() == 0 && assets.sharedTextureCount() == 0
+                        && assets.residentTextureCount() == 0 && assets.residentSectionCount() == 0,
+                "empty asset telemetry counters");
     }
     private static TextureData texture(int c) {
         return new TextureData(1, 1, new int[] {c}, new byte[] {0});

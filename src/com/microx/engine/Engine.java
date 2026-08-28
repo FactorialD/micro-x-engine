@@ -301,6 +301,8 @@ public final class Engine implements Runnable {
             stats.rendererBudget(assets.residentBytes()
                             + renderer.internalWidth() * renderer.internalHeight() * 6,
                     renderer.memoryBudget());
+            stats.textureCount = assets.residentTextureCount();
+            stats.meshSectionCount = assets.residentSectionCount();
             stats.frame(now);
             long sleep = STEP - (System.currentTimeMillis() - now);
             if (sleep > 1)
@@ -348,6 +350,12 @@ public final class Engine implements Runnable {
         }
         player.ammo = player.combat.magazine;
         stats.entities = level.entities.activeCount();
+        stats.npcCount = level.entities.typeCount(EntityPool.HUMAN);
+        stats.mutantCount = level.entities.typeCount(EntityPool.MUTANT);
+        stats.itemCount = level.entities.typeCount(EntityPool.ITEM);
+        stats.anomalyCount = level.entities.typeCount(EntityPool.ANOMALY);
+        stats.corpseCount = level.entities.typeCount(EntityPool.CORPSE);
+        stats.locationName = location;
         input.endUpdate();
     }
     private void interact(int i) {
