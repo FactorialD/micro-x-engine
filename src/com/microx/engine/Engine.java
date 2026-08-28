@@ -252,7 +252,6 @@ public final class Engine implements Runnable {
         renderer.setResolutionMode(canvas.settings.resolution);
         audio.setVolume(canvas.settings.volume);
         player.setTurnSensitivity(canvas.settings.sensitivity);
-        audio.enterLocation(location);
         if (settings != null)
             try {
                 settings.save(canvas.settings);

@@ -49,6 +49,8 @@ public final class UIStateMachineTest {
         ui.command(Input.DOWN);
         ui.command(Input.ACCEPT);
         eq(UIStateMachine.SETTINGS, ui.state(), "settings");
+        ui.command(Input.ACCEPT);
+        eq(UIStateMachine.ACTION_APPLY_SETTINGS, ui.action(), "settings confirmation action");
         ui.command(Input.BACK_CMD);
         eq(UIStateMachine.PAUSE, ui.state(), "settings back");
         ui.error();
