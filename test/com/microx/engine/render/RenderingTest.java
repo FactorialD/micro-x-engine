@@ -16,6 +16,7 @@ public final class RenderingTest {
         clippingAndWinding();
         depthAndUv();
         previewPipelineStages();
+        previewFitsEveryOrbitAngle();
         missingTexture();
         portalOcclusion();
         budget();
@@ -73,10 +74,13 @@ public final class RenderingTest {
         frame.configure(64, 64, 2 * 1024 * 1024, 0);
         javax.microedition.lcdui.Graphics graphics = new javax.microedition.lcdui.Graphics(64, 64);
 
-        // With center=0 and extent=1 the preview eye is at z=-1.625. One vertex lies behind
-        // near while the other two remain visible, so the shared clipper must produce a fan.
-        int[] crossing = {-Fixed.ONE, -Fixed.ONE, Fixed.fromRatio(-8, 5), Fixed.ONE, -Fixed.ONE, 0,
-                -Fixed.ONE, Fixed.ONE, 0};
+        // Put one vertex behind the preview near plane while the other two remain visible,
+        // so the shared clipper must produce a fan.
+        RenderCamera preview = new RenderCamera();
+        preview.preview(0, 0, 0, Fixed.ONE, 0, 64, 64);
+        int behindNear = preview.z + preview.near / 2;
+        int[] crossing = {-Fixed.ONE, -Fixed.ONE, behindNear, Fixed.ONE, -Fixed.ONE, 0, -Fixed.ONE,
+                Fixed.ONE, 0};
         MeshSection clipped =
                 new MeshSection(0, -1, 0xabcdef, crossing, new int[6], new short[] {0, 1, 2});
         frame.renderPreview(graphics, new MeshSection[] {clipped}, null, 0, 0, 0, Fixed.ONE, 0);
@@ -92,6 +96,37 @@ public final class RenderingTest {
         ok(frame.submittedTriangles == 1 && frame.drawnTriangles == 0
                         && frame.clippedTriangles == 1,
                 "preview uses shared back-face culling");
+    }
+    private static void previewFitsEveryOrbitAngle() {
+        checkOrbitFit(Fixed.ONE, Fixed.ONE, Fixed.ONE, 240, 320, "cube portrait");
+        checkOrbitFit(Fixed.ONE, Fixed.ONE, Fixed.ONE, 320, 240, "cube landscape");
+        checkOrbitFit(
+                Fixed.fromInt(8), Fixed.ONE, Fixed.fromInt(2), 240, 320, "elongated portrait");
+        checkOrbitFit(
+                Fixed.fromInt(8), Fixed.ONE, Fixed.fromInt(2), 320, 240, "elongated landscape");
+    }
+    private static void checkOrbitFit(
+            int sizeX, int sizeY, int sizeZ, int width, int height, String label) {
+        int hx = sizeX / 2, hy = sizeY / 2, hz = sizeZ / 2;
+        int radius =
+                (int) Math.ceil(Math.sqrt((double) hx * hx + (double) hy * hy + (double) hz * hz));
+        RenderCamera camera = new RenderCamera();
+        for (int angle = 0; angle < 360; angle++) {
+            camera.preview(0, 0, 0, radius, angle, width, height);
+            for (int xi = -1; xi <= 1; xi += 2)
+                for (int yi = -1; yi <= 1; yi += 2)
+                    for (int zi = -1; zi <= 1; zi += 2) {
+                        int wx = xi * hx, wy = yi * hy, wz = zi * hz;
+                        int dx = Fixed.sub(wx, camera.x), dz = Fixed.sub(wz, camera.z);
+                        int viewX = Fixed.add(Fixed.mul(dx, camera.cos), Fixed.mul(dz, camera.sin));
+                        int viewZ = Fixed.sub(Fixed.mul(dz, camera.cos), Fixed.mul(dx, camera.sin));
+                        ok(viewZ >= camera.near, label + " stays before near plane");
+                        long px = width / 2L + (long) viewX * camera.focalX / viewZ / Fixed.ONE;
+                        long py = height / 2L - (long) wy * camera.focalY / viewZ / Fixed.ONE;
+                        ok(px > 0 && px < width - 1 && py > 0 && py < height - 1,
+                                label + " stays inside viewport");
+                    }
+        }
     }
     private static void missingTexture() {
         ok(new AssetManager().texture(0) == null, "missing texture remains distinguishable");

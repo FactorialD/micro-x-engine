@@ -14,7 +14,8 @@ public final class TestScene {
             "/levels/cordon/geometry.txt", "/levels/garbage/geometry.txt"};
     private static final String[] NAMES = {"CUBE", "PYRAMID", "CORDON", "GARBAGE"};
     private MeshSection[] sections;
-    private int selected, centerX, centerY, centerZ, extent = Fixed.ONE;
+    private int selected, centerX, centerY, centerZ;
+    private int sizeX = Fixed.ONE, sizeY = Fixed.ONE, sizeZ = Fixed.ONE, radius = Fixed.ONE;
 
     public boolean open(int index) {
         if (index < 0 || index >= PATHS.length)
@@ -42,9 +43,11 @@ public final class TestScene {
     private void bounds() {
         int minX = Integer.MAX_VALUE, minY = Integer.MAX_VALUE, minZ = Integer.MAX_VALUE;
         int maxX = Integer.MIN_VALUE, maxY = Integer.MIN_VALUE, maxZ = Integer.MIN_VALUE;
+        boolean found = false;
         for (int s = 0; s < sections.length; s++)
             for (int i = 0; i < sections[s].vertexCount(); i++) {
                 MeshSection m = sections[s];
+                found = true;
                 if (m.x(i) < minX)
                     minX = m.x(i);
                 if (m.x(i) > maxX)
@@ -58,19 +61,32 @@ public final class TestScene {
                 if (m.z(i) > maxZ)
                     maxZ = m.z(i);
             }
-        centerX = minX / 2 + maxX / 2;
-        centerY = minY / 2 + maxY / 2;
-        centerZ = minZ / 2 + maxZ / 2;
-        extent = Math.max(maxX - minX, Math.max(maxY - minY, maxZ - minZ));
-        if (extent < 1)
-            extent = 1;
+        if (!found) {
+            centerX = centerY = centerZ = 0;
+            sizeX = sizeY = sizeZ = radius = Fixed.ONE;
+            return;
+        }
+        long dx = (long) maxX - minX, dy = (long) maxY - minY, dz = (long) maxZ - minZ;
+        centerX = Fixed.saturate((long) minX + dx / 2L);
+        centerY = Fixed.saturate((long) minY + dy / 2L);
+        centerZ = Fixed.saturate((long) minZ + dz / 2L);
+        sizeX = Math.max(1, Fixed.saturate(dx));
+        sizeY = Math.max(1, Fixed.saturate(dy));
+        sizeZ = Math.max(1, Fixed.saturate(dz));
+
+        // The half diagonal encloses every vertex, regardless of the preview rotation.
+        double hx = dx / 2.0, hy = dy / 2.0, hz = dz / 2.0;
+        double diagonal = Math.sqrt(hx * hx + hy * hy + hz * hz);
+        radius = diagonal >= Integer.MAX_VALUE ? Integer.MAX_VALUE : (int) Math.ceil(diagonal);
+        if (radius < 1)
+            radius = 1;
     }
 
     public void paint(SoftwareRenderer renderer, Graphics g, int width, int height, long now) {
         if (sections == null)
             return;
         int angle = (int) ((now / 16) % 360);
-        renderer.renderPreview(g, sections, null, centerX, centerY, centerZ, extent, angle);
+        renderer.renderPreview(g, sections, null, centerX, centerY, centerZ, radius, angle);
         g.setFont(Font.getFont(Font.FACE_SYSTEM, Font.STYLE_BOLD, Font.SIZE_SMALL));
         g.setColor(0xffffff);
         g.drawString(NAMES[selected], width / 2, 5, Graphics.TOP | Graphics.HCENTER);
