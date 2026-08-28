@@ -69,8 +69,12 @@
       <include name="com/microx/engine/assets/TextureData.java"/>
       <include name="com/microx/engine/render/Clipper.java"/>
       <include name="com/microx/engine/render/Rasterizer.java"/>
-      <include name="com/microx/engine/render/TriangleDepthOrder.java"/>
-      <include name="com/microx/engine/render/TriangleDepthOrderTest.java"/>
+      <include name="com/microx/engine/render/FrameCoordinator.java"/>
+      <include name="com/microx/engine/render/RenderCamera.java"/>
+      <include name="com/microx/engine/render/VertexTransformer.java"/>
+      <include name="com/microx/engine/render/EntityBillboardRenderer.java"/>
+      <include name="com/microx/engine/render/PipelineIntegrationTest.java"/>
+      <include name="javax/microedition/lcdui/Graphics.java"/>
       <include name="com/microx/engine/render/RenderingTest.java"/>
       <include name="com/microx/engine/save/SaveData.java"/>
       <include name="com/microx/engine/save/SaveException.java"/>
@@ -89,7 +93,7 @@
     <java classname="com.microx.engine.render.RenderingTest" fork="true" failonerror="true">
       <classpath><pathelement location="${desktop.test.classes.dir}"/></classpath>
     </java>
-    <java classname="com.microx.engine.render.TriangleDepthOrderTest" fork="true" failonerror="true">
+    <java classname="com.microx.engine.render.PipelineIntegrationTest" fork="true" failonerror="true">
       <classpath><pathelement location="${desktop.test.classes.dir}"/></classpath>
     </java>
     <java classname="com.microx.engine.world.SimulationTest" fork="true" failonerror="true">

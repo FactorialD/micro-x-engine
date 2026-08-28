@@ -17,4 +17,17 @@ public final class RenderCamera {
         focalX = width * Fixed.ONE / 2;
         focalY = height * Fixed.ONE / 2;
     }
+
+    /** Places the normal world camera on an orbit which keeps the complete model in view. */
+    void preview(
+            int centerX, int centerY, int centerZ, int extent, int angle, int width, int height) {
+        int distance = Fixed.add(Fixed.mul(extent, Fixed.fromRatio(3, 2)), near);
+        sin = Fixed.sin(angle);
+        cos = Fixed.cos(angle);
+        x = Fixed.add(centerX, Fixed.mul(sin, distance));
+        y = centerY;
+        z = Fixed.sub(centerZ, Fixed.mul(cos, distance));
+        focalX = width * Fixed.ONE / 2;
+        focalY = height * Fixed.ONE / 2;
+    }
 }

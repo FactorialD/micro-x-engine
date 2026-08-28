@@ -119,7 +119,8 @@ public final class GameCanvas3D extends GameCanvas {
         Graphics g = getGraphics();
         int state = ui.state();
         if (CanvasFramePlan.preview(state)) {
-            testScene.paint(g, getWidth(), getHeight(), System.currentTimeMillis());
+            testScene.paint(
+                    engine.renderer, g, getWidth(), getHeight(), System.currentTimeMillis());
         } else if (engine.level != null) {
             engine.renderer.render(g, engine.player, engine.level.world, engine.level.entities);
             engine.stats.submittedTriangles = engine.renderer.submittedTriangles();

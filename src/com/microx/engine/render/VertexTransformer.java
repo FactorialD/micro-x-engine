@@ -15,6 +15,7 @@ public final class VertexTransformer {
         z = new int[count];
     }
     void transform(MeshSection mesh, RenderCamera camera) {
+        reserve(mesh.vertexCount());
         int i;
         for (i = 0; i < mesh.vertexCount(); i++) {
             int dx = Fixed.sub(mesh.x(i), camera.x);

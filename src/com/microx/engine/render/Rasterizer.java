@@ -55,7 +55,8 @@ public final class Rasterizer {
             for (px = minX; px <= maxX; px++) {
                 long w0 = edge(x1, y1, x2, y2, px, py), w1 = edge(x2, y2, x0, y0, px, py),
                      w2 = edge(x0, y0, x1, y1, px, py);
-                if (w0 >= 0 && w1 >= 0 && w2 >= 0) {
+                if (inside(w0, x1, y1, x2, y2) && inside(w1, x2, y2, x0, y0)
+                        && inside(w2, x0, y0, x1, y1)) {
                     long q0 = w0 * 65536L / area, q1 = w1 * 65536L / area, q2 = 65536L - q0 - q1;
                     long z = (q0 * z0 + q1 * z1 + q2 * z2) / 65536L;
                     int zz = z <= 8192
@@ -86,6 +87,10 @@ public final class Rasterizer {
     }
     private long edge(int ax, int ay, int bx, int by, int px, int py) {
         return (long) (px - ax) * (by - ay) - (long) (py - ay) * (bx - ax);
+    }
+    /** Top-left ownership keeps shared edges independent of triangle submission order. */
+    private boolean inside(long edge, int ax, int ay, int bx, int by) {
+        return edge > 0 || edge == 0 && (by < ay || by == ay && bx > ax);
     }
     private int saturate(long n) {
         return n < Integer.MIN_VALUE ? Integer.MIN_VALUE
