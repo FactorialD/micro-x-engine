@@ -17,6 +17,8 @@ public final class GameCanvas3D extends GameCanvas {
         setFullScreenMode(true);
     }
     protected void keyPressed(int key) {
+        int gameAction = gameAction(key);
+        engine.stats.input(key, gameAction, engine.input.down());
         if (ui.state() == UIStateMachine.GAMEPLAY) {
             if (key == '*') {
                 engine.openPda();
@@ -26,10 +28,11 @@ public final class GameCanvas3D extends GameCanvas {
                 ui.show(UIStateMachine.PAUSE);
                 return;
             }
-            engine.input.key(key, true, System.currentTimeMillis());
+            engine.input.key(key, gameAction, true, System.currentTimeMillis());
+            engine.stats.input(key, gameAction, engine.input.down());
             return;
         }
-        int cmd = Input.command(key);
+        int cmd = Input.command(key, gameAction);
         if (ui.state() == UIStateMachine.SETTINGS
                 && (cmd == Input.UI_LEFT || cmd == Input.UI_RIGHT)) {
             settings.change(ui.selection(), cmd == Input.UI_RIGHT ? 1 : -1);
@@ -40,7 +43,16 @@ public final class GameCanvas3D extends GameCanvas {
         renderFrame();
     }
     protected void keyReleased(int key) {
-        engine.input.key(key, false, System.currentTimeMillis());
+        int gameAction = gameAction(key);
+        engine.input.key(key, gameAction, false, System.currentTimeMillis());
+        engine.stats.input(key, gameAction, engine.input.down());
+    }
+    private int gameAction(int key) {
+        try {
+            return getGameAction(key);
+        } catch (IllegalArgumentException unsupported) {
+            return 0;
+        }
     }
     private void handleAction() {
         int action = ui.action();

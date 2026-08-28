@@ -85,6 +85,9 @@
     <java classname="com.microx.engine.combat.CombatTest" fork="true" failonerror="true">
       <classpath><pathelement location="${desktop.test.classes.dir}"/><pathelement location="${resources.stage.dir}"/></classpath>
     </java>
+    <java classname="com.microx.engine.InputTest" fork="true" failonerror="true">
+      <classpath><pathelement location="${desktop.test.classes.dir}"/><pathelement location="${resources.stage.dir}"/></classpath>
+    </java>
     <java classname="com.microx.engine.gameplay.GameplayTest" fork="true" failonerror="true"><classpath><pathelement location="${desktop.test.classes.dir}"/><pathelement location="${resources.stage.dir}"/></classpath></java>
     <java classname="com.microx.tools.GameplayDataTest" fork="true" failonerror="true"><classpath><pathelement location="${desktop.test.classes.dir}"/><pathelement location="${resources.stage.dir}"/></classpath></java>
     <java classname="com.microx.tools.LocationPackageTest" fork="true" failonerror="true">
