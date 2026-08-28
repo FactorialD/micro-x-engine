@@ -32,8 +32,8 @@ public final class AssetConverter {
         try {
             Path relative = root.relativize(input);
             String name = relative.getFileName().toString();
-            if (name.endsWith(".level"))
-                writeLevel(input, output.resolve(replaceSuffix(relative, ".level", ".lvl")));
+            if (isLevel(relative))
+                validateAndCopyLevel(input, output.resolve(relative));
             else if (name.equals("geometry.txt"))
                 writeModel(input, output.resolve(replaceSuffix(relative, ".txt", ".mesh")));
             else if (name.equals("textures.png"))
@@ -46,6 +46,10 @@ public final class AssetConverter {
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }
+    }
+    private static boolean isLevel(Path relative) {
+        return relative.getNameCount() == 3 && "levels".equals(relative.getName(0).toString())
+                && "level.txt".equals(relative.getFileName().toString());
     }
     private static Path replaceSuffix(Path p, String old, String n) {
         String v = p.toString();
@@ -144,7 +148,8 @@ public final class AssetConverter {
         if (rows == null || rows.isEmpty())
             throw new IOException("stash_loot table is required");
         Set<Integer> itemIds = new HashSet<Integer>();
-        if (items != null) for (DataRow item : items) itemIds.add(Integer.valueOf(item.id));
+        if (items != null)
+            for (DataRow item : items) itemIds.add(Integer.valueOf(item.id));
         for (DataRow row : rows) {
             int tier = metaInt(row, "tier", 0), weight = metaInt(row, "weight", 0),
                 item = metaInt(row, "item", 0), min = metaInt(row, "min", 0),
@@ -190,8 +195,8 @@ public final class AssetConverter {
                 else if ("relationships".equals(table.getKey()))
                     allowed.addAll(Arrays.asList("from", "to", "relation"));
                 else if ("stash_loot".equals(table.getKey()))
-                    allowed.addAll(Arrays.asList("tier", "weight", "item", "min", "max",
-                            "location"));
+                    allowed.addAll(
+                            Arrays.asList("tier", "weight", "item", "min", "max", "location"));
                 for (String key : values.keySet())
                     if (!allowed.contains(key))
                         throw row.error("unknown metadata key " + key);
@@ -510,7 +515,7 @@ public final class AssetConverter {
             return new IOException(file + ":" + line + ": " + s);
         }
     }
-    public static void writeLevel(Path input, Path output) throws IOException {
+    public static void validateAndCopyLevel(Path input, Path output) throws IOException {
         Tokens t = new Tokens(input);
         t.expect("MXL2");
         t.expect("counts");
@@ -611,7 +616,7 @@ public final class AssetConverter {
             t.fail("unexpected token " + t.next());
         out.close();
         Files.createDirectories(output.getParent());
-        Files.write(output, bytes.toByteArray());
+        Files.copy(input, output, StandardCopyOption.REPLACE_EXISTING);
     }
     private static void bounds(Tokens t, DataOutputStream out) throws IOException {
         int a = t.fixed(), b = t.fixed(), c = t.fixed(), d = t.fixed();

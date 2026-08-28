@@ -240,6 +240,8 @@ def load_level(project: Project, path):
 
 
 def save_level(project: Project, path, level):
-    if project.path(path).suffix != ".level":
-        raise LevelError("Generated .lvl files cannot be edited")
+    target = project.path(path)
+    if not (target.name == "level.txt" and target.parent.parent.name == "levels"
+            and target.parent.parent.parent.name == "res"):
+        raise LevelError("Levels must be stored as res/levels/<location>/level.txt")
     project.atomic_write(path, serialize_level(level))

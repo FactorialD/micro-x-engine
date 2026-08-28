@@ -36,7 +36,7 @@ fallback: у `build.properties` явно задані `toolchain.jdk.home` і `w
    запустіть version-controlled конфігурацію **Run → External Tools → External
    Tools Configurations… → Ant Build → Micro X Engine - package**. Вона
    викликає наявну ціль `package` з `build.xml`; не додавайте вихідні
-   `*.level`, `geometry.txt` або `*.obj` безпосередньо до JAR.
+   `level.txt`, `geometry.txt` або `*.obj` безпосередньо до JAR.
 
 Каталоги `src/`, `res/`, `tools/src/` і `sdk/python/` повинні лишатися
 на своїх місцях: `build.xml` та `build.properties` посилаються на цю структуру.
@@ -46,7 +46,7 @@ fallback: у `build.properties` явно задані `toolchain.jdk.home` і `w
 Основні Ant-цілі:
 
 * `compile-tools` компілює desktop-конвертер поточним host JDK;
-* `convert-assets` перетворює `.level` на `.lvl`, а `.obj` на `.mesh`;
+* `convert-assets` валідує та копіює `res/levels/*/level.txt`, а `.obj` перетворює на `.mesh`;
 * `copy-runtime-resources` готує лише згенеровані й явно runtime-ресурси;
 * `compile` і `preverify` збирають та перевіряють CLDC-класи;
 * `create-jar`, `create-jad` і `check-jar-size` створюють дистрибутив та
@@ -57,8 +57,8 @@ fallback: у `build.properties` явно задані `toolchain.jdk.home` і `w
 Редаговані моделі, рівні та службові файли зберігаються лише в `res/`.
 Конвертер пише результат у `build/generated-resources/`, а статичні готові
 ресурси беруться з `runtime-resources/`. Packaging-перевірка забороняє
-в JAR вихідні `*.obj`, `geometry.txt` і `*.level`, тому коментарі рівнів
-та editor metadata не потрапляють у дистрибутив.
+в JAR вихідні `*.obj` і `geometry.txt`; валідовані UTF-8 `level.txt` входять
+до дистрибутива без перетворення й зберігають коментарі.
 
 ### Контракт вихідних ресурсів і desktop-редактор
 
@@ -79,10 +79,9 @@ Java ME **читає UTF-8 таблиці напряму** з абсолютни
 та статично перевіряє реєстр і всі 16 текстових ресурсів у JAR. Отже,
 `/data/gameplay.dat` не є runtime-ресурсом і не повинен входити до MIDlet.
 
-Винятками залишаються ресурси, що мають власні спеціалізовані формати: моделі
-`.obj`, рівні `.level` і атласи PNG. Файли `.mesh`, `.lvl` і `.tex` є
-згенерованими runtime-файлами: їх не редагують, і правило про текстові
-файли даних на них не поширюється. `AssetConverter.writeGameplayData` лишається
+Винятками залишаються ресурси, що мають власні спеціалізовані формати: моделі `.obj` і атласи PNG. Структуровані рівні зберігаються тільки як
+`res/levels/<location>/level.txt` і читаються runtime напряму як UTF-8. Файли
+`.mesh` і `.tex` є згенерованими runtime-файлами та не редагуються. `AssetConverter.writeGameplayData` лишається
 тільки явно необов'язковим desktop binary export для зовнішніх інструментів;
 звичайні `convert-assets` і `package` його не створюють і гра його не читає.
 
@@ -92,7 +91,7 @@ Java ME **читає UTF-8 таблиці напряму** з абсолютни
 check-data-extensions` або разом із host-перевірками через `ant ci`.
 
 Формальний контракт редактора: він відкриває й змінює **лише** `res/`,
-а generated-файли завжди залишаються read-only. `.level` і gameplay `.txt`
+а generated-файли завжди залишаються read-only. `res/levels/*/level.txt` і gameplay-таблиці `res/data/**/*.txt`
 редагуються структурованими таблицями та типізованими формами, а не єдиним
 raw-text полем. Перед будь-яким записом редактор повністю перевіряє весь проєкт
 за тим самим контрактом, що й `AssetConverter`; діагностика називає файл,
@@ -402,15 +401,16 @@ Metadata задається `o room_N`/`g room_N` або коментарем `#
 `16 + paletteCount*4 + width*height` байтів; converter відхиляє atlas понад
 96 KiB, loader — некоректні palette indices, версію, counts і trailing data.
 
-### 2.3. `MXL2`, binary level version 1 (big-endian)
+### 2.3. `MXL2`, текстовий формат рівня
 
-Header: `magic:u32=MXL2`, `version:u16=1`, потім дев’ять `u16` counts:
-rooms, floors, ceilings, edges, portals, spawns, transitions, entities і entity
-capacity. Записи йдуть саме в цьому порядку. Координати/AABB — signed Q16.16;
-room references — `u16`; portal містить id/from/to, шість меж Q16.16,
-`reverse:i16`, `transition:i16`; spawn — id/room/xyz/yaw; transition — id,
-spawn id та modified-UTF location; entity — id/xyz/type. Loader перевіряє
-counts, bounds, references, capacity, версію та EOF до публікації рівня.
+Кожна локація має єдиний структурований UTF-8 файл
+`res/levels/<location>/level.txt`. Перші два непорожні записи — `MXL2` і
+`counts`, після них у фіксованому порядку йдуть `room`, `floor`, `ceiling`,
+`edge`, `portal`, `spawn`, `transition` та `entity`. Координати задаються цілими
+метрами й під час читання переводяться у Q16.16. Runtime перевіряє counts,
+bounds, room/portal references, двосторонні reverse links, capacity, допустимі
+ідентифікатори локацій і відсутність зайвих токенів до атомарної публікації
+рівня. Рядкові коментарі починаються з `#`.
 
 ## 3. Формальний бюджет renderer-а
 
