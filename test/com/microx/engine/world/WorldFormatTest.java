@@ -9,12 +9,12 @@ import java.nio.file.*;
 public final class WorldFormatTest {
     public static void main(String[] args) throws Exception {
         Path dir = Files.createTempDirectory("mxl2-test");
-        Path source = dir.resolve("level.level"), binary = dir.resolve("level.lvl");
+        Path source = dir.resolve("level.txt");
         Files.write(source, level().getBytes(StandardCharsets.UTF_8));
-        AssetConverter.writeLevel(source, binary);
-        byte[] valid = Files.readAllBytes(binary);
+        AssetConverter.validateAndCopyLevel(source, dir.resolve("copy/level.txt"));
+        byte[] valid = Files.readAllBytes(source);
         LevelLoader loader = new LevelLoader();
-        ok(loader.load(new ByteArrayInputStream(valid)), "valid binary");
+        ok(loader.load(new ByteArrayInputStream(valid)), "valid text");
         ok(loader.world.portalReverse(0) == 1, "reverse portal");
         ok(loader.findTransition(100) == 0, "transition id");
         ok(EntityPool.PLAYER_STASH != EntityPool.RANDOM_STASH
@@ -25,21 +25,20 @@ public final class WorldFormatTest {
                    Fixed.fromInt(1),
                    0) == 0,
                 "room crossing");
-        byte[] truncated = new byte[valid.length - 1];
-        System.arraycopy(valid, 0, truncated, 0, truncated.length);
+        byte[] truncated =
+                level().substring(0, level().lastIndexOf(" 3\n")).getBytes(StandardCharsets.UTF_8);
         PortalWorld published = loader.world;
         ok(!loader.load(new ByteArrayInputStream(truncated)), "truncated rejected");
         ok(loader.world == published, "failed load is atomic");
-        byte[] version = (byte[]) valid.clone();
-        version[5] = 4;
-        ok(!new LevelLoader().load(new ByteArrayInputStream(version)), "version rejected");
+        byte[] badHeader = "MXL3\ncounts 1 1 1 0 0 1 0 0 1\n".getBytes(StandardCharsets.UTF_8);
+        ok(!new LevelLoader().load(new ByteArrayInputStream(badHeader)), "header rejected");
         Files.write(source,
                 level().replace(
                                "portal 11 1 0 4 6 1 3 -1 1 0 -1", "portal 11 9 0 4 6 1 3 -1 1 0 -1")
                         .getBytes(StandardCharsets.UTF_8));
         boolean rejected = false;
         try {
-            AssetConverter.writeLevel(source, binary);
+            AssetConverter.validateAndCopyLevel(source, dir.resolve("copy/level.txt"));
         } catch (IOException expected) {
             rejected = true;
         }

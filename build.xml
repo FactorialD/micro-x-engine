@@ -95,10 +95,16 @@
     <java classname="com.microx.engine.save.SaveStoreTest" fork="true" failonerror="true"><classpath><pathelement location="${desktop.test.classes.dir}"/></classpath></java>
   </target>
 
-  <target name="desktop-static-test" depends="desktop-test" description="Run host-side static and persistence tests without MIDP packaging">
+  <target name="desktop-static-test" depends="desktop-test,check-level-contract" description="Run host-side static and persistence tests without MIDP packaging">
     <fail message="Java sources must not import editable assets from res">
       <condition><resourcecount when="greater" count="0"><fileset dir="src"><contains text="res/"/></fileset></resourcecount></condition>
     </fail>
+  </target>
+
+  <target name="check-level-contract" description="Reject obsolete level filenames and references">
+    <exec executable="sh" failonerror="true">
+      <arg value="tools/check-level-contract.sh"/>
+    </exec>
   </target>
 
   <target name="check-data-extensions" description="Reject obsolete editable gameplay .data files">
@@ -125,7 +131,7 @@
     </apply>
   </target>
 
-  <target name="convert-assets" depends="compile-tools" description="Convert editable levels and OBJ models to compact runtime resources">
+  <target name="convert-assets" depends="compile-tools,check-level-contract" description="Validate/copy text levels and convert OBJ models to compact runtime resources">
     <delete dir="${generated.resources.dir}"/>
     <mkdir dir="${generated.resources.dir}"/>
     <java classname="com.microx.tools.AssetConverter" fork="true" failonerror="true">
@@ -180,12 +186,12 @@
   </target>
 
   <target name="validate-package" depends="create-jar" description="Check mandatory runtime resources and reject source assets in the JAR">
-    <fail message="Mandatory Cordon runtime resources are missing from the JAR"><condition><not><resourcecount when="equal" count="2"><zipfileset src="${dist.jar}" includes="levels/cordon/level.lvl,levels/cordon/geometry.mesh"/></resourcecount></not></condition></fail>
-    <fail message="Mandatory Garbage runtime resources are missing from the JAR"><condition><not><resourcecount when="equal" count="2"><zipfileset src="${dist.jar}" includes="levels/garbage/level.lvl,levels/garbage/geometry.mesh"/></resourcecount></not></condition></fail>
-    <fail message="Story location runtime resources are missing from the JAR"><condition><not><resourcecount when="equal" count="22"><zipfileset src="${dist.jar}" includes="levels/depot/level.lvl,levels/depot/geometry.mesh,levels/laboratory/level.lvl,levels/laboratory/geometry.mesh,levels/arena/level.lvl,levels/arena/geometry.mesh,levels/agroprom/level.lvl,levels/agroprom/geometry.mesh,levels/bar/level.lvl,levels/bar/geometry.mesh,levels/wild_territory/level.lvl,levels/wild_territory/geometry.mesh,levels/yantar/level.lvl,levels/yantar/geometry.mesh,levels/army_warehouses/level.lvl,levels/army_warehouses/geometry.mesh,levels/radar/level.lvl,levels/radar/geometry.mesh,levels/pripyat/level.lvl,levels/pripyat/geometry.mesh,levels/cnpp/level.lvl,levels/cnpp/geometry.mesh"/></resourcecount></not></condition></fail>
+    <fail message="Mandatory Cordon runtime resources are missing from the JAR"><condition><not><resourcecount when="equal" count="2"><zipfileset src="${dist.jar}" includes="levels/cordon/level.txt,levels/cordon/geometry.mesh"/></resourcecount></not></condition></fail>
+    <fail message="Mandatory Garbage runtime resources are missing from the JAR"><condition><not><resourcecount when="equal" count="2"><zipfileset src="${dist.jar}" includes="levels/garbage/level.txt,levels/garbage/geometry.mesh"/></resourcecount></not></condition></fail>
+    <fail message="Story location runtime resources are missing from the JAR"><condition><not><resourcecount when="equal" count="22"><zipfileset src="${dist.jar}" includes="levels/depot/level.txt,levels/depot/geometry.mesh,levels/laboratory/level.txt,levels/laboratory/geometry.mesh,levels/arena/level.txt,levels/arena/geometry.mesh,levels/agroprom/level.txt,levels/agroprom/geometry.mesh,levels/bar/level.txt,levels/bar/geometry.mesh,levels/wild_territory/level.txt,levels/wild_territory/geometry.mesh,levels/yantar/level.txt,levels/yantar/geometry.mesh,levels/army_warehouses/level.txt,levels/army_warehouses/geometry.mesh,levels/radar/level.txt,levels/radar/geometry.mesh,levels/pripyat/level.txt,levels/pripyat/geometry.mesh,levels/cnpp/level.txt,levels/cnpp/geometry.mesh"/></resourcecount></not></condition></fail>
     <fail message="Mandatory ${gameplay.registry.resource} is missing from the JAR"><condition><not><resourcecount when="equal" count="1"><zipfileset src="${dist.jar}" includes="data/gameplay/gameplay.txt"/></resourcecount></not></condition></fail>
     <fail message="A registered /data/&lt;table&gt;/&lt;table&gt;.txt runtime resource is missing from the JAR"><condition><not><resourcecount when="equal" count="16"><zipfileset src="${dist.jar}" includes="data/*/*.txt"/></resourcecount></not></condition></fail>
-    <fail message="Editable/source assets are forbidden in the runtime JAR"><condition><resourcecount when="greater" count="0"><zipfileset src="${dist.jar}" includes="**/*.obj,**/geometry.txt,**/*.level,**/*~"/></resourcecount></condition></fail>
+    <fail message="Editable geometry sources are forbidden in the runtime JAR"><condition><resourcecount when="greater" count="0"><zipfileset src="${dist.jar}" includes="**/*.obj,**/geometry.txt,**/*~"/></resourcecount></condition></fail>
   </target>
 
   <target name="create-jad" depends="validate-package" description="Create a JAD matching the packaged JAR">

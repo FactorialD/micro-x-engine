@@ -1,11 +1,12 @@
 package com.microx.engine.world;
-import java.io.DataInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.Reader;
+import java.util.Vector;
 
-/** Streaming loader for the versioned MXL2 binary resource. Publishes only complete levels. */
+/** Streaming loader for the authored UTF-8 MXL2 level text. Publishes only complete levels. */
 public final class LevelLoader {
-    public static final int MAGIC = 0x4d584c32, VERSION = 3;
     public PortalWorld world;
     public Collision collision;
     public EntityPool entities;
@@ -14,20 +15,17 @@ public final class LevelLoader {
     public String[] transitionLocation;
     public boolean load(String path) {
         InputStream in = getClass().getResourceAsStream(path);
-        if (in == null)
-            return false;
-        return load(in);
+        return in != null && load(in);
     }
     public boolean load(InputStream stream) {
         try {
-            DataInputStream in = new DataInputStream(stream);
-            if (in.readInt() != MAGIC || in.readUnsignedShort() != VERSION)
-                return false;
-            int rooms = count(in, 1, 256), floors = count(in, 1, 1024),
-                ceilings = count(in, 1, 1024), edges = count(in, 0, 2048),
-                portals = count(in, 0, 1024), spawns = count(in, 1, 256),
-                transitions = count(in, 0, 256), entityCount = count(in, 0, 1024),
-                capacity = count(in, 1, 1024);
+            Tokens in = new Tokens(stream);
+            in.expect("MXL2");
+            in.expect("counts");
+            int rooms = in.count(1, 256), floors = in.count(1, 1024), ceilings = in.count(1, 1024),
+                edges = in.count(0, 2048), portals = in.count(0, 1024), spawns = in.count(1, 256),
+                transitions = in.count(0, 256), entityCount = in.count(0, 1024),
+                capacity = in.count(1, 1024);
             if (entityCount > capacity)
                 return false;
             PortalWorld w = new PortalWorld(rooms, portals);
@@ -35,44 +33,55 @@ public final class LevelLoader {
             EntityPool e = new EntityPool(capacity);
             int i;
             for (i = 0; i < rooms; i++) {
-                int a = in.readInt(), b = in.readInt(), d = in.readInt(), f = in.readInt();
+                in.expect("room");
+                int a = in.fixed(), b = in.fixed(), d = in.fixed(), f = in.fixed();
                 if (a > b || d > f)
                     return false;
                 w.room(i, a, b, d, f);
             }
             for (i = 0; i < floors; i++) {
-                int r = index(in, rooms), a = in.readInt(), b = in.readInt(), d = in.readInt(),
-                    f = in.readInt(), y = in.readInt();
+                in.expect("floor");
+                int r = in.index(rooms), a = in.fixed(), b = in.fixed(), d = in.fixed(),
+                    f = in.fixed(), y = in.fixed();
                 if (a > b || d > f)
                     return false;
                 c.floor(i, r, a, b, d, f, y);
             }
             for (i = 0; i < ceilings; i++) {
-                int r = index(in, rooms), a = in.readInt(), b = in.readInt(), d = in.readInt(),
-                    f = in.readInt(), y = in.readInt();
+                in.expect("ceiling");
+                int r = in.index(rooms), a = in.fixed(), b = in.fixed(), d = in.fixed(),
+                    f = in.fixed(), y = in.fixed();
                 if (a > b || d > f)
                     return false;
                 c.ceiling(i, r, a, b, d, f, y);
             }
-            for (i = 0; i < edges; i++)
-                c.edge(i, index(in, rooms), in.readInt(), in.readInt(), in.readInt(), in.readInt(),
-                        in.readInt(), in.readInt());
-            for (i = 0; i < portals; i++) {
-                int id = in.readUnsignedShort(), from = index(in, rooms), to = index(in, rooms),
-                    a = in.readInt(), b = in.readInt(), d = in.readInt(), f = in.readInt(),
-                    g = in.readInt(), h = in.readInt(), reverse = in.readShort(),
-                    transition = in.readShort();
-                if (a > b || d > f || g > h || reverse >= portals || transition >= transitions)
-                    return false;
-                w.portal(i, id, from, to, a, b, d, f, g, h, reverse, transition);
+            for (i = 0; i < edges; i++) {
+                in.expect("edge");
+                c.edge(i, in.index(rooms), in.fixed(), in.fixed(), in.fixed(), in.fixed(),
+                        in.fixed(), in.fixed());
             }
+            int[] reverse = new int[portals];
+            for (i = 0; i < portals; i++) {
+                in.expect("portal");
+                int id = in.id(), from = in.index(rooms), to = in.index(rooms), a = in.fixed(),
+                    b = in.fixed(), d = in.fixed(), f = in.fixed(), g = in.fixed(), h = in.fixed(),
+                    rev = in.signedIndex(portals), transition = in.signedIndex(transitions);
+                if (a > b || d > f || g > h)
+                    return false;
+                reverse[i] = rev;
+                w.portal(i, id, from, to, a, b, d, f, g, h, rev, transition);
+            }
+            for (i = 0; i < portals; i++)
+                if (reverse[i] >= 0 && reverse[reverse[i]] != i)
+                    return false;
             int sx = 0, sy = 0, sz = 0, syaw = 0;
             int[] si = new int[spawns], sxx = new int[spawns], syy = new int[spawns],
                   szz = new int[spawns], sya = new int[spawns];
             for (i = 0; i < spawns; i++) {
-                int id = in.readUnsignedShort();
-                index(in, rooms);
-                int x = in.readInt(), y = in.readInt(), z = in.readInt(), yaw = in.readShort();
+                in.expect("spawn");
+                int id = in.id();
+                in.index(rooms);
+                int x = in.fixed(), y = in.fixed(), z = in.fixed(), yaw = in.range(-32768, 32767);
                 si[i] = id;
                 sxx[i] = x;
                 syy[i] = y;
@@ -88,22 +97,21 @@ public final class LevelLoader {
             int[] ti = new int[transitions], ts = new int[transitions];
             String[] tl = new String[transitions];
             for (i = 0; i < transitions; i++) {
-                ti[i] = in.readUnsignedShort();
-                ts[i] = in.readUnsignedShort();
-                tl[i] = in.readUTF();
-                if (tl[i].length() == 0 || tl[i].length() > 64)
-                    return false;
+                in.expect("transition");
+                ti[i] = in.id();
+                ts[i] = in.id();
+                tl[i] = in.location();
             }
             for (i = 0; i < entityCount; i++) {
-                int entity = e.spawn(in.readInt(), in.readUnsignedShort(), in.readInt(),
-                        in.readInt(), in.readInt(), in.readUnsignedShort());
+                in.expect("entity");
+                int entity = e.spawn(in.id(), in.id(), in.fixed(), in.fixed(), in.fixed(), in.id());
                 if (entity < 0)
                     return false;
-                e.faction[entity] = in.readUnsignedShort();
-                e.spriteId[entity] = in.readUnsignedShort();
-                e.aux[entity] = in.readUnsignedShort();
+                e.faction[entity] = in.id();
+                e.spriteId[entity] = in.id();
+                e.aux[entity] = in.id();
             }
-            if (in.read() != -1)
+            if (in.hasNext())
                 return false;
             world = w;
             collision = c;
@@ -132,17 +140,86 @@ public final class LevelLoader {
             }
         }
     }
-    private static int count(DataInputStream in, int min, int max) throws IOException {
-        int n = in.readUnsignedShort();
-        if (n < min || n > max)
-            throw new IOException("invalid count");
-        return n;
-    }
-    private static int index(DataInputStream in, int count) throws IOException {
-        int i = in.readUnsignedShort();
-        if (i >= count)
-            throw new IOException("invalid index");
-        return i;
+    private static final class Tokens {
+        private final Vector values = new Vector();
+        private int position;
+        Tokens(InputStream stream) throws IOException {
+            Reader reader = new InputStreamReader(stream, "UTF-8");
+            StringBuffer token = new StringBuffer();
+            boolean comment = false;
+            int ch;
+            while ((ch = reader.read()) >= 0) {
+                if (comment) {
+                    if (ch == '\n' || ch == '\r')
+                        comment = false;
+                } else if (ch == '#') {
+                    add(token);
+                    comment = true;
+                } else if (ch == ' ' || ch == '\t' || ch == '\n' || ch == '\r') {
+                    add(token);
+                } else
+                    token.append((char) ch);
+            }
+            add(token);
+        }
+        private void add(StringBuffer token) {
+            if (token.length() > 0) {
+                values.addElement(token.toString());
+                token.setLength(0);
+            }
+        }
+        boolean hasNext() {
+            return position < values.size();
+        }
+        String next() throws IOException {
+            if (!hasNext())
+                throw new IOException("unexpected end of level");
+            return (String) values.elementAt(position++);
+        }
+        void expect(String expected) throws IOException {
+            if (!expected.equals(next()))
+                throw new IOException("unexpected level record");
+        }
+        int number() throws IOException {
+            try {
+                return Integer.parseInt(next());
+            } catch (NumberFormatException invalid) {
+                throw new IOException("invalid integer");
+            }
+        }
+        int range(int low, int high) throws IOException {
+            int value = number();
+            if (value < low || value > high)
+                throw new IOException("value out of range");
+            return value;
+        }
+        int count(int low, int high) throws IOException {
+            return range(low, high);
+        }
+        int index(int count) throws IOException {
+            return range(0, count - 1);
+        }
+        int signedIndex(int count) throws IOException {
+            return range(-1, count - 1);
+        }
+        int id() throws IOException {
+            return range(0, 65535);
+        }
+        int fixed() throws IOException {
+            return range(-32767, 32767) * 65536;
+        }
+        String location() throws IOException {
+            String value = next();
+            if (value.length() < 1 || value.length() > 64)
+                throw new IOException("invalid location");
+            for (int i = 0; i < value.length(); i++) {
+                char c = value.charAt(i);
+                if (!((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9')
+                            || c == '_' || c == '-'))
+                    throw new IOException("invalid location");
+            }
+            return value;
+        }
     }
     public boolean selectSpawn(int id) {
         if (spawnId != null)

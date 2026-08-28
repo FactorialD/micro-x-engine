@@ -25,7 +25,7 @@ microx-editor
   PNG atlas `textures.png` до 256×256, 256 кольорів і 96 KiB runtime footprint.
 * OBJ-перегляд перевіряє `v`, `vt`, `f`, `o`/`g room_N`, `usemtl` і Micro X
   comments; Replace перевіряє UV, індекси, вироджені грані та Q16.16.
-* `.level` має фільтр і окрему таблицю для `room`, `floor`, `ceiling`, `edge`,
+* `res/levels/<location>/level.txt` має фільтр і окрему таблицю для `room`, `floor`, `ceiling`, `edge`,
   `portal`, `spawn`, `transition` та `entity`. Кнопки **Add**, **Delete**,
   **Move Up/Down** змінюють records; serializer автоматично перераховує
   `counts`, зберігаючи capacity, comments, порожні рядки та stable ID.
@@ -40,6 +40,6 @@ microx-editor
   один guard **Save/Discard/Cancel**.
 * Raw source показано лише як read-only **Advanced**-режим; структуровані
   таблиці й форми є авторитетним способом редагування.
-* Згенеровані `.mesh`, `.lvl`, `.tex` і packed gameplay files не редагуються.
+* Згенеровані `.mesh`, `.tex` і packed gameplay files не редагуються. Рівні розпізнаються лише за точним шляхом `res/levels/<location>/level.txt`, окремо від gameplay-таблиць у `res/data/**/*.txt`.
 
 Headless-тести: `python -m unittest discover -s tests -v`.

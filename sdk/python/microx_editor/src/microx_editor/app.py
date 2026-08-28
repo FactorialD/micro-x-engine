@@ -59,9 +59,9 @@ class Editor(tk.Tk):
   if not self.guard():return
   old=(self.current,self.model)
   try:
-   if p.suffix in ('.mesh','.lvl','.tex','.dat') or 'build/generated-resources' in p.as_posix():raise ValueError('Generated runtime files are read-only')
+   if p.suffix in ('.mesh','.tex','.dat') or 'build/generated-resources' in p.as_posix():raise ValueError('Generated runtime files are read-only')
    content=p.read_text(encoding='utf-8') if p.suffix!='.png' else ''
-   if p.suffix=='.level':model=parse_level_text(content);mode='level'
+   if p.name=='level.txt' and p.parent.parent.name=='levels' and p.parent.parent.parent.name=='res':model=parse_level_text(content);mode='level'
    elif p.suffix=='.txt' and '/res/data/' in p.as_posix():model=parse_data(content,str(p));mode='data'
    elif p.suffix=='.png':model=inspect_png(p);mode='image';self.photo=tk.PhotoImage(file=str(p))
    elif p.suffix=='.obj':model=validate_obj(p);mode='other'

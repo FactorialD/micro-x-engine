@@ -173,7 +173,7 @@ public final class Engine implements Runnable {
     }
     private boolean loadLocation(String name, int spawn, boolean autosave) {
         LevelLoader candidate = new LevelLoader();
-        if (!candidate.load("/levels/" + name + "/level.lvl"))
+        if (!candidate.load("/levels/" + name + "/level.txt"))
             return false;
         if (!candidate.selectSpawn(spawn)) {
             candidate.clear();
@@ -514,7 +514,8 @@ public final class Engine implements Runnable {
                 } else
                     operationResult = "TRANSFER OK";
                 fillLoot();
-            } else operationResult = "INVENTORY FULL";
+            } else
+                operationResult = "INVENTORY FULL";
         } else if (screen == UIStateMachine.INVENTORY && id != 0) {
             if (ItemCatalog.type(id) == ItemCatalog.TYPE_CONSUMABLE)
                 gameplay.equipment.use(gameplay.inventory, id, player);
