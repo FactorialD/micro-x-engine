@@ -6,12 +6,14 @@ public final class UIStateMachine {
     public static final int MAIN_MENU = 0, GAMEPLAY = 1, PAUSE = 2, PDA = 3, INVENTORY = 4, MAP = 5,
                             QUESTS = 6, DIALOGUE = 7, TRADE = 8, LOOT = 9, SETTINGS = 10,
                             ERROR = 11, ABOUT = 12, CUTSCENE = 13, ENDING = 14, ARENA = 15,
-                            CYCLIC_QUEST = 16, FREEPLAY = 17;
+                            CYCLIC_QUEST = 16, FREEPLAY = 17, TEST_MENU = 18, TEST_VIEW = 19;
     public static final int ACTION_NONE = 0, ACTION_START = 1, ACTION_QUIT = 2,
                             ACTION_APPLY_SETTINGS = 3, ACTION_LOAD = 4, ACTION_SAVE = 5,
-                            ACTION_LIST_ACCEPT = 6, ACTION_LIST_ALT = 7;
-    private static final byte[] MODAL = {1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1};
+                            ACTION_LIST_ACCEPT = 6, ACTION_LIST_ALT = 7, ACTION_TEST_OPEN = 8;
+    private static final byte[] MODAL = {
+            1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1};
     private int state = MAIN_MENU, previous = GAMEPLAY, selection, action;
+    private boolean debugMenu;
     private final short[] list = new short[64];
     private final byte[] side = new byte[64];
     private int listSize;
@@ -28,6 +30,12 @@ public final class UIStateMachine {
     }
     public boolean modal() {
         return MODAL[state] != 0;
+    }
+    public void setDebugMenu(boolean enabled) {
+        debugMenu = enabled;
+    }
+    public boolean debugMenu() {
+        return debugMenu;
     }
     public short[] listBuffer() {
         return list;
@@ -50,7 +58,7 @@ public final class UIStateMachine {
         for (int i = 0; i < listSize; i++) side[i] = sides[i];
     }
     public void show(int next) {
-        if (next < 0 || next > FREEPLAY)
+        if (next < 0 || next > TEST_VIEW)
             return;
         if (next != GAMEPLAY && state == GAMEPLAY)
             previous = state;
@@ -88,7 +96,13 @@ public final class UIStateMachine {
     private void back() {
         if (state == MAIN_MENU || state == ERROR)
             return;
-        if (state == SETTINGS || state == ABOUT) {
+        if (state == TEST_VIEW) {
+            state = TEST_MENU;
+            selection = 0;
+        } else if (state == TEST_MENU) {
+            state = MAIN_MENU;
+            selection = 0;
+        } else if (state == SETTINGS || state == ABOUT) {
             state = previous;
             selection = 0;
         } else
@@ -108,7 +122,9 @@ public final class UIStateMachine {
             } else if (selection == 3) {
                 previous = MAIN_MENU;
                 state = ABOUT;
-            } else
+            } else if (debugMenu && selection == 4)
+                state = TEST_MENU;
+            else
                 action = ACTION_QUIT;
         } else if (state == PAUSE) {
             if (selection == 0)
@@ -124,7 +140,10 @@ public final class UIStateMachine {
                 state = MAIN_MENU;
         } else if (state == PDA)
             state = INVENTORY;
-        else if (state == SETTINGS)
+        else if (state == TEST_MENU) {
+            state = TEST_VIEW;
+            action = ACTION_TEST_OPEN;
+        } else if (state == SETTINGS)
             action = ACTION_APPLY_SETTINGS;
         else if (state == CUTSCENE || state == ENDING || state == ARENA || state == CYCLIC_QUEST
                 || state == FREEPLAY)
@@ -137,12 +156,14 @@ public final class UIStateMachine {
     }
     private int itemCount() {
         if (state == MAIN_MENU)
-            return 5;
+            return debugMenu ? 6 : 5;
         if (state == PAUSE)
             return 5;
         if (state == SETTINGS)
             return 5;
         if (state == PDA)
+            return 4;
+        if (state == TEST_MENU)
             return 4;
         return listSize;
     }

@@ -62,6 +62,18 @@ public final class UIStateMachineTest {
         eq(UIStateMachine.ABOUT, ui.state(), "about menu item");
         ui.command(Input.BACK_CMD);
         eq(UIStateMachine.MAIN_MENU, ui.state(), "about back");
+        ui.setDebugMenu(true);
+        for (int i = 0; i < 4; i++) ui.command(Input.DOWN);
+        ui.command(Input.ACCEPT);
+        eq(UIStateMachine.TEST_MENU, ui.state(), "debug test menu");
+        ui.command(Input.DOWN);
+        ui.command(Input.ACCEPT);
+        eq(UIStateMachine.TEST_VIEW, ui.state(), "test preview");
+        eq(UIStateMachine.ACTION_TEST_OPEN, ui.action(), "test preview action");
+        ui.command(Input.BACK_CMD);
+        eq(UIStateMachine.TEST_MENU, ui.state(), "preview back to tests");
+        ui.command(Input.BACK_CMD);
+        eq(UIStateMachine.MAIN_MENU, ui.state(), "tests back to main");
         UISettings settings = new UISettings();
         settings.change(4, 20);
         eq(10, settings.sensitivity, "sensitivity upper clamp");
