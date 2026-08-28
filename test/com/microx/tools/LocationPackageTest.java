@@ -72,7 +72,8 @@ public final class LocationPackageTest {
     private static LevelLoader load(Path generated, String name) throws Exception {
         Path directory = generated.resolve("levels").resolve(name);
         ok(Files.size(directory.resolve("level.txt")) > 0, name + " level.txt");
-        ok(Files.size(directory.resolve("geometry.mesh")) > 0, name + " geometry.mesh");
+        ok(Files.size(directory.resolve("geometry.txt")) > 0, name + " geometry.txt");
+        ok(!Files.exists(directory.resolve("geometry.mesh")), name + " has no geometry.mesh");
         ok(Files.size(directory.resolve("textures.tex")) > 0, name + " textures.tex");
         LevelLoader level = new LevelLoader();
         ok(level.load(new FileInputStream(directory.resolve("level.txt").toFile())), name);
@@ -80,7 +81,7 @@ public final class LocationPackageTest {
                         && level.wallColor != level.floorColor,
                 name + " distinct environment colors");
         com.microx.engine.assets.AssetManager assets = new com.microx.engine.assets.AssetManager();
-        ok(assets.loadLocation(name, 0), name + " runtime mesh");
+        ok(assets.loadLocation(name, 0), name + " runtime geometry");
         ok(assets.locationSectionCount() > 0, name + " non-empty mesh section");
         String geometry = new String(
                 Files.readAllBytes(Paths.get("res", "levels", name, "geometry.txt")), "US-ASCII");

@@ -34,9 +34,17 @@ public final class AssetConverter {
             String name = relative.getFileName().toString();
             if (isLevel(relative))
                 validateAndCopyLevel(input, output.resolve(relative));
-            else if (name.equals("geometry.txt"))
-                writeModel(input, output.resolve(replaceSuffix(relative, ".txt", ".mesh")));
-            else if (name.equals("textures.png"))
+            else if (name.equals("geometry.txt")) {
+                Path temporary = Files.createTempFile("microx-geometry-", ".validation");
+                try {
+                    writeModel(input, temporary);
+                } finally {
+                    Files.deleteIfExists(temporary);
+                }
+                Path target = output.resolve(relative);
+                Files.createDirectories(target.getParent());
+                Files.copy(input, target, StandardCopyOption.REPLACE_EXISTING);
+            } else if (name.equals("textures.png"))
                 writeTexture(input, output.resolve(replaceSuffix(relative, ".png", ".tex")));
             else if (name.endsWith(".mid")) {
                 Path target = output.resolve(relative);
@@ -656,11 +664,11 @@ public final class AssetConverter {
     }
     public static void writeModel(Path input, Path output) throws IOException {
         List<float[]> positions = new ArrayList<float[]>(), texcoords = new ArrayList<float[]>();
-        Map<String, Integer> materials = new HashMap<String, Integer>();
+        Map<String, Material> materials = new HashMap<String, Material>();
         Map<String, Section> sections = new LinkedHashMap<String, Section>();
-        int room = 0, texture = 0, lineNo = 0;
+        int room = 0, texture = Integer.MIN_VALUE, color = 0xff00ff, lineNo = 0;
         String material = "default";
-        materials.put(material, Integer.valueOf(0));
+        materials.put(material, new Material(texture, color));
         for (String raw : Files.readAllLines(input, StandardCharsets.US_ASCII)) {
             lineNo++;
             String line = raw.trim();
@@ -670,10 +678,25 @@ public final class AssetConverter {
             }
             if (line.startsWith("# microx material ")) {
                 String[] p = line.substring(18).trim().split("\\s+");
-                if (p.length != 2)
-                    throw objError(input, lineNo, "material metadata must be: name texture-id");
-                materials.put(
-                        p[0], Integer.valueOf(parseSignedShort(p[1], input, lineNo, "texture")));
+                if (p.length < 1 || p.length > 3)
+                    throw objError(input, lineNo,
+                            "material metadata needs NAME and optional texture=/color=");
+                int materialTexture = Integer.MIN_VALUE, materialColor = 0xff00ff;
+                boolean hasTexture = false, hasColor = false;
+                for (int i = 1; i < p.length; i++)
+                    if (p[i].startsWith("texture=")) {
+                        materialTexture =
+                                parseSignedShort(p[i].substring(8), input, lineNo, "texture");
+                        hasTexture = true;
+                    } else if (p[i].startsWith("color=")) {
+                        materialColor = parseRgb(p[i].substring(6), input, lineNo);
+                        hasColor = true;
+                    } else
+                        throw objError(input, lineNo,
+                                "material attributes are texture=ID and color=RRGGBB");
+                if (hasTexture && !hasColor)
+                    throw objError(input, lineNo, "textured material requires fallback color");
+                materials.put(p[0], new Material(materialTexture, materialColor));
                 continue;
             }
             int comment = line.indexOf('#');
@@ -696,22 +719,21 @@ public final class AssetConverter {
                 if (p.length != 2)
                     throw objError(input, lineNo, "usemtl needs one name");
                 material = p[1];
-                Integer id = materials.get(material);
-                if (id == null) {
-                    id = Integer.valueOf(materialTexture(material, input, lineNo));
-                    materials.put(material, id);
-                }
-                texture = id.intValue();
+                Material definition = materials.get(material);
+                if (definition == null)
+                    throw objError(input, lineNo, "unknown material; declare metadata first");
+                texture = definition.texture;
+                color = definition.color;
             } else if ("o".equals(p[0]) || "g".equals(p[0])) {
                 if (p.length > 1 && p[1].startsWith("room_"))
                     room = parseNonNegative(p[1].substring(5), input, lineNo, "room");
             } else if ("f".equals(p[0])) {
                 if (p.length < 4)
                     throw objError(input, lineNo, "face needs at least three corners");
-                String key = room + "/" + texture;
+                String key = room + "/" + texture + "/" + color;
                 Section section = sections.get(key);
                 if (section == null) {
-                    section = new Section(room, texture);
+                    section = new Section(room, texture, color);
                     sections.put(key, section);
                 }
                 int[] polygon = new int[p.length - 1];
@@ -746,6 +768,7 @@ public final class AssetConverter {
             for (Section x : sections.values()) {
                 out.writeShort(x.room);
                 out.writeShort(x.texture);
+                out.writeInt(x.color);
                 out.writeShort(x.xyz.size() / 3);
                 out.writeShort(x.indices.size() / 3);
                 for (Integer n : x.xyz) out.writeInt(n.intValue());
@@ -755,13 +778,14 @@ public final class AssetConverter {
         }
     }
     private static final class Section {
-        final int room, texture;
+        final int room, texture, color;
         final List<Integer> xyz = new ArrayList<Integer>(), uv = new ArrayList<Integer>(),
                             indices = new ArrayList<Integer>();
         final Map<String, Integer> vertices = new LinkedHashMap<String, Integer>();
-        Section(int r, int t) {
+        Section(int r, int t, int c) {
             room = r;
             texture = t;
+            color = c;
         }
         int vertex(float[] p, float[] t, Path file, int line) throws IOException {
             int x = fixed(p[0], file, line), y = fixed(p[1], file, line),
@@ -788,6 +812,22 @@ public final class AssetConverter {
                  cx = xyz.get(c * 3), cy = xyz.get(c * 3 + 1), cz = xyz.get(c * 3 + 2);
             long ux = bx - ax, uy = by - ay, uz = bz - az, vx = cx - ax, vy = cy - ay, vz = cz - az;
             return uy * vz - uz * vy == 0 && uz * vx - ux * vz == 0 && ux * vy - uy * vx == 0;
+        }
+    }
+    private static final class Material {
+        final int texture, color;
+        Material(int textureId, int fallbackColor) {
+            texture = textureId;
+            color = fallbackColor;
+        }
+    }
+    private static int parseRgb(String s, Path file, int line) throws IOException {
+        if (s.length() != 6)
+            throw objError(file, line, "RGB888 must be six hexadecimal digits");
+        try {
+            return Integer.parseInt(s, 16);
+        } catch (NumberFormatException e) {
+            throw objError(file, line, "invalid RGB888");
         }
     }
     private static int resolveObj(String value, int size, Path file, int line) throws IOException {

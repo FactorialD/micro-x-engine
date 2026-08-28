@@ -1,7 +1,7 @@
 # Complete inward-facing room; material ids map to generated palette textures.
-# microx material floor 0
-# microx material wall 1
-# microx material ceiling 2
+# microx material floor texture=0 color=707070
+# microx material wall texture=1 color=606060
+# microx material ceiling texture=2 color=505050
 o room_0
 v -8 0 -8
 v 8 0 -8

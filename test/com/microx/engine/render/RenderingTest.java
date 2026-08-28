@@ -21,16 +21,17 @@ public final class RenderingTest {
         System.out.println("RenderingTest: OK");
     }
     private static void objImport() throws Exception {
-        Path d = Files.createTempDirectory("mx-obj"), o = d.resolve("r.obj"),
-             m = d.resolve("r.mesh");
+        Path d = Files.createTempDirectory("mx-obj"), o = d.resolve("geometry.txt"),
+             m = d.resolve("validation.bin");
         Files.write(o,
-                ("# microx material wall 3\no room_2\nv 0 0 2\nv 1 0 2\nv 1 1 2\nv 0 1 2\nvt 0 0\nvt 1 0\nvt 1 1\nvt 0 1\nusemtl wall\nf -4/-4 -3/-3 -2/-2 -1/-1\n")
+                ("# microx material wall texture=3 color=123456\no room_2\nv 0 0 2\nv 1 0 2\nv 1 1 2\nv 0 1 2\nvt 0 0\nvt 1 0\nvt 1 1\nvt 0 1\nusemtl wall\nf -4/-4 -3/-3 -2/-2 -1/-1\n")
                         .getBytes(StandardCharsets.US_ASCII));
         AssetConverter.writeModel(o, m);
         DataInputStream in = new DataInputStream(Files.newInputStream(m));
         ok(in.readInt() == 0x4d584d32 && in.readUnsignedShort() == 2, "MXM2 v2");
         ok(in.readUnsignedShort() == 1, "section");
-        ok(in.readUnsignedShort() == 2 && in.readShort() == 3, "metadata");
+        ok(in.readUnsignedShort() == 2 && in.readShort() == 3 && in.readInt() == 0x123456,
+                "material texture and fallback color");
         ok(in.readUnsignedShort() == 4 && in.readUnsignedShort() == 2, "triangulation/dedup");
         in.close();
     }
@@ -66,7 +67,17 @@ public final class RenderingTest {
         ok(t.sample(0, 0) == 0x112233 && t.sample(Fixed.ONE, 0) == 0xabcdef, "UV sampling");
     }
     private static void missingTexture() {
-        ok(new AssetManager().texture(0).sample(0, 0) == 0xff00ff, "missing texture is pink");
+        ok(new AssetManager().texture(0) == null, "missing texture remains distinguishable");
+        int[] rgb = new int[64];
+        short[] z = new short[64];
+        Rasterizer r = new Rasterizer();
+        r.target(rgb, z, 8, 8);
+        r.clear(0);
+        r.draw(1, 1, Fixed.ONE, 0, 0, 1, 6, Fixed.ONE, 0, 0, 6, 1, Fixed.ONE, 0, 0, null, 0x123456);
+        ok(rgb[18] == 0x123456, "section fallback color for unavailable texture");
+        r.clear(0);
+        r.draw(1, 1, Fixed.ONE, 0, 0, 1, 6, Fixed.ONE, 0, 0, 6, 1, Fixed.ONE, 0, 0, null, 0xff00ff);
+        ok(rgb[18] == 0xff00ff, "default fallback is FF00FF");
     }
     private static void portalOcclusion() {
         PortalWorld w = new PortalWorld(3, 2);

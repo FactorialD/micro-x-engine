@@ -113,10 +113,11 @@ public final class FrameCoordinator {
             if (n != 3)
                 clippedTriangles++;
             int fan;
-            for (fan = 1; fan < n - 1; fan++) projectAndDraw(0, fan, fan + 1, texture);
+            for (fan = 1; fan < n - 1; fan++)
+                projectAndDraw(0, fan, fan + 1, texture, mesh.color());
         }
     }
-    private void projectAndDraw(int a, int b, int c, TextureData texture) {
+    private void projectAndDraw(int a, int b, int c, TextureData texture, int fallbackColor) {
         int z0 = clipper.value(a, 2), z1 = clipper.value(b, 2), z2 = clipper.value(c, 2);
         int x0 = project(clipper.value(a, 0), camera.focalX, z0, width / 2),
             y0 = project(Fixed.neg(clipper.value(a, 1)), camera.focalY, z0, height / 2);
@@ -131,7 +132,7 @@ public final class FrameCoordinator {
         }
         if (rasterizer.draw(x0, y0, z0, clipper.value(a, 3), clipper.value(a, 4), x1, y1, z1,
                     clipper.value(b, 3), clipper.value(b, 4), x2, y2, z2, clipper.value(c, 3),
-                    clipper.value(c, 4), texture))
+                    clipper.value(c, 4), texture, fallbackColor))
             drawnTriangles++;
     }
     private int project(int value, int focal, int z, int center) {
