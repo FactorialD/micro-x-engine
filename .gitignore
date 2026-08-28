@@ -20,6 +20,7 @@
 *.jar
 bin/
 build/
+deployed/
 micro-x-engine.jad
 *.war
 *.nar
