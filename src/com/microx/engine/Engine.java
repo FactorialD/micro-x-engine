@@ -61,7 +61,7 @@ public final class Engine implements Runnable {
             return true;
         }
         tables = new GameplayTables();
-        if (!tables.load("/data/gameplay.dat") || !ItemCatalog.install(tables))
+        if (!tables.load(GameplayTables.DEFAULT_RESOURCE) || !ItemCatalog.install(tables))
             return false;
         tables.installFactionRelations(systems.relations());
         story = new StorySystem(tables, gameplay.quests);

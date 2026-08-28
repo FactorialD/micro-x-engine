@@ -7,33 +7,18 @@ import java.util.*;
 public final class GameplayDataTest {
     public static void main(String[] args) throws Exception {
         Path source = Paths.get("res/data"), d = Files.createTempDirectory("microx-data");
+        GameplayTables tables = new GameplayTables();
+        ok(tables.load(GameplayTables.DEFAULT_RESOURCE) && tables.hasRequiredData(),
+                "UTF-8 runtime tables rejected");
+        eq("Аптечка", tables.itemName(GameIds.ITEM_MEDKIT), "UTF-8 text decoded incorrectly");
         copy(source, d);
-        Path out = d.resolve("gameplay.dat");
+        Path out = d.resolve("optional-gameplay.dat");
         AssetConverter.writeGameplayData(d, out);
-        GameplayTables first = new GameplayTables();
-        ok(first.load(Files.newInputStream(out)) && first.hasRequiredData(),
-                "complete data rejected");
-        int original = first.value(GameIds.ITEM_MEDKIT);
+        ok(Files.size(out) > 0, "optional desktop export was not written");
         Path items = d.resolve("items/items.txt");
-        String text = new String(Files.readAllBytes(items), StandardCharsets.UTF_8);
-        Files.write(items, text.replace("value=300", "value=777").getBytes(StandardCharsets.UTF_8));
-        AssetConverter.writeGameplayData(d, out);
-        GameplayTables changed = new GameplayTables();
-        changed.load(Files.newInputStream(out));
-        ok(changed.value(GameIds.ITEM_MEDKIT) == 777
-                        && changed.value(GameIds.ITEM_MEDKIT) != original,
-                "text-only balance edit did not reach runtime catalog");
         Files.delete(items);
         rejected(d, out, "missing items table accepted");
         copy(source, d);
-        items = d.resolve("items/items.txt");
-        text = new String(Files.readAllBytes(items), StandardCharsets.UTF_8);
-        Files.write(
-                items, text.replace("1|pistol|", "15|pistol|").getBytes(StandardCharsets.UTF_8));
-        AssetConverter.writeGameplayData(d, out);
-        GameplayTables missingCore = new GameplayTables();
-        missingCore.load(Files.newInputStream(out));
-        ok(!missingCore.hasRequiredData(), "missing core item ID accepted");
         Files.write(d.resolve("old.data"), "1|old|Old\n".getBytes(StandardCharsets.UTF_8));
         rejected(d, out, "legacy .data accepted");
         formatLimits(source);
@@ -149,6 +134,10 @@ public final class GameplayDataTest {
                     Files.copy(p, q, StandardCopyOption.REPLACE_EXISTING);
             }
         }
+    }
+    private static void eq(String expected, String actual, String message) {
+        if (!expected.equals(actual))
+            throw new AssertionError(message + ": " + actual);
     }
     private static void ok(boolean v, String message) {
         if (!v)

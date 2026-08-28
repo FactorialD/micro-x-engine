@@ -22,9 +22,6 @@ public final class AssetConverter {
         final Path source = Paths.get(args[0]).toAbsolutePath().normalize(),
                    output = Paths.get(args[1]).toAbsolutePath().normalize();
         Files.createDirectories(output);
-        Path data = source.resolve("data");
-        if (Files.isDirectory(data))
-            writeGameplayData(data, output.resolve("data/gameplay.dat"));
         try (Stream<Path> paths = Files.walk(source)) {
             paths.filter(Files::isRegularFile)
                     .sorted()
@@ -54,7 +51,7 @@ public final class AssetConverter {
         String v = p.toString();
         return Paths.get(v.substring(0, v.length() - old.length()) + n);
     }
-    /** Validates and packs stable-id description tables. Source rows are id|key|description. */
+    /** Optional desktop-only binary export; Java ME reads the source UTF-8 tables directly. */
     public static void writeGameplayData(Path data, Path output) throws IOException {
         Map<String, List<DataRow>> tables = readData(data);
         validateGameplayShape(tables);

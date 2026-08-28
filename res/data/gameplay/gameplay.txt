@@ -1,0 +1,16 @@
+# Runtime table registry: id|table|description
+1|arena|Arena encounters
+2|cyclic_quests|Repeatable quests
+3|dialogs|Dialog lines
+4|endings|Story endings
+5|factions|Factions
+6|items|Item catalog
+7|npcs|Non-player characters
+8|objectives|Quest objectives
+9|quests|Quests
+10|relationships|Faction relationships
+11|rewards|Quest rewards
+12|slides|Cutscene slides
+13|stash_loot|Stash loot
+14|story_nodes|Story graph
+15|traders|Trader profiles

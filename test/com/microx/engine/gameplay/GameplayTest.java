@@ -22,7 +22,7 @@ public final class GameplayTest {
     }
     private static void deterministicStashesAndPlayerStorage() {
         GameplayTables tables = new GameplayTables();
-        ok(tables.load("/data/gameplay.dat"));
+        ok(tables.load(GameplayTables.DEFAULT_RESOURCE));
         Inventory a = new Inventory(24, 40), b = new Inventory(24, 40), c = new Inventory(24, 40);
         ok(StashLootSystem.generate(a, tables, 77, 31001, 1234, "cordon", 1));
         ok(StashLootSystem.generate(b, tables, 77, 31001, 1234, "cordon", 1));
@@ -54,7 +54,7 @@ public final class GameplayTest {
     }
     private static void tradeRepairAndCorpseSaveLoad() {
         GameplayTables tables = new GameplayTables();
-        ok(tables.load("/data/gameplay.dat"));
+        ok(tables.load(GameplayTables.DEFAULT_RESOURCE));
         GameplayState g = new GameplayState();
         g.inventory.setMoney(4000);
         ok(tables.traderProfile(GameIds.NPC_SIDOROVICH, g.trader));
@@ -105,7 +105,7 @@ public final class GameplayTest {
     }
     private static void tableDrivenScenario() {
         GameplayTables tables = new GameplayTables();
-        ok(tables.load("/data/gameplay.dat"));
+        ok(tables.load(GameplayTables.DEFAULT_RESOURCE));
         eq(GameIds.DIALOG_INTRO, tables.npcDialog(GameIds.NPC_SIDOROVICH));
         eq(GameIds.DIALOG_STASH_REPORT, tables.dialogNext(GameIds.DIALOG_INTRO));
         ok(tables.dialogText(GameIds.DIALOG_INTRO).length() > 0);
@@ -134,7 +134,7 @@ public final class GameplayTest {
     }
     private static void narrativeAndArena() {
         GameplayTables tables = new GameplayTables();
-        ok(tables.load("/data/gameplay.dat"));
+        ok(tables.load(GameplayTables.DEFAULT_RESOURCE));
         GameplayState g = new GameplayState();
         StorySystem story = new StorySystem(tables, g.quests);
         ok(story.start());

@@ -1,6 +1,6 @@
 package com.microx.engine.gameplay;
 
-/** Deterministic, order-independent random-stash generation from gameplay.dat. */
+/** Deterministic, order-independent random-stash generation from text gameplay tables. */
 public final class StashLootSystem {
     private StashLootSystem() {}
     public static boolean generate(Inventory out, GameplayTables tables, int seed, int stableId,
