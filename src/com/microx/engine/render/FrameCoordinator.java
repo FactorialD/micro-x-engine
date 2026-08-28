@@ -91,11 +91,11 @@ public final class FrameCoordinator {
         present(g);
     }
     void renderPreview(Graphics g, MeshSection[] sections, TextureData[] textures, int centerX,
-            int centerY, int centerZ, int extent, int angle) {
+            int centerY, int centerZ, int radius, int angle) {
         if (rgb == null)
             return;
         begin(0x101820);
-        camera.preview(centerX, centerY, centerZ, extent, angle, width, height);
+        camera.preview(centerX, centerY, centerZ, radius, angle, width, height);
         rasterizer.clip(0, 0, width - 1, height - 1);
         drawSections(sections, textures);
         present(g);

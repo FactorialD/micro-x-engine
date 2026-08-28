@@ -46,11 +46,11 @@ public final class SoftwareRenderer {
     /** Renders transient geometry without changing the active location asset owner. */
     public void renderPreview(Graphics g, com.microx.engine.assets.MeshSection[] sections,
             com.microx.engine.assets.TextureData[] textures, int centerX, int centerY, int centerZ,
-            int extent, int angle) {
+            int radius, int angle) {
         int w = g.getClipWidth(), h = g.getClipHeight();
         if (w != requestedWidth || h != requestedHeight)
             configure(w, h, memoryBudget);
-        frame.renderPreview(g, sections, textures, centerX, centerY, centerZ, extent, angle);
+        frame.renderPreview(g, sections, textures, centerX, centerY, centerZ, radius, angle);
     }
     public int submittedTriangles() {
         return frame.submittedTriangles;
