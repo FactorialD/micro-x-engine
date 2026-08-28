@@ -128,6 +128,7 @@ public final class AssetConverter {
     }
     public static void validateReferences(Map<String, List<DataRow>> t) throws IOException {
         validateItemMetadata(t);
+        validateStashLoot(t);
         validateMetadataSchemas(t);
         Set<String> all = new HashSet<String>();
         for (Map.Entry<String, List<DataRow>> e : t.entrySet())
@@ -140,6 +141,21 @@ public final class AssetConverter {
                         if (!all.contains(ref))
                             throw r.error("unknown reference " + ref);
                     }
+    }
+    private static void validateStashLoot(Map<String, List<DataRow>> tables) throws IOException {
+        List<DataRow> rows = tables.get("stash_loot"), items = tables.get("items");
+        if (rows == null || rows.isEmpty())
+            throw new IOException("stash_loot table is required");
+        Set<Integer> itemIds = new HashSet<Integer>();
+        if (items != null) for (DataRow item : items) itemIds.add(Integer.valueOf(item.id));
+        for (DataRow row : rows) {
+            int tier = metaInt(row, "tier", 0), weight = metaInt(row, "weight", 0),
+                item = metaInt(row, "item", 0), min = metaInt(row, "min", 0),
+                max = metaInt(row, "max", -1);
+            if (tier < 1 || tier > 16 || weight < 1 || weight > 100 || min < 1 || max < min
+                    || !itemIds.contains(Integer.valueOf(item)))
+                throw row.error("invalid deterministic stash loot metadata");
+        }
     }
     private static void validateMetadataSchemas(Map<String, List<DataRow>> tables)
             throws IOException {
@@ -176,6 +192,9 @@ public final class AssetConverter {
                     allowed.addAll(Arrays.asList("faction", "money", "stock"));
                 else if ("relationships".equals(table.getKey()))
                     allowed.addAll(Arrays.asList("from", "to", "relation"));
+                else if ("stash_loot".equals(table.getKey()))
+                    allowed.addAll(Arrays.asList("tier", "weight", "item", "min", "max",
+                            "location"));
                 for (String key : values.keySet())
                     if (!allowed.contains(key))
                         throw row.error("unknown metadata key " + key);

@@ -1,0 +1,6 @@
+# tier, percentage weight, item id, inclusive amount range, and optional location filter.
+1|medical|Медичні припаси|tier=1,weight=70,item=4,min=1,max=2
+2|pistol_ammo|Пістолетні набої|tier=1,weight=85,item=8,min=4,max=12
+3|food|Провізія|tier=1,weight=55,item=5,min=1,max=2
+4|rifle_ammo|Гвинтівочні набої|tier=2,weight=80,item=9,min=8,max=20
+5|artifact|Рідкісний артефакт|tier=2,weight=25,item=6,min=1,max=1

@@ -92,11 +92,12 @@ public final class Inventory {
         return result;
     }
     public boolean add(int id, int amount, int condition) {
-        if (!canAdd(id, amount) || condition < 0 || condition > 100)
+        if (condition < 0 || condition > 100 || !canAddCondition(id, amount, condition))
             return false;
         int left = amount;
         for (int i = 0; i < ids.length && left > 0; i++)
-            if (ids[i] == id && (counts[i] & 65535) < ItemCatalog.stack(id)) {
+            if (ids[i] == id && (durability[i] & 65535) == condition
+                    && (counts[i] & 65535) < ItemCatalog.stack(id)) {
                 int n = Math.min(left, ItemCatalog.stack(id) - (counts[i] & 65535));
                 counts[i] += n;
                 left -= n;
@@ -110,6 +111,20 @@ public final class Inventory {
                 left -= n;
             }
         return true;
+    }
+    private boolean canAddCondition(int id, int amount, int condition) {
+        if (!ItemCatalog.valid(id) || amount <= 0) return false;
+        int left = amount;
+        for (int i = 0; i < ids.length; i++)
+            if (ids[i] == id && (durability[i] & 65535) == condition)
+                left -= Math.min(left, ItemCatalog.stack(id) - (counts[i] & 65535));
+        int freeCells = cellLimit - cellsUsed();
+        for (int i = 0; i < ids.length && left > 0; i++)
+            if (ids[i] == 0 && freeCells >= ItemCatalog.cells(id)) {
+                left -= Math.min(left, ItemCatalog.stack(id));
+                freeCells -= ItemCatalog.cells(id);
+            }
+        return left == 0;
     }
     public boolean remove(int id, int amount) {
         if (amount <= 0 || count(id) < amount)
@@ -128,9 +143,12 @@ public final class Inventory {
         return true;
     }
     public boolean moveTo(Inventory target, int id, int amount) {
-        if (target == null || amount <= 0 || count(id) < amount || !target.canAdd(id, amount))
+        int condition = 100;
+        for (int i = ids.length - 1; i >= 0; i--)
+            if (ids[i] == id) { condition = durability[i] & 65535; break; }
+        if (target == null || amount <= 0 || count(id) < amount
+                || !target.canAddCondition(id, amount, condition))
             return false;
-        int condition = conditionOf(id);
         remove(id, amount);
         target.add(id, amount, condition);
         return true;

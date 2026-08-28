@@ -11,6 +11,7 @@ public final class GameplayTest {
         equipment();
         fiveArtifactSave();
         loot();
+        deterministicStashesAndPlayerStorage();
         trade();
         quests();
         verticalSlice();
@@ -18,6 +19,24 @@ public final class GameplayTest {
         tradeRepairAndCorpseSaveLoad();
         narrativeAndArena();
         System.out.println("GameplayTest OK");
+    }
+    private static void deterministicStashesAndPlayerStorage() {
+        GameplayTables tables = new GameplayTables();
+        ok(tables.load("/data/gameplay.dat"));
+        Inventory a = new Inventory(24, 40), b = new Inventory(24, 40), c = new Inventory(24, 40);
+        ok(StashLootSystem.generate(a, tables, 77, 31001, 1234, "cordon", 1));
+        ok(StashLootSystem.generate(b, tables, 77, 31001, 1234, "cordon", 1));
+        ok(StashLootSystem.generate(c, tables, 77, 31002, 1234, "cordon", 1));
+        for (int i = 1; i <= ItemCatalog.maxId(); i++) eq(a.count(i), b.count(i));
+        GameplayState state = new GameplayState();
+        Inventory chest = new Inventory(24, 40), restored = new Inventory(24, 40);
+        ok(chest.add(GameIds.ITEM_PISTOL, 1, 37));
+        ok(state.containers.capture(31001, chest));
+        chest.clear(); ok(chest.add(GameIds.ITEM_MEDKIT, 2, 100));
+        ok(state.containers.capture(31002, chest));
+        ok(state.containers.restore(31001, restored));
+        eq(37, restored.conditionOf(GameIds.ITEM_PISTOL));
+        eq(0, restored.count(GameIds.ITEM_MEDKIT));
     }
     private static void fiveArtifactSave() {
         SaveData save = new SaveData();
@@ -54,16 +73,13 @@ public final class GameplayTest {
         ok(LootSystem.generateCorpse(corpse, 20001, 77, 1234, GameIds.FACTION_DUTY, 2));
         int taken = corpse.idAt(0), original = corpse.count(taken);
         ok(corpse.moveTo(g.inventory, taken, 1));
-        g.containers.put(20001, taken, -1);
+        ok(g.containers.capture(20001, corpse));
         SaveData save = new SaveData();
         save.gameplay.copyPersistentFrom(g);
         try {
             SaveData loaded = new SaveCodec().decode(new SaveCodec().encode(save));
             Inventory searchedAgain = new Inventory(24, 40);
-            ok(LootSystem.generateCorpse(searchedAgain, 20001, 77, 1234, GameIds.FACTION_DUTY, 2));
-            int delta = loaded.gameplay.containers.get(20001, taken);
-            if (delta < 0)
-                searchedAgain.remove(taken, -delta);
+            ok(loaded.gameplay.containers.restore(20001, searchedAgain));
             eq(original - 1, searchedAgain.count(taken));
         } catch (SaveException failure) {
             throw new AssertionError(failure.toString());

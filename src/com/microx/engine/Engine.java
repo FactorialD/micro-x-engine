@@ -36,6 +36,7 @@ public final class Engine implements Runnable {
     private int actorFaction;
     private boolean repairing;
     private String operationResult;
+    private int containerSubtype;
     public LevelLoader level;
     public void attach(GameCanvas3D c) {
         canvas = c;
@@ -362,18 +363,27 @@ public final class Engine implements Runnable {
             canvas.ui.fillList(rows, count);
             canvas.ui.show(UIStateMachine.DIALOGUE);
         } else if (type == EntityPool.CORPSE || type == EntityPool.CONTAINER) {
-            if (type == EntityPool.CONTAINER)
+            containerSubtype = type == EntityPool.CONTAINER ? content : EntityPool.FIXED_CONTAINER;
+            if (type == EntityPool.CONTAINER && stable == GameIds.CONTAINER_FIND_STASH)
                 gameplay.foundStash(stable);
             gameplay.containerId = stable;
             gameplay.loot.clear();
-            if (type == EntityPool.CORPSE) {
+            operationResult = null;
+            if (gameplay.containers.restore(stable, gameplay.loot)) {
+                // Complete persisted state is authoritative after the first logical opening.
+            } else if (type == EntityPool.CORPSE) {
                 LootSystem.generateCorpse(gameplay.loot, stable, persistent.seed, locationId(),
                         e.faction[i], corpseRank(e, i));
                 applyContainerDeltas(stable, gameplay.loot);
-            } else if (content != 0) {
-                int amount = 1 + gameplay.containers.get(stable, content);
-                if (amount > 0)
-                    gameplay.loot.add(content, amount, 100);
+                gameplay.containers.capture(stable, gameplay.loot);
+            } else if (containerSubtype == EntityPool.RANDOM_STASH) {
+                StashLootSystem.generate(gameplay.loot, tables, persistent.seed, stable,
+                        locationId(), location, e.spriteId[i] >= 18 ? 2 : 1);
+                applyContainerDeltas(stable, gameplay.loot); // migrates old quantity-only saves
+                gameplay.containers.capture(stable, gameplay.loot);
+            } else {
+                // Player chests deliberately start empty and are independent by stable id.
+                gameplay.containers.capture(stable, gameplay.loot);
             }
             fillLoot();
             canvas.ui.show(UIStateMachine.LOOT);
@@ -482,10 +492,13 @@ public final class Engine implements Runnable {
             Inventory source = direction < 0 ? gameplay.loot : gameplay.inventory;
             Inventory target = direction < 0 ? gameplay.inventory : gameplay.loot;
             if (source.moveTo(target, id, 1)) {
-                gameplay.containers.put(gameplay.containerId, id,
-                        gameplay.containers.get(gameplay.containerId, id) + direction);
+                if (!gameplay.containers.capture(gameplay.containerId, gameplay.loot)) {
+                    target.moveTo(source, id, 1);
+                    operationResult = "STORAGE FULL";
+                } else
+                    operationResult = "TRANSFER OK";
                 fillLoot();
-            }
+            } else operationResult = "INVENTORY FULL";
         } else if (screen == UIStateMachine.INVENTORY && id != 0) {
             if (ItemCatalog.type(id) == ItemCatalog.TYPE_CONSUMABLE)
                 gameplay.equipment.use(gameplay.inventory, id, player);
@@ -625,6 +638,9 @@ public final class Engine implements Runnable {
     }
     public String tradeResult() {
         return operationResult;
+    }
+    public String containerTitle() {
+        return containerSubtype == EntityPool.PLAYER_STASH ? "PLAYER CHEST" : "STASH";
     }
     public GameplayTables gameplayTables() {
         return tables;
