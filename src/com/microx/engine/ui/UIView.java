@@ -23,13 +23,15 @@ public final class UIView {
     private int faction;
     private boolean repair;
     private String result;
+    private String containerTitle;
     private StorySystem story;
     private CutsceneSystem cutscene;
     private CyclicQuestSystem cyclic;
     private ArenaSystem arena;
 
     public void bind(GameplayState state, GameplayTables data, Player p, LevelLoader map,
-            String locationName, int npcFaction, boolean repairMode, String message) {
+            String locationName, int npcFaction, boolean repairMode, String message,
+            String boundContainerTitle) {
         gameplay = state;
         tables = data;
         player = p;
@@ -38,6 +40,7 @@ public final class UIView {
         faction = npcFaction;
         repair = repairMode;
         result = message;
+        containerTitle = boundContainerTitle;
     }
     public void bindNarrative(StorySystem storySystem, CutsceneSystem cutsceneSystem,
             CyclicQuestSystem cyclicSystem, ArenaSystem arenaSystem) {
@@ -219,9 +222,9 @@ public final class UIView {
         g.setColor(0xe0d080);
         g.drawString("YOU $" + gameplay.inventory.money(), 4, 31, Graphics.TOP | Graphics.LEFT);
         Inventory other = ui.state() == UIStateMachine.TRADE ? gameplay.trader : gameplay.loot;
-        String otherTitle = ui.state() == UIStateMachine.TRADE ? "NPC" : engine.containerTitle();
-        g.drawString(otherTitle + " (" + itemCount(other) + ") $" + other.money(),
-                w - 4, 31, Graphics.TOP | Graphics.RIGHT);
+        String otherTitle = ui.state() == UIStateMachine.TRADE ? "NPC" : containerTitle;
+        g.drawString(otherTitle + " (" + itemCount(other) + ") $" + other.money(), w - 4, 31,
+                Graphics.TOP | Graphics.RIGHT);
         int leftY = 50, rightY = 50;
         for (int i = 0; i < ui.listSize(); i++) {
             int id = ui.listBuffer()[i] & 65535;
