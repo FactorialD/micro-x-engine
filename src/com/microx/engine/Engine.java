@@ -35,6 +35,9 @@ public final class Engine implements Runnable {
     private String location = "cordon";
     private String stateSource = "NEW";
     private String resourceError;
+    private String saveError;
+    private String settingsError;
+    private String autosaveError;
     private int actorFaction;
     private boolean repairing;
     private String operationResult;
@@ -46,13 +49,20 @@ public final class Engine implements Runnable {
         renderer.setAssets(assets);
         try {
             saves = new SaveStore(new RmsBackend("microx-saves"));
+            saveError = null;
+        } catch (Exception failure) {
+            saves = null;
+            saveError = diagnostic("save store unavailable", failure);
+        }
+        try {
             settings = new SettingsStore(new RmsBackend("microx-settings"));
             settings.load(c.settings);
+            settingsError = settings.diagnostic();
             audio.setVolume(c.settings.volume);
             player.setTurnSensitivity(c.settings.sensitivity);
-        } catch (Exception ignored) {
-            saves = null;
+        } catch (Exception failure) {
             settings = null;
+            settingsError = diagnostic("settings store unavailable", failure);
         }
     }
     public synchronized boolean start() {
@@ -120,13 +130,17 @@ public final class Engine implements Runnable {
         }
     }
     public synchronized boolean saveGame() {
-        if (saves == null || level == null)
+        if (saves == null || level == null) {
+            saveError = saves == null ? "save store unavailable" : "no level to save";
             return false;
+        }
         try {
             capture();
             saves.save(persistent);
+            saveError = null;
             return true;
         } catch (SaveException failure) {
+            saveError = diagnostic("save failed", failure);
             return false;
         }
     }
@@ -211,7 +225,6 @@ public final class Engine implements Runnable {
         }
         LevelLoader oldLevel = level;
         String oldLocation = location;
-        int oldX = player.x, oldY = player.y, oldZ = player.z, oldYaw = player.yaw;
         try {
             if (!assets.loadLocation(name, 0)) {
                 resourceError = assets.locationErrorPath();
@@ -233,17 +246,8 @@ public final class Engine implements Runnable {
         candidate.world.updateVisibility(player.x, player.z);
         systems.enter(candidate.entities);
         audio.enterLocation(name);
-        if (autosave && !saveGame()) {
-            level = oldLevel;
-            location = oldLocation;
-            player.reset(oldX, oldY, oldZ);
-            player.yaw = oldYaw;
-            assets.loadLocation(oldLocation, 0);
-            systems.enter(oldLevel.entities);
-            audio.enterLocation(oldLocation);
-            candidate.clear();
-            return false;
-        }
+        if (autosave)
+            autosaveError = saveGame() ? null : saveError;
         if (oldLevel != null)
             oldLevel.clear();
         return true;
@@ -255,7 +259,9 @@ public final class Engine implements Runnable {
         if (settings != null)
             try {
                 settings.save(canvas.settings);
-            } catch (SaveException ignored) {
+                settingsError = null;
+            } catch (SaveException failure) {
+                settingsError = diagnostic("settings save failed", failure);
             }
     }
     public synchronized void pause() {
@@ -712,6 +718,19 @@ public final class Engine implements Runnable {
     }
     public String stateSource() {
         return stateSource;
+    }
+    public String saveDiagnostic() {
+        return saveError;
+    }
+    public String settingsDiagnostic() {
+        return settingsError;
+    }
+    public String autosaveDiagnostic() {
+        return autosaveError;
+    }
+    private static String diagnostic(String message, Throwable failure) {
+        String detail = failure.getMessage();
+        return message + ": " + (detail == null ? failure.toString() : detail);
     }
     public int state() {
         return state;

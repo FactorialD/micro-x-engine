@@ -21,10 +21,14 @@ public final class WorldFormatTest {
                         && EntityPool.RANDOM_STASH != EntityPool.FIXED_CONTAINER,
                 "container subtypes are unambiguous");
         wallSlideAndStep(loader.collision);
-        ok(loader.world.crossedPortal(Fixed.fromInt(4), Fixed.fromInt(1), 0, Fixed.fromInt(5),
+        ok(loader.world.crossedPortal(Fixed.fromInt(3), Fixed.fromInt(1), 0, Fixed.fromInt(5),
                    Fixed.fromInt(1),
                    0) == 0,
                 "room crossing");
+        ok(loader.world.crossedPortal(Fixed.fromInt(5), Fixed.fromInt(1), 0, Fixed.fromInt(5),
+                   Fixed.fromInt(1),
+                   0) < 0,
+                "remaining inside portal does not cross again");
         byte[] truncated =
                 level().substring(0, level().lastIndexOf(" 3\n")).getBytes(StandardCharsets.UTF_8);
         PortalWorld published = loader.world;

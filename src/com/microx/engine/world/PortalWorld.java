@@ -76,10 +76,13 @@ public final class PortalWorld {
         if (room < 0)
             return -1;
         for (int p = firstPortal[room]; p >= 0; p = portalNext[p])
-            if (x >= pMinX[p] && x <= pMaxX[p] && y >= pMinY[p] && y <= pMaxY[p] && z >= pMinZ[p]
-                    && z <= pMaxZ[p])
+            if (!contains(p, oldX, oldY, oldZ) && contains(p, x, y, z))
                 return p;
         return -1;
+    }
+    private boolean contains(int p, int x, int y, int z) {
+        return x >= pMinX[p] && x <= pMaxX[p] && y >= pMinY[p] && y <= pMaxY[p] && z >= pMinZ[p]
+                && z <= pMaxZ[p];
     }
     public int portalTo(int p) {
         return portalTo[p];

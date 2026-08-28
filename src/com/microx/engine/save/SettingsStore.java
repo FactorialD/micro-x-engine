@@ -5,6 +5,7 @@ import com.microx.engine.ui.UISettings;
 public final class SettingsStore {
     private static final int MAGIC = 0x4d585354;
     private final RecordBackend records;
+    private String diagnostic;
     public SettingsStore(RecordBackend b) {
         records = b;
     }
@@ -29,6 +30,7 @@ public final class SettingsStore {
         }
     }
     public boolean load(UISettings s) {
+        diagnostic = null;
         try {
             int[] ids = records.ids();
             for (int i = ids.length - 1; i >= 0; i--) {
@@ -45,9 +47,13 @@ public final class SettingsStore {
                 s.sensitivity = version >= 2 ? b[9] & 255 : 5;
                 return true;
             }
-        } catch (Exception ignored) {
+        } catch (Exception failure) {
+            diagnostic = "settings read failed: " + failure.toString();
         }
         return false;
+    }
+    public String diagnostic() {
+        return diagnostic;
     }
     public void close() {
         try {
