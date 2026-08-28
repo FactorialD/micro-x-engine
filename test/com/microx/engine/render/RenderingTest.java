@@ -2,6 +2,7 @@ package com.microx.engine.render;
 import com.microx.engine.assets.AssetManager;
 import com.microx.engine.Telemetry;
 import com.microx.engine.assets.TextureData;
+import com.microx.engine.assets.MeshSection;
 import com.microx.engine.math.Fixed;
 import com.microx.engine.world.PortalWorld;
 import com.microx.engine.world.EntityPool;
@@ -14,6 +15,7 @@ public final class RenderingTest {
         objImport();
         clippingAndWinding();
         depthAndUv();
+        previewPipelineStages();
         missingTexture();
         portalOcclusion();
         budget();
@@ -65,6 +67,31 @@ public final class RenderingTest {
         ok(rgb[18] == 0x00ff00, "depth ordering");
         TextureData t = new TextureData(2, 1, new int[] {0x112233, 0xabcdef}, new byte[] {0, 1});
         ok(t.sample(0, 0) == 0x112233 && t.sample(Fixed.ONE, 0) == 0xabcdef, "UV sampling");
+    }
+    private static void previewPipelineStages() {
+        FrameCoordinator frame = new FrameCoordinator();
+        frame.configure(64, 64, 2 * 1024 * 1024, 0);
+        javax.microedition.lcdui.Graphics graphics = new javax.microedition.lcdui.Graphics(64, 64);
+
+        // With center=0 and extent=1 the preview eye is at z=-1.625. One vertex lies behind
+        // near while the other two remain visible, so the shared clipper must produce a fan.
+        int[] crossing = {-Fixed.ONE, -Fixed.ONE, Fixed.fromRatio(-8, 5), Fixed.ONE, -Fixed.ONE, 0,
+                -Fixed.ONE, Fixed.ONE, 0};
+        MeshSection clipped =
+                new MeshSection(0, -1, 0xabcdef, crossing, new int[6], new short[] {0, 1, 2});
+        frame.renderPreview(graphics, new MeshSection[] {clipped}, null, 0, 0, 0, Fixed.ONE, 0);
+        ok(frame.submittedTriangles == 1 && frame.clippedTriangles > 0 && frame.drawnTriangles > 0,
+                "preview uses transform, near clipping and rasterization pipeline");
+
+        int z = 0;
+        int[] positions = {
+                -Fixed.ONE, -Fixed.ONE, z, -Fixed.ONE, Fixed.ONE, z, Fixed.ONE, -Fixed.ONE, z};
+        MeshSection back =
+                new MeshSection(0, -1, 0xffffff, positions, new int[6], new short[] {0, 1, 2});
+        frame.renderPreview(graphics, new MeshSection[] {back}, null, 0, 0, 0, Fixed.ONE, 0);
+        ok(frame.submittedTriangles == 1 && frame.drawnTriangles == 0
+                        && frame.clippedTriangles == 1,
+                "preview uses shared back-face culling");
     }
     private static void missingTexture() {
         ok(new AssetManager().texture(0) == null, "missing texture remains distinguishable");

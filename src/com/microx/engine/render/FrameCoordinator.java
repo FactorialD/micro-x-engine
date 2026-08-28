@@ -69,8 +69,7 @@ public final class FrameCoordinator {
     void render(Graphics g, Player player, PortalWorld world, EntityPool pool) {
         if (rgb == null)
             return;
-        submittedTriangles = clippedTriangles = drawnTriangles = 0;
-        rasterizer.clear(skyColor);
+        begin(skyColor);
         camera.update(player, width, height);
         if (assets != null) {
             world.updateVisibility(camera.x, camera.y, camera.z, camera.sin, camera.cos,
@@ -89,6 +88,36 @@ public final class FrameCoordinator {
         }
         if (pool != null)
             entities.render(rgb, depth, width, height, camera, pool);
+        present(g);
+    }
+    void renderPreview(Graphics g, MeshSection[] sections, TextureData[] textures, int centerX,
+            int centerY, int centerZ, int extent, int angle) {
+        if (rgb == null)
+            return;
+        begin(0x101820);
+        camera.preview(centerX, centerY, centerZ, extent, angle, width, height);
+        rasterizer.clip(0, 0, width - 1, height - 1);
+        drawSections(sections, textures);
+        present(g);
+    }
+    private void begin(int clearColor) {
+        submittedTriangles = clippedTriangles = drawnTriangles = 0;
+        rasterizer.clear(clearColor);
+    }
+    private void drawSections(MeshSection[] sections, TextureData[] textures) {
+        if (sections == null)
+            return;
+        int s;
+        for (s = 0; s < sections.length; s++) {
+            MeshSection mesh = sections[s];
+            TextureData texture =
+                    textures != null && mesh.texture() >= 0 && mesh.texture() < textures.length
+                    ? textures[mesh.texture()]
+                    : null;
+            draw(mesh, texture);
+        }
+    }
+    private void present(Graphics g) {
         if (width != outputWidth || height != outputHeight) {
             g.setColor(0);
             g.fillRect(0, 0, outputWidth, outputHeight);

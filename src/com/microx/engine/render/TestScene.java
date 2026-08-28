@@ -14,8 +14,6 @@ public final class TestScene {
             "/levels/cordon/geometry.txt", "/levels/garbage/geometry.txt"};
     private static final String[] NAMES = {"CUBE", "PYRAMID", "CORDON", "GARBAGE"};
     private MeshSection[] sections;
-    private MeshSection[] triangleSections;
-    private int[] triangleIndexes, triangleDepths;
     private int selected, centerX, centerY, centerZ, extent = Fixed.ONE;
 
     public boolean open(int index) {
@@ -38,11 +36,6 @@ public final class TestScene {
             return false;
         selected = index;
         bounds();
-        int triangles = 0;
-        for (int s = 0; s < sections.length; s++) triangles += sections[s].triangleCount();
-        triangleSections = new MeshSection[triangles];
-        triangleIndexes = new int[triangles];
-        triangleDepths = new int[triangles];
         return true;
     }
 
@@ -73,48 +66,15 @@ public final class TestScene {
             extent = 1;
     }
 
-    public void paint(Graphics g, int width, int height, long now) {
-        g.setColor(0x101820);
-        g.fillRect(0, 0, width, height);
+    public void paint(SoftwareRenderer renderer, Graphics g, int width, int height, long now) {
         if (sections == null)
             return;
-        int angle = (int) ((now / 16) % 360), sin = Fixed.sin(angle), cos = Fixed.cos(angle);
-        int scale = Math.min(width, height) * 3 / 4;
-        int triangleCount = TriangleDepthOrder.prepare(sections, triangleSections, triangleIndexes,
-                triangleDepths, centerX, centerZ, sin, cos);
-        for (int sorted = 0; sorted < triangleCount; sorted++) {
-            MeshSection m = triangleSections[sorted];
-            g.setColor(m.color());
-            int t = triangleIndexes[sorted];
-            int a = m.index(t * 3), b = m.index(t * 3 + 1), c = m.index(t * 3 + 2);
-            int ax = projectX(m, a, sin, cos, scale, width),
-                ay = projectY(m, a, sin, cos, scale, height);
-            int bx = projectX(m, b, sin, cos, scale, width),
-                by = projectY(m, b, sin, cos, scale, height);
-            int cx = projectX(m, c, sin, cos, scale, width),
-                cy = projectY(m, c, sin, cos, scale, height);
-            g.fillTriangle(ax, ay, bx, by, cx, cy);
-            g.setColor(0x202020);
-            g.drawLine(ax, ay, bx, by);
-            g.drawLine(bx, by, cx, cy);
-            g.drawLine(cx, cy, ax, ay);
-            g.setColor(m.color());
-        }
+        int angle = (int) ((now / 16) % 360);
+        renderer.renderPreview(g, sections, null, centerX, centerY, centerZ, extent, angle);
         g.setFont(Font.getFont(Font.FACE_SYSTEM, Font.STYLE_BOLD, Font.SIZE_SMALL));
         g.setColor(0xffffff);
         g.drawString(NAMES[selected], width / 2, 5, Graphics.TOP | Graphics.HCENTER);
         g.setColor(0x809090);
         g.drawString("BACK", width / 2, height - 18, Graphics.TOP | Graphics.HCENTER);
-    }
-
-    private int projectX(MeshSection m, int i, int sin, int cos, int scale, int width) {
-        long x = m.x(i) - centerX, z = m.z(i) - centerZ;
-        long rotated = (x * cos - z * sin) >> 16;
-        return width / 2 + (int) (rotated * scale / extent);
-    }
-    private int projectY(MeshSection m, int i, int sin, int cos, int scale, int height) {
-        long x = m.x(i) - centerX, y = m.y(i) - centerY, z = m.z(i) - centerZ;
-        long depth = (x * sin + z * cos) >> 16;
-        return height / 2 - (int) ((y - depth / 3) * scale / extent);
     }
 }
