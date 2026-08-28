@@ -17,6 +17,9 @@ public final class WorldFormatTest {
         ok(loader.load(new ByteArrayInputStream(valid)), "valid binary");
         ok(loader.world.portalReverse(0) == 1, "reverse portal");
         ok(loader.findTransition(100) == 0, "transition id");
+        ok(EntityPool.PLAYER_STASH != EntityPool.RANDOM_STASH
+                        && EntityPool.RANDOM_STASH != EntityPool.FIXED_CONTAINER,
+                "container subtypes are unambiguous");
         wallSlideAndStep(loader.collision);
         ok(loader.world.crossedPortal(Fixed.fromInt(4), Fixed.fromInt(1), 0, Fixed.fromInt(5),
                    Fixed.fromInt(1),

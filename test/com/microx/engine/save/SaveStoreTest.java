@@ -41,7 +41,10 @@ public final class SaveStoreTest {
         s.gameplay.quests.setEnding(2);
         s.gameplay.quests.setCyclicSeed(99);
         s.gameplay.reputation.set(1, -20);
-        s.gameplay.containers.put(99, 1, -1);
+        com.microx.engine.gameplay.Inventory chest =
+                new com.microx.engine.gameplay.Inventory(24, 40);
+        chest.add(2, 1, 43);
+        s.gameplay.containers.capture(31012, chest);
         s.addEntityDelta(77, 3);
         store.save(s);
         s.sequence = 2;
@@ -54,8 +57,16 @@ public final class SaveStoreTest {
         eq(3, newest.gameplay.quests.storyNode(), "story restored");
         eq(2, newest.gameplay.quests.ending(), "ending restored");
         eq(99, newest.gameplay.quests.cyclicSeed(), "cyclic seed restored");
+        chest.clear();
+        if (!newest.gameplay.containers.restore(31012, chest)) throw new AssertionError();
+        eq(43, chest.conditionOf(2), "container durability restored");
         m.corrupt(3);
-        eq(100, store.load(0).x, "fallback after corrupt prepared record");
+        SaveData fallback = store.load(0);
+        eq(100, fallback.x, "fallback after corrupt prepared record");
+        chest.clear();
+        if (!fallback.gameplay.containers.restore(31012, chest)) throw new AssertionError();
+        eq(1, chest.count(2), "fallback container has no duplicated item");
+        eq(43, chest.conditionOf(2), "fallback container durability");
         int before = m.data.size();
         m.add(new byte[] {1, 2, 3});
         eq(100, store.load(0).x, "interrupted prepare is ignored");

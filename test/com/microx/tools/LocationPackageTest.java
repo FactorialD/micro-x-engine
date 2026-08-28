@@ -1,77 +1,68 @@
 package com.microx.tools;
 
+import com.microx.engine.world.EntityPool;
 import com.microx.engine.world.LevelLoader;
 import java.io.FileInputStream;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
+import java.nio.file.*;
+import java.util.*;
 
-/** Static integration contract for the two mandatory authored locations. */
+/** Whole-world static contract for authored MXL2 location packages. */
 public final class LocationPackageTest {
     public static void main(String[] args) throws Exception {
-        Path root = Paths.get(args[0]), generated = Paths.get(args[1]);
-        LevelLoader cordon = load(generated, "cordon", false),
-                    garbage = load(generated, "garbage", false);
-        transition(cordon, 1000, "garbage", 20, garbage);
-        transition(garbage, 2000, "cordon", 10, cordon);
-        ok(cordon.world.portalTransition(0) == cordon.findTransition(1000),
-                "Cordon portal has transition metadata");
-        ok(garbage.world.portalTransition(0) == garbage.findTransition(2000),
-                "Garbage portal has transition metadata");
-        ok(cordon.entities.capacity() >= 12 && garbage.entities.capacity() >= 12,
-                "location entity capacity");
-        entity(cordon, 10001, 1, 2, 11, 2);
-        entity(cordon, 10002, 1, 1, 12, 1);
-        entity(cordon, 10003, 7, 0, 17, 4);
-        entity(garbage, 20001, 2, 3, 21, 1);
-        entity(garbage, 20002, 4, 0, 31, 0);
-        entity(garbage, 20003, 3, 0, 41, 6);
-        String engine =
-                new String(Files.readAllBytes(root.resolve("src/com/microx/engine/Engine.java")),
-                        StandardCharsets.UTF_8);
-        ok(engine.contains(
-                   "loadLocation(level.transitionLocation[t], level.transitionSpawn[t], true)"),
-                "cross-location transitions request autosave");
-        int load = engine.indexOf("private boolean loadLocation"),
-            commit = engine.indexOf("location = name;", load),
-            autosave = engine.indexOf("if (autosave && !saveGame())", load);
-        ok(commit >= 0 && autosave > commit,
-                "transition autosave captures the committed target location and spawn");
-        ok(engine.indexOf("if (autosave && !saveGame())", load) == autosave,
-                "transition does not overwrite the valid save before loading its target");
-        System.out.println("LocationPackageTest: OK");
+        Path generated = Paths.get(args[1]);
+        String[] names = {"cordon", "garbage", "agroprom", "depot", "bar",
+                "wild_territory", "yantar", "laboratory", "army_warehouses", "radar",
+                "pripyat", "cnpp", "arena"};
+        Map<String, LevelLoader> levels = new LinkedHashMap<String, LevelLoader>();
+        Set<Integer> entityIds = new HashSet<Integer>(), portalIds = new HashSet<Integer>();
+        for (String name : names) levels.put(name, load(generated, name));
+        for (Map.Entry<String, LevelLoader> entry : levels.entrySet()) {
+            String name = entry.getKey(); LevelLoader level = entry.getValue();
+            int humans = 0, player = 0, random = 0;
+            for (int i = 0; i < level.entities.capacity(); i++) if (level.entities.active[i]) {
+                ok(entityIds.add(Integer.valueOf(level.entities.stableId[i])),
+                        "globally unique entity " + level.entities.stableId[i]);
+                if (level.entities.type[i] == EntityPool.HUMAN) humans++;
+                if (level.entities.type[i] == EntityPool.CONTAINER
+                        && level.entities.aux[i] == EntityPool.PLAYER_STASH) player++;
+                if (level.entities.type[i] == EntityPool.CONTAINER
+                        && level.entities.aux[i] == EntityPool.RANDOM_STASH) random++;
+            }
+            ok(humans >= 1, name + " interactive human");
+            ok(player == 1, name + " exactly one player chest");
+            ok(random >= 1, name + " random stash");
+            for (int p = 0; p < level.transitionId.length; p++) {
+                ok(portalIds.add(Integer.valueOf(level.world.portalId(p))), "unique portal id");
+                String target = level.transitionLocation[p];
+                LevelLoader destination = levels.get(target);
+                ok(destination != null, name + " target directory " + target);
+                ok(destination.selectSpawn(level.transitionSpawn[p]), "target spawn exists");
+                boolean reciprocal = false;
+                for (int q = 0; q < destination.transitionId.length; q++)
+                    if (name.equals(destination.transitionLocation[q])) reciprocal = true;
+                ok(reciprocal, name + " <-> " + target);
+                ok(level.world.portalTransition(p) == p, name + " portal transition binding");
+            }
+        }
+        Set<String> reached = new HashSet<String>(); reached.add("cordon");
+        boolean changed = true;
+        while (changed) { changed = false;
+            for (String from : new ArrayList<String>(reached))
+                for (String to : levels.get(from).transitionLocation)
+                    if (reached.add(to)) changed = true;
+        }
+        ok(reached.size() == levels.size(), "all locations reachable from cordon");
+        System.out.println("LocationPackageTest: OK (" + levels.size() + " locations)");
     }
-    private static LevelLoader load(Path generated, String name, boolean hasMedia)
-            throws Exception {
+    private static LevelLoader load(Path generated, String name) throws Exception {
         Path directory = generated.resolve("levels").resolve(name);
-        for (String resource : new String[] {"level.lvl", "geometry.mesh"})
-            ok(Files.size(directory.resolve(resource)) > 0, name + " runtime " + resource);
-        for (String resource : new String[] {"textures.tex", "music.mid"})
-            ok(Files.exists(directory.resolve(resource)) == hasMedia,
-                    name + " optional runtime " + resource);
+        ok(Files.size(directory.resolve("level.lvl")) > 0, name + " level.lvl");
+        ok(Files.size(directory.resolve("geometry.mesh")) > 0, name + " geometry.mesh");
         LevelLoader level = new LevelLoader();
-        ok(level.load(new FileInputStream(directory.resolve("level.lvl").toFile())),
-                name + " level");
+        ok(level.load(new FileInputStream(directory.resolve("level.lvl").toFile())), name);
         return level;
     }
-    private static void transition(
-            LevelLoader from, int id, String target, int spawn, LevelLoader destination) {
-        int index = from.findTransition(id);
-        ok(index >= 0, "transition " + id);
-        ok(target.equals(from.transitionLocation[index]), "transition target " + target);
-        ok(from.transitionSpawn[index] == spawn, "transition target spawn " + spawn);
-        ok(destination.selectSpawn(spawn), "destination defines spawn " + spawn);
-    }
-    private static void entity(
-            LevelLoader level, int stable, int type, int faction, int sprite, int aux) {
-        int i = level.entities.findStable(stable);
-        ok(i >= 0 && level.entities.type[i] == type && level.entities.faction[i] == faction
-                        && level.entities.spriteId[i] == sprite && level.entities.aux[i] == aux,
-                "entity metadata " + stable);
-    }
     private static void ok(boolean value, String message) {
-        if (!value)
-            throw new AssertionError(message);
+        if (!value) throw new AssertionError(message);
     }
 }

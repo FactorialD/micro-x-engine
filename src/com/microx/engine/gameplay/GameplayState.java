@@ -6,7 +6,7 @@ public final class GameplayState {
     public final Equipment equipment = new Equipment();
     public final Reputation reputation = new Reputation(8);
     public final QuestState quests = new QuestState(32, 4, 32);
-    public final ContainerDelta containers = new ContainerDelta(64);
+    public final ContainerDelta containers = new ContainerDelta(128);
     /** Bounded working inventories backing the currently open trade/loot screens. */
     public final Inventory trader = new Inventory(24, 40);
     public final Inventory loot = new Inventory(24, 40);
@@ -47,9 +47,12 @@ public final class GameplayState {
         quests.copyFrom(source.quests);
         for (int i = 1; i <= reputation.size(); i++) reputation.set(i, source.reputation.get(i));
         containers.clear();
+        for (int i = 0; i < source.containers.initializedCount(); i++)
+            containers.markInitialized(source.containers.initializedAt(i));
         for (int i = 0; i < source.containers.capacity(); i++)
             if (source.containers.occupied(i))
-                containers.put(source.containers.containerAt(i), source.containers.itemAt(i),
-                        source.containers.deltaAt(i));
+                containers.restoreRecord(source.containers.containerAt(i),
+                        source.containers.itemAt(i), source.containers.deltaAt(i),
+                        source.containers.durabilityAt(i));
     }
 }

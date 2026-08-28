@@ -219,7 +219,8 @@ public final class UIView {
         g.setColor(0xe0d080);
         g.drawString("YOU $" + gameplay.inventory.money(), 4, 31, Graphics.TOP | Graphics.LEFT);
         Inventory other = ui.state() == UIStateMachine.TRADE ? gameplay.trader : gameplay.loot;
-        g.drawString((ui.state() == UIStateMachine.TRADE ? "NPC" : "LOOT") + " $" + other.money(),
+        String otherTitle = ui.state() == UIStateMachine.TRADE ? "NPC" : engine.containerTitle();
+        g.drawString(otherTitle + " (" + itemCount(other) + ") $" + other.money(),
                 w - 4, 31, Graphics.TOP | Graphics.RIGHT);
         int leftY = 50, rightY = 50;
         for (int i = 0; i < ui.listSize(); i++) {
@@ -243,6 +244,11 @@ public final class UIView {
         }
         if (result != null)
             g.drawString(result, w / 2, h - 16, Graphics.TOP | Graphics.HCENTER);
+    }
+    private static int itemCount(Inventory inventory) {
+        int count = 0;
+        for (int i = 0; i < inventory.slots(); i++) count += inventory.countAt(i);
+        return count;
     }
     private void drawAbout(Graphics g, int w) {
         g.setColor(0xc0c8b0);

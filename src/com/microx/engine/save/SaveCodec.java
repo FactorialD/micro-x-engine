@@ -4,7 +4,7 @@ import com.microx.engine.gameplay.*;
 
 /** Versioned, checksummed content format. */
 public final class SaveCodec {
-    public static final int MAGIC = 0x4d585356, FORMAT_VERSION = 3, CONTENT_VERSION = 1;
+    public static final int MAGIC = 0x4d585356, FORMAT_VERSION = 4, CONTENT_VERSION = 1;
     private static final int MAX_BYTES = 32768;
     public byte[] encode(SaveData s) throws SaveException {
         try {
@@ -67,9 +67,8 @@ public final class SaveCodec {
             if (in.readInt() != MAGIC)
                 throw new SaveException("not a MicroX save");
             int format = in.readUnsignedShort(), content = in.readUnsignedShort();
-            if (format != FORMAT_VERSION && format != 2)
-                throw new SaveException("unsupported save format " + format + " (expected 2 or "
-                        + FORMAT_VERSION + ")");
+            if (format != FORMAT_VERSION && format != 2 && format != 3)
+                throw new SaveException("unsupported save format " + format);
             if (content != CONTENT_VERSION)
                 throw new SaveException(
                         "unsupported content version " + content + "; no migration is registered");
@@ -98,7 +97,7 @@ public final class SaveCodec {
             if (ammo > s.reserveAmmo.length)
                 throw new SaveException("too many reserve ammo entries");
             for (int i = 0; i < ammo; i++) s.reserveAmmo[i] = in.readUnsignedShort();
-            readGameplay(in, s.gameplay);
+            readGameplay(in, s.gameplay, format);
             if (format >= 3) {
                 s.gameplay.quests.setStoryNode(in.readUnsignedShort());
                 s.gameplay.quests.setEnding(in.readUnsignedShort());
@@ -152,9 +151,13 @@ public final class SaveCodec {
                 out.writeInt(g.containers.containerAt(i));
                 out.writeShort(g.containers.itemAt(i));
                 out.writeShort(g.containers.deltaAt(i));
+                out.writeByte(g.containers.durabilityAt(i));
             }
+        out.writeByte(g.containers.initializedCount());
+        for (int i = 0; i < g.containers.initializedCount(); i++)
+            out.writeInt(g.containers.initializedAt(i));
     }
-    private void readGameplay(DataInputStream in, GameplayState g)
+    private void readGameplay(DataInputStream in, GameplayState g, int format)
             throws IOException, SaveException {
         g.inventory.clear();
         int money = in.readInt(), slots = in.readUnsignedByte();
@@ -201,9 +204,23 @@ public final class SaveCodec {
         int deltas = in.readUnsignedByte();
         if (deltas > g.containers.capacity())
             throw new SaveException("too many container deltas");
-        for (int i = 0; i < deltas; i++)
-            if (!g.containers.put(in.readInt(), in.readUnsignedShort(), in.readShort()))
-                throw new SaveException("invalid container delta");
+        for (int i = 0; i < deltas; i++) {
+            int container = in.readInt(), item = in.readUnsignedShort(), amount = in.readShort();
+            if (format >= 4) {
+                int durability = in.readUnsignedByte();
+                if (!g.containers.restoreRecord(container, item, amount, durability))
+                    throw new SaveException("invalid container record");
+            } else if (!g.containers.put(container, item, amount))
+                throw new SaveException("invalid legacy container delta");
+        }
+        if (format >= 4) {
+            int initialized = in.readUnsignedByte();
+            if (initialized > 32)
+                throw new SaveException("too many initialized containers");
+            for (int i = 0; i < initialized; i++)
+                if (!g.containers.markInitialized(in.readInt()))
+                    throw new SaveException("invalid initialized container");
+        }
     }
     public static int checksum(byte[] b, int off, int len) {
         int crc = -1;

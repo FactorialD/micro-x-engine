@@ -4,6 +4,8 @@ package com.microx.engine.world;
 public final class EntityPool {
     public static final int HUMAN = 1, MUTANT = 2, ITEM = 3, ANOMALY = 4, CORPSE = 5, DOOR = 6,
                             CONTAINER = 7;
+    /** Explicit aux values for type 7; it is never an abstract quest marker. */
+    public static final int PLAYER_STASH = 1, RANDOM_STASH = 2, FIXED_CONTAINER = 3;
     public static final int MAX_LIVE_NPCS = 24, MAX_MUTANTS = 24, MAX_ITEMS = 48,
                             MAX_ANOMALIES = 16, MAX_CORPSES = 24;
     public static final int STATE_IDLE = 0, STATE_ALERT = 1, STATE_COMBAT = 2, STATE_MELEE = 3,
