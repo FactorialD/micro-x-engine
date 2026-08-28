@@ -215,13 +215,20 @@ final class GeometryLoader {
             return 0;
         }
     }
+    private static boolean isWhitespace(char c) {
+        return c == ' ' ||
+               c == '\t' ||
+               c == '\n' ||
+               c == '\r' ||
+               c == '\f';
+    }
     private static String[] words(String s) {
         Vector v = new Vector();
         int i = 0;
         while (i < s.length()) {
-            while (i < s.length() && Character.isWhitespace(s.charAt(i))) i++;
+            while (i < s.length() && GeometryLoader.isWhitespace(s.charAt(i))) i++;
             int b = i;
-            while (i < s.length() && !Character.isWhitespace(s.charAt(i))) i++;
+            while (i < s.length() && !GeometryLoader.isWhitespace(s.charAt(i))) i++;
             if (b < i)
                 v.addElement(s.substring(b, i));
         }
