@@ -189,16 +189,49 @@ public final class Hud {
         g.drawChar((char) ('0' + n % 10), x + 12, y, Graphics.TOP | Graphics.LEFT);
     }
     private void map(Graphics g, PortalWorld world, Player p, int x, int y) {
+        final int width = 52, height = 46;
         g.setColor(0x101810);
-        g.fillRect(x, y, 52, 46);
-        if (world == null)
+        g.fillRect(x, y, width, height);
+        if (world == null || p == null || world.visibleCount() == 0)
             return;
-        int current = world.findRoom(p.x, p.z);
-        for (int i = 0; i < world.visibleCount() && i < 9; i++) {
-            int room = world.visibleRoom(i), px = x + 5 + (room % 3) * 14,
-                py = y + 4 + ((room / 3) % 3) * 12;
-            g.setColor(room == current ? 0xe0d060 : 0x608060);
-            g.fillRect(px, py, 9, 8);
+        int minX = Integer.MAX_VALUE, maxX = Integer.MIN_VALUE;
+        int minZ = Integer.MAX_VALUE, maxZ = Integer.MIN_VALUE;
+        for (int i = 0; i < world.visibleCount(); i++) {
+            int room = world.visibleRoom(i);
+            if (world.roomMinX(room) < minX)
+                minX = world.roomMinX(room);
+            if (world.roomMaxX(room) > maxX)
+                maxX = world.roomMaxX(room);
+            if (world.roomMinZ(room) < minZ)
+                minZ = world.roomMinZ(room);
+            if (world.roomMaxZ(room) > maxZ)
+                maxZ = world.roomMaxZ(room);
         }
+        int current = world.findRoom(p.x, p.z);
+        for (int i = 0; i < world.visibleCount(); i++) {
+            int room = world.visibleRoom(i);
+            int left = MinimapTransform.worldToPixel(world.roomMinX(room), minX, maxX, width);
+            int right = MinimapTransform.worldToPixel(world.roomMaxX(room), minX, maxX, width);
+            int top = MinimapTransform.worldToPixel(world.roomMinZ(room), minZ, maxZ, height);
+            int bottom = MinimapTransform.worldToPixel(world.roomMaxZ(room), minZ, maxZ, height);
+            g.setColor(room == current ? 0xe0d060 : 0x608060);
+            g.fillRect(x + left, y + top, right - left + 1, bottom - top + 1);
+        }
+        int px = MinimapTransform.worldToPixel(p.x, minX, maxX, width);
+        int py = MinimapTransform.worldToPixel(p.z, minZ, maxZ, height);
+        int directionX = MinimapTransform.directionX(px, p.yaw, 5);
+        int directionY = MinimapTransform.directionY(py, p.yaw, 5);
+        if (directionX < 0)
+            directionX = 0;
+        if (directionX >= width)
+            directionX = width - 1;
+        if (directionY < 0)
+            directionY = 0;
+        if (directionY >= height)
+            directionY = height - 1;
+        g.setColor(0xffffff);
+        g.fillRect(x + px - (px > 0 ? 1 : 0), y + py - (py > 0 ? 1 : 0),
+                px > 0 && px < width - 1 ? 3 : 2, py > 0 && py < height - 1 ? 3 : 2);
+        g.drawLine(x + px, y + py, x + directionX, y + directionY);
     }
 }

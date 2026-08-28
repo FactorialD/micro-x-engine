@@ -56,6 +56,8 @@
       <include name="com/microx/engine/CanvasFramePlanTest.java"/>
       <include name="com/microx/engine/ui/UIStateMachine.java"/>
       <include name="com/microx/engine/ui/UISettings.java"/>
+      <include name="com/microx/engine/ui/MinimapTransform.java"/>
+      <include name="com/microx/engine/ui/MinimapTransformTest.java"/>
       <include name="com/microx/engine/audio/AudioManager.java"/>
       <include name="com/microx/engine/audio/AudioManagerTest.java"/>
       <include name="javax/microedition/media/**"/>
@@ -112,6 +114,7 @@
       <arg value="${basedir}"/><arg value="${generated.resources.dir}"/>
     </java>
     <java classname="com.microx.engine.ui.UIStateMachineTest" fork="true" failonerror="true"><classpath><pathelement location="${desktop.test.classes.dir}"/></classpath></java>
+    <java classname="com.microx.engine.ui.MinimapTransformTest" fork="true" failonerror="true"><classpath><pathelement location="${desktop.test.classes.dir}"/></classpath></java>
     <java classname="com.microx.engine.audio.AudioManagerTest" fork="true" failonerror="true"><classpath><pathelement location="${desktop.test.classes.dir}"/></classpath></java>
     <java classname="com.microx.engine.CanvasFramePlanTest" fork="true" failonerror="true"><classpath><pathelement location="${desktop.test.classes.dir}"/><pathelement location="${resources.stage.dir}"/></classpath></java>
     <java classname="com.microx.engine.save.SaveStoreTest" fork="true" failonerror="true"><classpath><pathelement location="${desktop.test.classes.dir}"/></classpath></java>
