@@ -1,0 +1,20 @@
+# wild_territory: connected MXL2 story location; open floor provides accessible routes.
+MXL2
+counts 1 1 1 4 2 3 2 3 12
+room -8 8 -8 8
+floor 0 -8 8 -8 8 0
+ceiling 0 -8 8 -8 8 4
+edge 0 -8 -8 8 -8 0 4
+edge 0 -8 -8 -8 8 0 4
+edge 0 8 -8 8 8 0 4
+edge 0 -7 8 -6 8 0 4
+portal 50010 0 0 -1 1 0 3 -6 -4 -1 0
+portal 50011 0 0 -1 1 0 3 -2 0 -1 1
+spawn 0 0 0 0 0 0
+spawn 50 0 0 0 -5 0
+spawn 70 0 0 0 -2 0
+transition 60010 60 bar
+transition 60011 60 yantar
+entity 31061 1 -3 0 0 100 1 36 106
+entity 31062 7 0 0 2 1 0 17 1
+entity 31063 7 3 0 2 1 0 17 2

@@ -1,0 +1,1 @@
+1|rookie_cup|Кубок новачка|fee=500,waves=3,weapon=2,ammo=40,reward=3,location=arena,returnSpawn=30
