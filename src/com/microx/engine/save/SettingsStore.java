@@ -25,7 +25,7 @@ public final class SettingsStore {
             out.flush();
             records.add(raw.toByteArray());
         } catch (Exception e) {
-            throw new SaveException("settings write failed", e);
+            throw new SaveException("settings write failed: " + e.toString(), e);
         }
     }
     public boolean load(UISettings s) {
