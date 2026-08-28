@@ -33,6 +33,7 @@ public final class Engine implements Runnable {
     private SaveStore saves;
     private SettingsStore settings;
     private String location = "cordon";
+    private String resourceError;
     private int actorFaction;
     private boolean repairing;
     private String operationResult;
@@ -184,6 +185,7 @@ public final class Engine implements Runnable {
         int oldX = player.x, oldY = player.y, oldZ = player.z, oldYaw = player.yaw;
         try {
             if (!assets.loadLocation(name, 0)) {
+                resourceError = assets.locationErrorPath();
                 candidate.clear();
                 return false;
             }
@@ -194,7 +196,9 @@ public final class Engine implements Runnable {
         }
         audio.leaveLocation();
         location = name;
+        resourceError = null;
         level = candidate;
+        renderer.setEnvironment(candidate.skyColor, candidate.wallColor, candidate.floorColor);
         player.reset(candidate.startX, candidate.startY, candidate.startZ);
         player.yaw = candidate.startYaw;
         candidate.world.updateVisibility(player.x, player.z);
@@ -675,7 +679,7 @@ public final class Engine implements Runnable {
         return arena;
     }
     public String locationName() {
-        return location;
+        return resourceError == null ? location : resourceError;
     }
     public int state() {
         return state;

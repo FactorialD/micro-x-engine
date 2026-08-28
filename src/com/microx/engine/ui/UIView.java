@@ -6,7 +6,7 @@ import com.microx.engine.world.*;
 /** Responsive, allocation-conscious painter for every modal game screen. */
 public final class UIView {
     private static final String[] TITLES = {"MICRO X", "GAME", "PAUSED", "PDA", "INVENTORY", "MAP",
-            "QUESTS", "DIALOGUE", "TRADE", "LOOT", "SETTINGS", "LOAD ERROR", "ПРО ГРУ", "SCENE",
+            "QUESTS", "DIALOGUE", "TRADE", "LOOT", "SETTINGS", "RESOURCE ERROR", "ПРО ГРУ", "SCENE",
             "ENDING", "ARENA", "CYCLIC QUEST", "FREEPLAY"};
     private static final String[] MAIN = {"NEW GAME", "LOAD", "SETTINGS", "ПРО ГРУ", "EXIT"},
                                   PAUSE = {"RESUME", "SAVE", "LOAD", "SETTINGS", "MAIN MENU"},

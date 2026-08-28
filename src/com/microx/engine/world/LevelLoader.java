@@ -11,6 +11,7 @@ public final class LevelLoader {
     public Collision collision;
     public EntityPool entities;
     public int startX, startY, startZ, startYaw;
+    public int skyColor, wallColor, floorColor;
     public int[] transitionId, transitionSpawn, spawnId, spawnX, spawnY, spawnZ, spawnYaw;
     public String[] transitionLocation;
     public boolean load(String path) {
@@ -21,6 +22,10 @@ public final class LevelLoader {
         try {
             Tokens in = new Tokens(stream);
             in.expect("MXL2");
+            in.expect("environment");
+            int sky = in.color(), wall = in.color(), floorColorValue = in.color();
+            if (sky == wall || sky == floorColorValue || wall == floorColorValue)
+                return false;
             in.expect("counts");
             int rooms = in.count(1, 256), floors = in.count(1, 1024), ceilings = in.count(1, 1024),
                 edges = in.count(0, 2048), portals = in.count(0, 1024), spawns = in.count(1, 256),
@@ -113,6 +118,9 @@ public final class LevelLoader {
             }
             if (in.hasNext())
                 return false;
+            skyColor = sky;
+            wallColor = wall;
+            floorColor = floorColorValue;
             world = w;
             collision = c;
             entities = e;
@@ -207,6 +215,16 @@ public final class LevelLoader {
         }
         int fixed() throws IOException {
             return range(-32767, 32767) * 65536;
+        }
+        int color() throws IOException {
+            String value = next();
+            if (value.length() != 6)
+                throw new IOException("invalid RGB color");
+            try {
+                return Integer.parseInt(value, 16);
+            } catch (NumberFormatException invalid) {
+                throw new IOException("invalid RGB color");
+            }
         }
         String location() throws IOException {
             String value = next();

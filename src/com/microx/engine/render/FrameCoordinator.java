@@ -17,6 +17,10 @@ public final class FrameCoordinator {
     private final Rasterizer rasterizer = new Rasterizer();
     private final EntityBillboardRenderer entities = new EntityBillboardRenderer();
     int submittedTriangles, clippedTriangles, drawnTriangles;
+    private int skyColor = 0x182030;
+    void setEnvironment(int sky, int wall, int floor) {
+        skyColor = sky;
+    }
     void setAssets(AssetManager value) {
         assets = value;
     }
@@ -66,7 +70,7 @@ public final class FrameCoordinator {
         if (rgb == null)
             return;
         submittedTriangles = clippedTriangles = drawnTriangles = 0;
-        rasterizer.clear(0x182030);
+        rasterizer.clear(skyColor);
         camera.update(player, width, height);
         if (assets != null) {
             world.updateVisibility(camera.x, camera.y, camera.z, camera.sin, camera.cos,

@@ -405,12 +405,19 @@ Metadata задається `o room_N`/`g room_N` або коментарем `#
 
 Кожна локація має єдиний структурований UTF-8 файл
 `res/levels/<location>/level.txt`. Перші два непорожні записи — `MXL2` і
-`counts`, після них у фіксованому порядку йдуть `room`, `floor`, `ceiling`,
+`environment SKY WALL FLOOR` (три різні кольори RGB888 без `#`), далі `counts`
+і у фіксованому порядку йдуть `room`, `floor`, `ceiling`,
 `edge`, `portal`, `spawn`, `transition` та `entity`. Координати задаються цілими
 метрами й під час читання переводяться у Q16.16. Runtime перевіряє counts,
 bounds, room/portal references, двосторонні reverse links, capacity, допустимі
 ідентифікатори локацій і відсутність зайвих токенів до атомарної публікації
 рівня. Рядкові коментарі починаються з `#`.
+
+Запускайте емулятор лише з `dist/micro-x-engine.jar`, створеного Ant launch
+**Micro X Engine - package**. Ціль `package` завжди виконує `convert-assets`,
+додає `geometry.mesh` і `textures.tex` для кожної локації та перевіряє весь JAR;
+`res/levels/*/geometry.txt` є лише editable source і не може бути classpath
+ресурсом runtime.
 
 ## 3. Формальний бюджет renderer-а
 

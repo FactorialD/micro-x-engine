@@ -7,7 +7,8 @@
     <listAttribute key="org.eclipse.debug.core.MAPPED_RESOURCE_TYPES">
         <listEntry value="1"/>
     </listAttribute>
-    <stringAttribute key="org.eclipse.ant.ui.ATTR_TARGETS" value="package,"/>
+    <!-- Emulator input is the validated dist JAR produced by the complete asset pipeline. -->
+    <stringAttribute key="org.eclipse.ant.ui.ATTR_TARGETS" value="package"/>
     <stringAttribute key="org.eclipse.ui.externaltools.ATTR_LOCATION" value="${workspace_loc:/micro-x-engine/build.xml}"/>
     <stringAttribute key="org.eclipse.ui.externaltools.ATTR_WORKING_DIRECTORY" value="${workspace_loc:/micro-x-engine}"/>
 </launchConfiguration>

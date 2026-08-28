@@ -10,7 +10,7 @@ from microx_editor.images import inspect_png,AssetError
 from microx_editor.app import resolve_unsaved
 class Tests(unittest.TestCase):
  def level_text(self, counts=(1,1,1,0,0,1,0,0,1), replacements=None):
-  n=list(counts); rows=['MXL2','counts '+' '.join(map(str,n))]
+  n=list(counts); rows=['MXL2','environment 203040 506070 304020','counts '+' '.join(map(str,n))]
   samples={
    'room':'room 0 1 0 1', 'floor':'floor 0 0 1 0 1 0',
    'ceiling':'ceiling 0 0 1 0 1 1', 'edge':'edge 0 0 0 1 0 0 1',
@@ -108,7 +108,7 @@ class Tests(unittest.TestCase):
   self.assertTrue(resolve_unsaved(True,True,lambda:saved.append(1)));self.assertEqual(saved,[1])
 
  def test_level_roundtrip_and_links(self):
-  s='MXL2\n# hi\ncounts 1 1 1 0 0 1 0 0 1\nroom 0 2 0 2\nfloor 0 0 2 0 2 0\nceiling 0 0 2 0 2 2\nspawn 1 0 1 0 1 0\n'
+  s='MXL2\n# hi\nenvironment 203040 506070 304020\ncounts 1 1 1 0 0 1 0 0 1\nroom 0 2 0 2\nfloor 0 0 2 0 2 0\nceiling 0 0 2 0 2 2\nspawn 1 0 1 0 1 0\n'
   self.assertEqual(serialize_level(parse_level_text(s)),s)
   with self.assertRaises(LevelError):parse_level_text(s.replace('counts 1','counts 2',1))
  def test_level_count_boundaries_match_converter(self):
@@ -144,7 +144,8 @@ class Tests(unittest.TestCase):
   good=self.level_text()
   invalid=(good.replace('MXL2\n','MXL2\nMXL2\n'),
            good.replace('counts ','counts 1 1 1 0 0 1 0 0 1\ncounts ',1),
-           good.replace('MXL2\ncounts 1 1 1 0 0 1 0 0 1\n','counts 1 1 1 0 0 1 0 0 1\nMXL2\n'),
+           good.replace('MXL2\nenvironment 203040 506070 304020\n',
+                        'environment 203040 506070 304020\nMXL2\n'),
            good.replace('MXL2\n','MXL2\nroom 0 1 0 1\n'))
   for text in invalid:
    with self.subTest(text=text[:30]),self.assertRaises(LevelError): parse_level_text(text)
