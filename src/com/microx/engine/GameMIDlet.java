@@ -7,8 +7,10 @@ public final class GameMIDlet extends MIDlet {
     protected void startApp() {
         if (engine == null) {
             engine = new Engine();
-            canvas = new GameCanvas3D(engine, "true".equals(getAppProperty("MicroX-Debug")));
-            Display.getDisplay(this).setCurrent(canvas);
+            Display display = Display.getDisplay(this);
+            canvas = new GameCanvas3D(
+                    engine, display, "true".equals(getAppProperty("MicroX-Debug")));
+            display.setCurrent(canvas);
             canvas.showInitial();
         } else
             engine.resume();

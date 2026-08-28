@@ -6,6 +6,7 @@ import com.microx.engine.ui.*;
 import com.microx.engine.render.TestScene;
 public final class GameCanvas3D extends GameCanvas {
     private final Engine engine;
+    private final Display display;
     public final UIStateMachine ui = new UIStateMachine();
     public final UISettings settings = new UISettings();
     private final UIView view = new UIView();
@@ -14,9 +15,10 @@ public final class GameCanvas3D extends GameCanvas {
     private final Object previewLock = new Object();
     private Thread previewThread;
     private boolean previewActive, previewShutdown, frameRequested;
-    public GameCanvas3D(Engine e, boolean d) {
+    public GameCanvas3D(Engine e, Display owner, boolean d) {
         super(false);
         engine = e;
+        display = owner;
         settings.debug = d;
         ui.setDebugMenu(d);
         e.attach(this);
@@ -108,6 +110,27 @@ public final class GameCanvas3D extends GameCanvas {
     }
     public void showInitial() {
         requestFrame();
+        engine.showRecoveryPrompt();
+    }
+
+    /** MIDP cannot distinguish a corrupt store from many access failures, so deletion is opt-in. */
+    void confirmStoreRecovery(final String name, String detail) {
+        final Alert alert = new Alert("Storage recovery",
+                name + " could not be opened. Recover only if the store is structurally corrupt. "
+                        + "Recovery permanently deletes its data.\n" + detail,
+                null, AlertType.WARNING);
+        final Command recover = new Command("Recover", Command.OK, 1);
+        final Command keep = new Command("Keep data", Command.CANCEL, 2);
+        alert.addCommand(recover);
+        alert.addCommand(keep);
+        alert.setTimeout(Alert.FOREVER);
+        alert.setCommandListener(new CommandListener() {
+            public void commandAction(Command command, Displayable source) {
+                display.setCurrent(GameCanvas3D.this);
+                engine.confirmStoreRecovery(name, command == recover);
+            }
+        });
+        display.setCurrent(alert);
     }
 
     /** Queues a frame; the preview thread is the sole owner of all LCDUI drawing calls. */
