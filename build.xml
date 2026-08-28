@@ -66,6 +66,8 @@
       <include name="com/microx/engine/assets/TextureData.java"/>
       <include name="com/microx/engine/render/Clipper.java"/>
       <include name="com/microx/engine/render/Rasterizer.java"/>
+      <include name="com/microx/engine/render/TriangleDepthOrder.java"/>
+      <include name="com/microx/engine/render/TriangleDepthOrderTest.java"/>
       <include name="com/microx/engine/render/RenderingTest.java"/>
       <include name="com/microx/engine/save/SaveData.java"/>
       <include name="com/microx/engine/save/SaveException.java"/>
@@ -81,6 +83,9 @@
       <classpath><pathelement location="${desktop.test.classes.dir}"/></classpath>
     </java>
     <java classname="com.microx.engine.render.RenderingTest" fork="true" failonerror="true">
+      <classpath><pathelement location="${desktop.test.classes.dir}"/></classpath>
+    </java>
+    <java classname="com.microx.engine.render.TriangleDepthOrderTest" fork="true" failonerror="true">
       <classpath><pathelement location="${desktop.test.classes.dir}"/></classpath>
     </java>
     <java classname="com.microx.engine.world.SimulationTest" fork="true" failonerror="true">
