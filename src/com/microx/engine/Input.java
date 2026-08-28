@@ -80,6 +80,12 @@ public final class Input {
         return command(k, 0);
     }
     public static int command(int k, int action) {
+        // Some handsets report FIRE as the game action for their soft keys.  A useful raw
+        // soft-key code is therefore authoritative and must be considered first.
+        if (k == -6)
+            return BACK_CMD;
+        if (k == -7)
+            return MENU;
         int actionCommand = commandForAction(action);
         if (actionCommand != NONE)
             return actionCommand;
@@ -99,10 +105,6 @@ public final class Input {
             case '5':
             case -5:
                 return ACCEPT;
-            case -6:
-                return BACK_CMD;
-            case -7:
-                return MENU;
             case '*':
                 return TAB_LEFT;
             case '#':

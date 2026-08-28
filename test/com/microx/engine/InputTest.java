@@ -21,6 +21,8 @@ public final class InputTest {
         eq(Input.FIRE, Input.gameplayBit(-5, 8));
         eq(Input.PAUSE, Input.gameplayBit(-6, 0));
         eq(Input.PAUSE, Input.gameplayBit(-7, 0));
+        eq(Input.BACK_CMD, Input.command(-6, 8));
+        eq(Input.MENU, Input.command(-7, 8));
         eq(Input.FORWARD, Input.gameplayBit(2, 1)); // KEmulator action-bearing code
     }
     private static void matchingRelease() {
