@@ -1,0 +1,32 @@
+# Rotating debug cube. Every face is a separate material with a fallback RGB color.
+# microx material front texture=0 color=e05050
+# microx material back texture=1 color=50a0e0
+# microx material left texture=2 color=60c070
+# microx material right texture=3 color=e0c050
+# microx material top texture=4 color=b060d0
+# microx material bottom texture=5 color=50c0c0
+o room_0
+v -1 -1 -1
+v 1 -1 -1
+v 1 1 -1
+v -1 1 -1
+v -1 -1 1
+v 1 -1 1
+v 1 1 1
+v -1 1 1
+vt 0 0
+vt 1 0
+vt 1 1
+vt 0 1
+usemtl front
+f 5/1 6/2 7/3 8/4
+usemtl back
+f 2/1 1/2 4/3 3/4
+usemtl left
+f 1/1 5/2 8/3 4/4
+usemtl right
+f 6/1 2/2 3/3 7/4
+usemtl top
+f 4/1 8/2 7/3 3/4
+usemtl bottom
+f 1/1 2/2 6/3 5/4

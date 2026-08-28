@@ -1,0 +1,26 @@
+# Rotating debug pyramid. Every side and the base has its own material and fallback.
+# microx material north texture=0 color=e06040
+# microx material east texture=1 color=60b0e0
+# microx material south texture=2 color=70c050
+# microx material west texture=3 color=d070c0
+# microx material base texture=4 color=d0b050
+o room_0
+v -1 -1 -1
+v 1 -1 -1
+v 1 -1 1
+v -1 -1 1
+v 0 1 0
+vt 0 0
+vt 1 0
+vt 1 1
+vt 0.5 1
+usemtl north
+f 1/1 2/2 5/4
+usemtl east
+f 2/1 3/2 5/4
+usemtl south
+f 3/1 4/2 5/4
+usemtl west
+f 4/1 1/2 5/4
+usemtl base
+f 1/1 4/4 3/3 2/2
