@@ -10,6 +10,12 @@
 # Mobile Tools for Java (J2ME)
 .mtj.tmp/
 
+# Local Eclipse workspace/project state (portable project descriptors are tracked)
+.settings/
+.metadata/
+.recommenders/
+*.launch.local
+
 # Package Files #
 *.jar
 build/
@@ -28,3 +34,8 @@ replay_pid*
 # Python caches
 __pycache__/
 *.py[cod]
+
+# Keep the portable Eclipse/MTJ import descriptors under version control.
+!.project
+!.classpath
+!.mtj

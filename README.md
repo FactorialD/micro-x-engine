@@ -17,6 +17,32 @@ fallback: у `build.properties` явно задані `toolchain.jdk.home` і `w
 Локальні шляхи можна перевизначити через `ant -Dtoolchain.jdk.home=... \
 -Dwtk.home=... package`.
 
+### Імпорт до Eclipse / MTJ
+
+1. Встановіть Eclipse із сумісним **Mobile Tools for Java (MTJ)** (або
+   дистрибутив Eclipse Pulsar, що містить MTJ).
+2. У налаштуваннях Eclipse відкрийте **Java ME → Device Management** (у деяких
+   версіях — **Installed Device Configurations**) і зареєструйте локальний
+   Java ME WTK або інший device SDK, який надає **MIDP 2.0 / CLDC 1.1**.
+   Репозиторій навмисно не зберігає абсолютний шлях до WTK.
+3. Виберіть **File → Import → Existing Projects into Workspace**, укажіть
+   корінь цього репозиторію та імпортуйте проєкт `micro-x-engine` без
+   копіювання чи переміщення його вмісту.
+4. У властивостях **Java ME** проєкту зіставте його конфігурацію з
+   зареєстрованим device і переконайтеся, що вибрано **MIDP 2.0 / CLDC 1.1**.
+   До MIDlet compilation unit входить лише `src/`; `tools/src/`, `test/`,
+   `assets-src/` і `sdk/` залишаються окремими host/source-data каталогами.
+5. Для resource conversion, preverification і створення фінальних JAR/JAD
+   запустіть version-controlled конфігурацію **Run → External Tools → External
+   Tools Configurations… → Ant Build → Micro X Engine - package**. Вона
+   викликає наявну ціль `package` з `build.xml`; не додавайте `assets-src/` як
+   Eclipse resource folder або безпосередньо до JAR.
+
+Каталоги `src/`, `assets-src/`, `tools/src/` і `sdk/python/` повинні лишатися
+на своїх місцях: `build.xml` та `build.properties` посилаються на цю структуру.
+Локальні SDK paths задавайте в Eclipse Installed Device Configurations або як
+локальні Ant properties, а не в `.project`, `.classpath`, `.mtj` чи launch-файлі.
+
 Основні Ant-цілі:
 
 * `compile-tools` компілює desktop-конвертер поточним host JDK;

@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mtjMetadata xmlns="http://www.eclipse.org/mtj/metadata">
+	<!-- Resolve the SDK from Eclipse's Installed Device Configurations; no local WTK path belongs here. -->
+	<configuration name="micro-x-engine" configuration="CLDC-1.1" profile="MIDP-2.0">
+		<midlet name="Micro X Engine" class="com.microx.engine.GameMIDlet"/>
+	</configuration>
+</mtjMetadata>
