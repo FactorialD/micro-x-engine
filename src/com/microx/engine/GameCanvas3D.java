@@ -17,6 +17,9 @@ public final class GameCanvas3D extends GameCanvas {
         settings.debug = d;
         ui.setDebugMenu(d);
         e.attach(this);
+        // attach() restores persisted settings, so use the effective value rather than only the
+        // manifest default passed to the constructor.
+        ui.setDebugMenu(settings.debug);
         setFullScreenMode(true);
     }
     protected void keyPressed(int key) {
@@ -39,6 +42,8 @@ public final class GameCanvas3D extends GameCanvas {
         if (ui.state() == UIStateMachine.SETTINGS
                 && (cmd == Input.UI_LEFT || cmd == Input.UI_RIGHT)) {
             settings.change(ui.selection(), cmd == Input.UI_RIGHT ? 1 : -1);
+            ui.setDebugMenu(settings.debug);
+            renderFrame();
             return;
         }
         ui.command(cmd);
