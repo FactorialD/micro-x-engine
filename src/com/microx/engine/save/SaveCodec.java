@@ -78,14 +78,21 @@ public final class SaveCodec {
             s.savedAt = in.readLong();
             s.seed = in.readInt();
             s.location = in.readUTF();
-            if (s.location.length() < 1 || s.location.length() > SaveData.MAX_LOCATION)
+            if (s.location.length() < 1 || s.location.length() > SaveData.MAX_LOCATION
+                    || !SaveData.validLocation(s.location))
                 throw new SaveException("invalid location metadata");
             s.spawn = in.readUnsignedShort();
+            if (!SaveData.validSpawn(s.location, s.spawn))
+                throw new SaveException("invalid location spawn");
             s.x = in.readInt();
             s.y = in.readInt();
             s.z = in.readInt();
             s.yaw = in.readShort();
             s.pitch = in.readShort();
+            if (!validFixed(s.x) || !validFixed(s.y) || !validFixed(s.z))
+                throw new SaveException("invalid fixed-point position");
+            if (s.yaw < -180 || s.yaw > 180 || s.pitch < -89 || s.pitch > 89)
+                throw new SaveException("invalid player orientation");
             s.health = in.readShort();
             s.armor = in.readShort();
             s.stamina = in.readShort();
@@ -233,5 +240,8 @@ public final class SaveCodec {
     private int readInt(byte[] b, int p) {
         return ((b[p] & 255) << 24) | ((b[p + 1] & 255) << 16) | ((b[p + 2] & 255) << 8)
                 | (b[p + 3] & 255);
+    }
+    private boolean validFixed(int value) {
+        return value >= -32767 * 65536 && value <= 32767 * 65536;
     }
 }

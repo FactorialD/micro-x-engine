@@ -25,6 +25,7 @@ public final class SaveStoreTest {
     public static void main(String[] args) throws Exception {
         if (!ItemCatalog.loadDefault())
             throw new AssertionError("gameplay catalog unavailable");
+        codecValidation();
         Memory m = new Memory();
         SaveStore store = new SaveStore(m);
         SaveData s = new SaveData();
@@ -58,13 +59,17 @@ public final class SaveStoreTest {
         eq(2, newest.gameplay.quests.ending(), "ending restored");
         eq(99, newest.gameplay.quests.cyclicSeed(), "cyclic seed restored");
         chest.clear();
-        if (!newest.gameplay.containers.restore(31012, chest)) throw new AssertionError();
+        if (!newest.gameplay.containers.restore(31012, chest))
+            throw new AssertionError();
         eq(43, chest.conditionOf(2), "container durability restored");
         m.corrupt(3);
         SaveData fallback = store.load(0);
         eq(100, fallback.x, "fallback after corrupt prepared record");
+        if (!fallback.recovered)
+            throw new AssertionError("fallback source not reported");
         chest.clear();
-        if (!fallback.gameplay.containers.restore(31012, chest)) throw new AssertionError();
+        if (!fallback.gameplay.containers.restore(31012, chest))
+            throw new AssertionError();
         eq(1, chest.count(2), "fallback container has no duplicated item");
         eq(43, chest.conditionOf(2), "fallback container durability");
         int before = m.data.size();
@@ -73,6 +78,32 @@ public final class SaveStoreTest {
         if (m.data.size() != before + 1)
             throw new AssertionError();
         System.out.println("SaveStoreTest OK");
+    }
+    private static void codecValidation() throws Exception {
+        SaveCodec codec = new SaveCodec();
+        SaveData data = new SaveData();
+        data.location = "laboratory";
+        data.spawn = 70;
+        data.yaw = 90;
+        codec.decode(codec.encode(data));
+        data.location = "missing_level";
+        rejected(codec, data, "unknown location");
+        data.location = "laboratory";
+        data.spawn = 71;
+        rejected(codec, data, "unknown spawn");
+        data.spawn = 70;
+        data.x = Integer.MIN_VALUE;
+        rejected(codec, data, "fixed coordinate overflow");
+        data.x = 0;
+        data.pitch = 90;
+        rejected(codec, data, "pitch outside camera range");
+    }
+    private static void rejected(SaveCodec codec, SaveData data, String label) throws Exception {
+        try {
+            codec.decode(codec.encode(data));
+            throw new AssertionError(label + " accepted");
+        } catch (SaveException expected) {
+        }
     }
     private static void eq(int expected, int actual, String label) {
         if (expected != actual)

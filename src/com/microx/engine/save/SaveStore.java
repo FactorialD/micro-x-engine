@@ -35,8 +35,8 @@ public final class SaveStore {
         } catch (SaveException e) {
             throw e;
         } catch (Exception e) {
-            throw new SaveException("RecordStore write failed; previous commit remains valid: "
-                    + e.toString(), e);
+            throw new SaveException(
+                    "RecordStore write failed; previous commit remains valid: " + e.toString(), e);
         }
     }
     public synchronized SaveData load(int slot) throws SaveException {
@@ -75,15 +75,18 @@ public final class SaveStore {
                 } catch (Exception invalid) {
                     rejected = invalid instanceof SaveException
                             ? (SaveException) invalid
-                            : new SaveException("invalid committed save: " + invalid.toString(), invalid);
+                            : new SaveException(
+                                      "invalid committed save: " + invalid.toString(), invalid);
                 }
             }
-            if (best != null)
+            if (best != null) {
+                best.recovered = rejected != null;
                 return best;
+            }
             if (rejected != null)
-                throw new SaveException(
-                        "no valid save; newest and fallback records are invalid: "
-                                + rejected.toString(), rejected);
+                throw new SaveException("no valid save; newest and fallback records are invalid: "
+                                + rejected.toString(),
+                        rejected);
             throw new SaveException("save slot is empty");
         } catch (SaveException e) {
             throw e;
