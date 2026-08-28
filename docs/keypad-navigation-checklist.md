@@ -17,6 +17,8 @@ Do not use a pointer/touch input.
 - [ ] The right soft key opens Pause; `2`/`8` and `5` resume, open Settings, or return to the main menu.
 - [ ] The left soft key backs out of Settings, PDA, Inventory, Map, Quests, Dialogue, Trade and Loot.
 - [ ] Gameplay keys `1`–`9`, `0`, `*`, `#`, both soft keys and directional game-action codes work on the target handset.
-- [ ] With Debug enabled, the FPS/entity/room line is visible and does not overlap the minimap.
+- [ ] With Debug enabled, every overlay row (FPS and update/render p95; TRI submitted/clipped/drawn; TEX/mesh; heap used/total/peak; renderer used/budget/percent; location; NPC/MUT/ITEM/ANOM/CORPSE; visible rooms/dropped steps) is legible and does not overlap the minimap, HP/armor/stamina, ammo, or crosshair.
+- [ ] Check all debug-overlay rows at 240×320 and at the smaller and larger test sizes, in renderer resolution modes 0, 1 and 2.
+- [ ] Move between locations and change geometry; confirm the location, TEX and mesh counters update. Spawn/kill entities and confirm the separate NPC, MUT, ITEM, ANOM and CORPSE counters update.
 - [ ] Health, armor, stamina, magazine/reserve, weapon, bleeding/radiation and interaction prompt remain legible.
 - [ ] Hold a modal menu open for 30 seconds and confirm player position, AI and status timers do not advance.

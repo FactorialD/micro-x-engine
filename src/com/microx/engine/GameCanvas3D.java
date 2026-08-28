@@ -86,8 +86,8 @@ public final class GameCanvas3D extends GameCanvas {
             engine.stats.submittedTriangles = engine.renderer.submittedTriangles();
             engine.stats.clippedTriangles = engine.renderer.clippedTriangles();
             engine.stats.drawnTriangles = engine.renderer.drawnTriangles();
-            engine.hud.paint(g, engine.player, engine.level.world, engine.stats.fps,
-                    engine.stats.entities, engine.stats.rooms, settings.debug);
+            engine.hud.paint(g, engine.player, engine.level.world, engine.stats,
+                    engine.locationName(), settings.debug);
         }
         view.bind(engine.gameplay, engine.gameplayTables(), engine.player, engine.level,
                 engine.locationName(), engine.tradeFaction(), engine.repairMode(),

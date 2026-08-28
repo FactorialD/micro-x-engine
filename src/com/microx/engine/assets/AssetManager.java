@@ -37,6 +37,22 @@ public final class AssetManager {
     public int locationSectionCount() {
         return locationSections == null ? 0 : locationSections.length;
     }
+    /** Resident counts are direct array-length reads and allocate no telemetry snapshots. */
+    public int sharedSectionCount() {
+        return sharedSections == null ? 0 : sharedSections.length;
+    }
+    public int locationTextureCount() {
+        return locationTextures == null ? 0 : locationTextures.length;
+    }
+    public int sharedTextureCount() {
+        return sharedTextures == null ? 0 : sharedTextures.length;
+    }
+    public int residentSectionCount() {
+        return sharedSectionCount() + locationSectionCount();
+    }
+    public int residentTextureCount() {
+        return sharedTextureCount() + locationTextureCount();
+    }
     public MeshSection locationSection(int index) {
         return locationSections[index];
     }
