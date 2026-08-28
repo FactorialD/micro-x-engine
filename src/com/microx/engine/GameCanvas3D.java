@@ -1,5 +1,7 @@
 package com.microx.engine;
 import javax.microedition.lcdui.*;
+import javax.microedition.lcdui.game.GameCanvas;
+
 import com.microx.engine.ui.*;
 public final class GameCanvas3D extends GameCanvas {
     private final Engine engine;
