@@ -2,29 +2,65 @@ package com.microx.engine.save;
 import javax.microedition.rms.*;
 /** MIDP RecordStore adapter. */
 public final class RmsBackend implements RecordBackend {
-    private final RecordStore store;
-    private final String recoveryStatus;
-    public RmsBackend(String name) throws RecordStoreException {
-        store = RecordStore.openRecordStore(name, true);
-        recoveryStatus = null;
+    /** Small seam used by host-side tests without a MIDP RecordStore implementation. */
+    public interface RmsAdapter {
+        RecordBackend open(String name) throws RecordStoreException;
+        void delete(String name) throws RecordStoreException;
     }
-    private RmsBackend(String name, boolean confirmedCorrupt) throws RecordStoreException {
-        RecordStore opened = null;
-        String status = null;
-        try {
-            opened = RecordStore.openRecordStore(name, true);
-        } catch (RecordStoreException failure) {
-            if (!confirmedCorrupt)
-                throw failure;
-            if (opened != null)
-                try {
-                    opened.closeRecordStore();
-                } catch (RecordStoreException ignored) {
-                }
+    private static final class MidpAdapter implements RmsAdapter {
+        public RecordBackend open(String name) throws RecordStoreException {
+            return new MidpRecords(RecordStore.openRecordStore(name, true));
+        }
+        public void delete(String name) throws RecordStoreException {
             RecordStore.deleteRecordStore(name);
-            opened = RecordStore.openRecordStore(name, true);
-            status = "DATA LOST: corrupt RecordStore was deleted and recreated: "
-                    + failure.toString();
+        }
+    }
+    private static final class MidpRecords implements RecordBackend {
+        private final RecordStore store;
+        MidpRecords(RecordStore value) { store = value; }
+        public int add(byte[] b) throws Exception {
+            return store.addRecord(b, 0, b.length);
+        }
+        public byte[] get(int id) throws RecordStoreException { return store.getRecord(id); }
+        public int[] ids() throws RecordStoreException {
+            int[] a = new int[store.getNumRecords()];
+            int n = 0;
+            RecordEnumeration e = store.enumerateRecords(null, null, false);
+            while (e.hasNextElement()) a[n++] = e.nextRecordId();
+            e.destroy();
+            if (n == a.length) return a;
+            int[] exact = new int[n];
+            System.arraycopy(a, 0, exact, 0, n);
+            return exact;
+        }
+        public void close() throws RecordStoreException { store.closeRecordStore(); }
+    }
+    private static final RmsAdapter MIDP = new MidpAdapter();
+    private final RecordBackend store;
+    private final String recoveryStatus;
+    public RmsBackend(String name) throws Exception {
+        this(name, MIDP, false);
+    }
+    private RmsBackend(String name, RmsAdapter adapter, boolean confirmedCorrupt)
+            throws Exception {
+        RecordBackend opened = null;
+        String status = null;
+        if (!confirmedCorrupt) {
+            opened = adapter.open(name);
+        } else {
+            try {
+                // A damaged store can still open on some RMS implementations. Never delete it
+                // while that successfully opened handle remains live.
+                opened = adapter.open(name);
+            } catch (RecordStoreException ignored) {
+            }
+            if (opened != null) {
+                opened.close();
+                opened = null;
+            }
+            adapter.delete(name);
+            opened = adapter.open(name);
+            status = "DATA LOST: confirmed corrupt RecordStore was deleted and recreated: " + name;
         }
         store = opened;
         recoveryStatus = status;
@@ -34,31 +70,31 @@ public final class RmsBackend implements RecordBackend {
      * MIDP exposes emulator-specific open failures as the same RecordStoreException used for
      * ordinary access errors, so the regular constructor deliberately never deletes data.
      */
-    public static RmsBackend recoverCorruptStore(String name) throws RecordStoreException {
-        return new RmsBackend(name, true);
+    public static RmsBackend recoverCorruptStore(String name) throws Exception {
+        return recoverCorruptStore(name, MIDP);
+    }
+    /** Test seam; recovery must only be invoked after explicit corruption confirmation. */
+    public static RmsBackend recoverCorruptStore(String name, RmsAdapter adapter)
+            throws Exception {
+        return new RmsBackend(name, adapter, true);
+    }
+    /** Test seam for verifying ordinary open failures remain non-destructive. */
+    public static RmsBackend open(String name, RmsAdapter adapter) throws Exception {
+        return new RmsBackend(name, adapter, false);
     }
     public String recoveryStatus() {
         return recoveryStatus;
     }
-    public int add(byte[] b) throws RecordStoreException {
-        return store.addRecord(b, 0, b.length);
+    public int add(byte[] b) throws Exception {
+        return store.add(b);
     }
-    public byte[] get(int id) throws RecordStoreException {
-        return store.getRecord(id);
+    public byte[] get(int id) throws Exception {
+        return store.get(id);
     }
-    public int[] ids() throws RecordStoreException {
-        int[] a = new int[store.getNumRecords()];
-        int n = 0;
-        RecordEnumeration e = store.enumerateRecords(null, null, false);
-        while (e.hasNextElement()) a[n++] = e.nextRecordId();
-        e.destroy();
-        if (n == a.length)
-            return a;
-        int[] exact = new int[n];
-        System.arraycopy(a, 0, exact, 0, n);
-        return exact;
+    public int[] ids() throws Exception {
+        return store.ids();
     }
-    public void close() throws RecordStoreException {
-        store.closeRecordStore();
+    public void close() throws Exception {
+        store.close();
     }
 }

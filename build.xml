@@ -80,6 +80,9 @@
       <include name="com/microx/engine/save/SaveException.java"/>
       <include name="com/microx/engine/save/SaveCodec.java"/>
       <include name="com/microx/engine/save/RecordBackend.java"/>
+      <include name="com/microx/engine/save/RmsBackend.java"/>
+      <include name="com/microx/engine/save/RmsBackendTest.java"/>
+      <include name="javax/microedition/rms/**"/>
       <include name="com/microx/engine/save/SaveStore.java"/>
       <include name="com/microx/engine/save/SettingsStore.java"/>
       <include name="com/microx/engine/save/SaveStoreTest.java"/>
@@ -115,6 +118,7 @@
     <java classname="com.microx.engine.audio.AudioManagerTest" fork="true" failonerror="true"><classpath><pathelement location="${desktop.test.classes.dir}"/></classpath></java>
     <java classname="com.microx.engine.CanvasFramePlanTest" fork="true" failonerror="true"><classpath><pathelement location="${desktop.test.classes.dir}"/><pathelement location="${resources.stage.dir}"/></classpath></java>
     <java classname="com.microx.engine.save.SaveStoreTest" fork="true" failonerror="true"><classpath><pathelement location="${desktop.test.classes.dir}"/></classpath></java>
+    <java classname="com.microx.engine.save.RmsBackendTest" fork="true" failonerror="true"><classpath><pathelement location="${desktop.test.classes.dir}"/></classpath></java>
   </target>
 
   <target name="desktop-static-test" depends="desktop-test,check-level-contract" description="Run host-side static and persistence tests without MIDP packaging">
