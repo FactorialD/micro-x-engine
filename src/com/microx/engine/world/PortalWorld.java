@@ -96,6 +96,21 @@ public final class PortalWorld {
     public int portalTransition(int p) {
         return portalTransition[p];
     }
+    public int roomCount() {
+        return minX.length;
+    }
+    public int roomMinX(int room) {
+        return minX[room];
+    }
+    public int roomMaxX(int room) {
+        return maxX[room];
+    }
+    public int roomMinZ(int room) {
+        return minZ[room];
+    }
+    public int roomMaxZ(int room) {
+        return maxZ[room];
+    }
     public int updateVisibility(int x, int z) {
         return updateVisibility(x, 0, z, 0, 65536, 120, 160, 240, 320);
     }
