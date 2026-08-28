@@ -1,6 +1,6 @@
 package com.microx.engine.gameplay;
 
-/** Cursor over static slideshow frames; all text and timing remain in gameplay.dat. */
+/** Cursor over static slideshow frames; all text and timing remain in text gameplay tables. */
 public final class CutsceneSystem {
     private final GameplayTables tables;
     private int scene, order;

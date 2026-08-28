@@ -1,6 +1,6 @@
 package com.microx.engine.gameplay;
 
-/** Process-wide, validated runtime item catalog. Values originate only in gameplay.dat. */
+/** Process-wide, validated runtime item catalog. Values originate only in text gameplay tables. */
 public final class ItemCatalog {
     public static final byte TYPE_WEAPON = 1, TYPE_ARMOR = 2, TYPE_CONSUMABLE = 3,
                              TYPE_ARTIFACT = 4, TYPE_AMMO = 5, TYPE_BOLT = 6, TYPE_DETECTOR = 7;
@@ -14,7 +14,7 @@ public final class ItemCatalog {
     }
     public static boolean loadDefault() {
         GameplayTables tables = new GameplayTables();
-        return tables.load("/data/gameplay.dat") && install(tables);
+        return tables.load(GameplayTables.DEFAULT_RESOURCE) && install(tables);
     }
     private static GameplayTables get() {
         if (data == null)
