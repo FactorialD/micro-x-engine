@@ -5,6 +5,7 @@ public final class Telemetry {
             submittedTriangles, clippedTriangles, drawnTriangles, droppedFixedSteps,
             rendererBudgetBytes, rendererUsedBytes, rendererBudgetPercent, npcCount, mutantCount,
             itemCount, anomalyCount, corpseCount, textureCount, meshSectionCount;
+    public int lastRawKey, lastGameAction, inputDown;
     public long freeMemory, totalMemory, peakUsedMemory;
     private int frames, samples;
     private long epoch;
@@ -21,6 +22,11 @@ public final class Telemetry {
         rendererUsedBytes = used;
         rendererBudgetBytes = budget;
         rendererBudgetPercent = budget <= 0 ? 0 : (int) Math.min(100L, (long) used * 100 / budget);
+    }
+    public void input(int rawKey, int gameAction, int down) {
+        lastRawKey = rawKey;
+        lastGameAction = gameAction;
+        inputDown = down;
     }
     public void frame(long now) {
         frames++;

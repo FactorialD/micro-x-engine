@@ -518,6 +518,11 @@ public final class AssetConverter {
     public static void validateAndCopyLevel(Path input, Path output) throws IOException {
         Tokens t = new Tokens(input);
         t.expect("MXL2");
+        t.expect("environment");
+        int sky = t.color(), wall = t.color(), floorColor = t.color();
+        if (sky == wall || sky == floorColor || wall == floorColor)
+            t.fail("sky, wall and floor colors must be distinct");
+        writePaletteTexture(output.resolveSibling("textures.tex"), sky, wall, floorColor);
         t.expect("counts");
         int rooms = t.count(1, 256), floors = t.count(1, 1024), ceilings = t.count(1, 1024),
             edges = t.count(0, 2048), portals = t.count(0, 1024), spawns = t.count(1, 256),
@@ -617,6 +622,25 @@ public final class AssetConverter {
         out.close();
         Files.createDirectories(output.getParent());
         Files.copy(input, output, StandardCopyOption.REPLACE_EXISTING);
+    }
+    private static void writePaletteTexture(Path output, int sky, int wall, int floor)
+            throws IOException {
+        Files.createDirectories(output.getParent());
+        try (DataOutputStream out = new DataOutputStream(Files.newOutputStream(output))) {
+            out.writeInt(0x4d585432);
+            out.writeShort(2);
+            out.writeShort(3);
+            int[] colors = {floor, wall, wall};
+            for (int color : colors) {
+                out.writeShort(1);
+                out.writeShort(1);
+                out.writeShort(1);
+                out.writeByte(color >> 16);
+                out.writeByte(color >> 8);
+                out.writeByte(color);
+                out.writeByte(0);
+            }
+        }
     }
     private static void bounds(Tokens t, DataOutputStream out) throws IOException {
         int a = t.fixed(), b = t.fixed(), c = t.fixed(), d = t.fixed();
@@ -921,6 +945,12 @@ public final class AssetConverter {
         int fixed() throws IOException {
             int n = range(-MAX_FIXED, MAX_FIXED);
             return n * 65536;
+        }
+        int color() throws IOException {
+            String value = next();
+            if (!value.matches("[0-9A-Fa-f]{6}"))
+                fail("expected RGB color");
+            return Integer.parseInt(value, 16);
         }
         void fail(String m) throws IOException {
             throw new IOException(file + ": " + m + " at token " + p);

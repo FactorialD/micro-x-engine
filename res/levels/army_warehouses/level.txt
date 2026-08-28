@@ -1,5 +1,6 @@
 # army_warehouses: connected MXL2 story location; open floor provides accessible routes.
 MXL2
+environment 263d36 697b55 3d4938
 counts 1 1 1 4 2 3 2 3 12
 room -8 8 -8 8
 floor 0 -8 8 -8 8 0

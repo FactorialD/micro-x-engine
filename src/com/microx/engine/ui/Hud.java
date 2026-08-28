@@ -11,7 +11,8 @@ public final class Hud {
                                 PEAK = "PEAK ", RENDERER = "REND ", PERCENT = "REND% ",
                                 LOC = "LOC ", NPC = "NPC ", MUT = " MUT ", ITEM = "ITEM ",
                                 ANOM = " ANOM ", CORPSE = "CORPSE ", ROOMS = " ROOM ",
-                                DROP = " DROP ", SOURCE = "SRC ", POS = "POS ", ROOM = " R ";
+                                DROP = " DROP ", SOURCE = "SRC ", POS = "POS ", ROOM = " R ",
+                                KEY = "KEY ", ACTION = " A ", DOWN = " D ";
     private static final String[] WEAPONS = {"PM", "AK-74", "TOZ-34"};
     private final Font font = Font.getFont(Font.FACE_SYSTEM, Font.STYLE_PLAIN, Font.SIZE_SMALL);
     private boolean interaction;
@@ -56,6 +57,7 @@ public final class Hud {
     private void debug(Graphics g, Telemetry s, Player player, PortalWorld world, String location,
             String source, int x, int y) {
         int line = font.getHeight(), width = 150, rows = 15, p;
+
         g.setColor(0x101010);
         g.fillRect(x, y, width, rows * line);
         g.setColor(0xffffff);
@@ -128,6 +130,13 @@ public final class Hud {
         p = value(g, s.rooms, p, y);
         p = label(g, DROP, p, y);
         value(g, s.droppedFixedSteps, p, y);
+        y += line;
+        p = label(g, KEY, x + 2, y);
+        p = value(g, s.lastRawKey, p, y);
+        p = label(g, ACTION, p, y);
+        p = value(g, s.lastGameAction, p, y);
+        p = label(g, DOWN, p, y);
+        value(g, s.inputDown, p, y);
     }
     private int label(Graphics g, String text, int x, int y) {
         g.drawString(text, x, y, Graphics.TOP | Graphics.LEFT);

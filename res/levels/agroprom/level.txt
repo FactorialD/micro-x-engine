@@ -1,5 +1,6 @@
 # agroprom: connected MXL2 story location; open floor provides accessible routes.
 MXL2
+environment 20344a 756b52 4a4435
 counts 1 1 1 4 2 3 2 3 12
 room -8 8 -8 8
 floor 0 -8 8 -8 8 0

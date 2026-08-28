@@ -1,5 +1,6 @@
 # garbage: connected MXL2 story location; open floor provides accessible routes.
 MXL2
+environment 302631 765a65 43363e
 counts 1 1 1 5 3 4 3 6 12
 room -8 8 -8 8
 floor 0 -8 8 -8 8 0

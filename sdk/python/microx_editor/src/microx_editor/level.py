@@ -88,6 +88,12 @@ def parse_level_text(text: str) -> Level:
             if len(parts) != 1:
                 raise LevelError(f"line {no}: MXL2 takes no values")
             values = []
+        elif kind == "environment":
+            if len(parts) != 4 or any(len(c) != 6 for c in parts[1:]):
+                raise LevelError(f"line {no}: environment needs three RGB888 colors")
+            try: values = [format(int(c, 16), "06x") for c in parts[1:]]
+            except ValueError: raise LevelError(f"line {no}: invalid environment color")
+            if len(set(values)) != 3: raise LevelError(f"line {no}: environment colors must differ")
         elif kind == "counts":
             if len(parts) != 10:
                 raise LevelError(f"line {no}: counts needs 9 values")
@@ -107,10 +113,10 @@ def parse_level_text(text: str) -> Level:
         raise LevelError(f"expected exactly one MXL2 header, found {len(headers)}")
     if len(count_headers) != 1:
         raise LevelError(f"expected exactly one counts header, found {len(count_headers)}")
-    if structural[0][0] != "MXL2" or structural[1][0] != "counts":
-        raise LevelError("MXL2 and counts must be the first two non-comment lines, in that order")
+    if [x[0] for x in structural[:3]] != ["MXL2", "environment", "counts"]:
+        raise LevelError("MXL2, environment and counts must be the first records")
 
-    record_kinds = [kind for kind, _ in structural[2:]]
+    record_kinds = [kind for kind, _ in structural[3:]]
     positions = [KINDS.index(kind) for kind in record_kinds]
     if positions != sorted(positions):
         raise LevelError("records must follow converter order: " + ", ".join(KINDS))
@@ -122,12 +128,12 @@ def parse_level_text(text: str) -> Level:
 
 def validate_level(level: Level, declared=None):
     structural = [line.kind for line in level.lines if line.kind is not None]
-    if structural.count("MXL2") != 1 or structural.count("counts") != 1:
+    if structural.count("MXL2") != 1 or structural.count("environment") != 1 or structural.count("counts") != 1:
         raise LevelError("model must contain exactly one MXL2 and one counts header")
-    if structural[:2] != ["MXL2", "counts"]:
-        raise LevelError("MXL2 and counts must be the first two records, in that order")
-    record_positions = [KINDS.index(kind) for kind in structural[2:] if kind in KINDS]
-    if len(record_positions) != len(structural) - 2 or record_positions != sorted(record_positions):
+    if structural[:3] != ["MXL2", "environment", "counts"]:
+        raise LevelError("MXL2, environment and counts must be the first records")
+    record_positions = [KINDS.index(kind) for kind in structural[3:] if kind in KINDS]
+    if len(record_positions) != len(structural) - 3 or record_positions != sorted(record_positions):
         raise LevelError("records must follow converter order: " + ", ".join(KINDS))
     counts = [len(level.records(kind)) for kind in KINDS]
     if declared is None:
@@ -228,6 +234,8 @@ def serialize_level(level: Level) -> str:
             output.append(line.raw)
         elif line.kind == "MXL2":
             output.append("MXL2" + suffix)
+        elif line.kind == "environment":
+            output.append("environment " + " ".join(line.values or []) + suffix)
         elif line.kind == "counts":
             output.append("counts " + " ".join(map(str, counts + [capacity])) + suffix)
         else:

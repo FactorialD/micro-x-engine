@@ -85,6 +85,9 @@
     <java classname="com.microx.engine.combat.CombatTest" fork="true" failonerror="true">
       <classpath><pathelement location="${desktop.test.classes.dir}"/><pathelement location="${resources.stage.dir}"/></classpath>
     </java>
+    <java classname="com.microx.engine.InputTest" fork="true" failonerror="true">
+      <classpath><pathelement location="${desktop.test.classes.dir}"/><pathelement location="${resources.stage.dir}"/></classpath>
+    </java>
     <java classname="com.microx.engine.gameplay.GameplayTest" fork="true" failonerror="true"><classpath><pathelement location="${desktop.test.classes.dir}"/><pathelement location="${resources.stage.dir}"/></classpath></java>
     <java classname="com.microx.tools.GameplayDataTest" fork="true" failonerror="true"><classpath><pathelement location="${desktop.test.classes.dir}"/><pathelement location="${resources.stage.dir}"/></classpath></java>
     <java classname="com.microx.tools.LocationPackageTest" fork="true" failonerror="true">
@@ -185,7 +188,10 @@
     </jar>
   </target>
 
-  <target name="validate-package" depends="create-jar" description="Check mandatory runtime resources and reject source assets in the JAR">
+  <target name="validate-package" depends="create-jar" description="Check every authored location and reject source assets in the JAR">
+    <exec executable="sh" failonerror="true">
+      <arg value="tools/check-packaged-levels.sh"/><arg value="${dist.jar}"/>
+    </exec>
     <fail message="Mandatory Cordon runtime resources are missing from the JAR"><condition><not><resourcecount when="equal" count="2"><zipfileset src="${dist.jar}" includes="levels/cordon/level.txt,levels/cordon/geometry.mesh"/></resourcecount></not></condition></fail>
     <fail message="Mandatory Garbage runtime resources are missing from the JAR"><condition><not><resourcecount when="equal" count="2"><zipfileset src="${dist.jar}" includes="levels/garbage/level.txt,levels/garbage/geometry.mesh"/></resourcecount></not></condition></fail>
     <fail message="Story location runtime resources are missing from the JAR"><condition><not><resourcecount when="equal" count="22"><zipfileset src="${dist.jar}" includes="levels/depot/level.txt,levels/depot/geometry.mesh,levels/laboratory/level.txt,levels/laboratory/geometry.mesh,levels/arena/level.txt,levels/arena/geometry.mesh,levels/agroprom/level.txt,levels/agroprom/geometry.mesh,levels/bar/level.txt,levels/bar/geometry.mesh,levels/wild_territory/level.txt,levels/wild_territory/geometry.mesh,levels/yantar/level.txt,levels/yantar/geometry.mesh,levels/army_warehouses/level.txt,levels/army_warehouses/geometry.mesh,levels/radar/level.txt,levels/radar/geometry.mesh,levels/pripyat/level.txt,levels/pripyat/geometry.mesh,levels/cnpp/level.txt,levels/cnpp/geometry.mesh"/></resourcecount></not></condition></fail>
