@@ -145,16 +145,29 @@ public final class GameplayTables {
         for (int i = 0; i < content.length(); i++)
             if (content.charAt(i) == '\n')
                 count++;
+        
         String[] result = new String[count];
-        int start = 0, line = 0;
-        for (int i = 0; i <= content.length(); i++)
+
+        int start = 0;
+        int line = 0;
+
+        for (int i = 0; i <= content.length(); i++) {
             if (i == content.length() || content.charAt(i) == '\n') {
                 int end = i;
+
                 if (end > start && content.charAt(end - 1) == '\r')
                     end--;
-                result[line++] = content.substring(start, end);
+
+                int len = end - start;
+                char[] chars = new char[len];
+
+                content.getChars(start, end, chars, 0);
+                result[line++] = new String(chars);
+
                 start = i + 1;
             }
+        }
+
         return result;
     }
 
