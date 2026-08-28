@@ -277,7 +277,7 @@ public final class GameplayTables {
             int end = metadata.indexOf(',', from);
             if (end < 0)
                 end = metadata.length();
-            if (metadata.regionMatches(from, prefix, 0, prefix.length()))
+            if (metadata.regionMatches(false, from, prefix, 0, prefix.length()))
                 return metadata.substring(from + prefix.length(), end);
             from = end + 1;
         }
