@@ -1,7 +1,8 @@
+
 MIDlet-Name: Micro X Engine
 MIDlet-Vendor: Micro X
 MIDlet-Version: 0.1.0
 MIDlet-1: Micro X Engine,,com.microx.engine.GameMIDlet
 MicroEdition-Configuration: CLDC-1.1
-MicroEdition-Profile: MIDP-2.0
+MicroEdition-Profile: MIDP-2.1
 MIDlet-Jar-URL: micro-x-engine.jar

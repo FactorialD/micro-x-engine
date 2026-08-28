@@ -1,0 +1,3 @@
+1|network|Єднання з мережею|freeplay=0,scene=3
+2|survivor|Виживший|freeplay=0,scene=4
+3|freeplay|Вільна гра|freeplay=1,location=cordon,spawn=10,scene=4

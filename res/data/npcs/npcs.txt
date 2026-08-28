@@ -1,0 +1,15 @@
+1|sidorovich|Сидорович|ref=dialogs:1
+2|wolf|Вовк|ref=factions:1
+3|technician|Технік|ref=dialogs:3
+102|guide_102|Провідник локації 102|ref=dialogs:102
+103|guide_103|Провідник локації 103|ref=dialogs:103
+104|guide_104|Провідник локації 104|ref=dialogs:104
+105|guide_105|Провідник локації 105|ref=dialogs:105
+106|guide_106|Провідник локації 106|ref=dialogs:106
+107|guide_107|Провідник локації 107|ref=dialogs:107
+108|guide_108|Провідник локації 108|ref=dialogs:108
+109|guide_109|Провідник локації 109|ref=dialogs:109
+110|guide_110|Провідник локації 110|ref=dialogs:110
+111|guide_111|Провідник локації 111|ref=dialogs:111
+112|guide_112|Провідник локації 112|ref=dialogs:112
+113|guide_113|Провідник локації 113|ref=dialogs:113

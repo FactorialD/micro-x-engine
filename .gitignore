@@ -1,3 +1,23 @@
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 # Compiled class file
 *.class
 
@@ -18,7 +38,9 @@
 
 # Package Files #
 *.jar
+bin/
 build/
+deployed/
 micro-x-engine.jad
 *.war
 *.nar
@@ -39,3 +61,5 @@ __pycache__/
 !.project
 !.classpath
 !.mtj
+
+
