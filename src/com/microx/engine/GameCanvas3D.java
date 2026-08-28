@@ -91,7 +91,7 @@ public final class GameCanvas3D extends GameCanvas {
         }
         view.bind(engine.gameplay, engine.gameplayTables(), engine.player, engine.level,
                 engine.locationName(), engine.tradeFaction(), engine.repairMode(),
-                engine.tradeResult());
+                engine.tradeResult(), engine.containerTitle());
         view.bindNarrative(engine.storySystem(), engine.cutsceneSystem(),
                 engine.cyclicQuestSystem(), engine.arenaSystem());
         if (ui.state() != UIStateMachine.GAMEPLAY)
