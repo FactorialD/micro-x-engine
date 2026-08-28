@@ -2,11 +2,15 @@ package com.microx.engine.assets;
 
 /** Compact immutable structure-of-arrays mesh section belonging to one room. */
 public final class MeshSection {
-    private final int room, texture;
+    private final int room, texture, color;
     private final int[] xyz, uv;
     private final short[] indices;
     public MeshSection(int roomId, int textureId, int[] positions, int[] coordinates,
             short[] triangleIndices) {
+        this(roomId, textureId, 0xff00ff, positions, coordinates, triangleIndices);
+    }
+    public MeshSection(int roomId, int textureId, int fallbackColor, int[] positions,
+            int[] coordinates, short[] triangleIndices) {
         if (roomId < 0 || positions == null || coordinates == null || triangleIndices == null
                 || positions.length == 0 || positions.length % 3 != 0
                 || coordinates.length != positions.length / 3 * 2 || triangleIndices.length == 0
@@ -18,6 +22,7 @@ public final class MeshSection {
                 throw new IllegalArgumentException("mesh index out of range");
         room = roomId;
         texture = textureId;
+        color = fallbackColor & 0xffffff;
         xyz = positions;
         uv = coordinates;
         indices = triangleIndices;
@@ -27,6 +32,9 @@ public final class MeshSection {
     }
     public int texture() {
         return texture;
+    }
+    public int color() {
+        return color;
     }
     public int vertexCount() {
         return xyz.length / 3;

@@ -30,6 +30,10 @@ public final class Rasterizer {
     }
     boolean draw(int x0, int y0, int z0, int u0, int v0, int x1, int y1, int z1, int u1, int v1,
             int x2, int y2, int z2, int u2, int v2, TextureData texture) {
+        return draw(x0, y0, z0, u0, v0, x1, y1, z1, u1, v1, x2, y2, z2, u2, v2, texture, 0xff00ff);
+    }
+    boolean draw(int x0, int y0, int z0, int u0, int v0, int x1, int y1, int z1, int u1, int v1,
+            int x2, int y2, int z2, int u2, int v2, TextureData texture, int fallbackColor) {
         long area = edge(x0, y0, x1, y1, x2, y2);
         if (area <= 0)
             return false;
@@ -73,7 +77,7 @@ public final class Rasterizer {
                                             + q2 * ((long) v2 * iz2 / 256))
                                     / (256L * iz));
                         depth[at] = (short) zz;
-                        color[at] = texture.sample(u, v);
+                        color[at] = texture == null ? fallbackColor : texture.sample(u, v);
                         hit = true;
                     }
                 }

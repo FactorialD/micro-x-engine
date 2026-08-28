@@ -371,7 +371,11 @@ Pipeline кадру: `clear -> room/portal culling -> transform -> near/frustum 
 
 ## 2. Фактичні runtime-формати та offline-конвеєр
 
-OBJ ніколи не читається телефоном. `AssetConverter` приймає `v`, `vt`, кути
+Єдиний ресурс геометрії локації — UTF-8 файл
+`res/levels/<location>/geometry.txt`; імена `geometry.mesh` та інші binary-mesh
+варіанти не є частиною runtime-контракту. Loader та `AssetConverter` приймають
+у ньому OBJ-подібні записи `v X Y Z`, `vt U V`, `f V/VT ...`,
+`o room_N`/`g room_N` та `usemtl NAME`. Кути
 `v/vt` (також від’ємні OBJ-індекси), триангулює опуклий полігон fan-методом і
 зварює однакові пари position/UV у межах секції. Нульові та позадіапазонні
 індекси, відсутні UV, нечислові/нескінченні координати, Q16.16 overflow і
@@ -379,20 +383,18 @@ OBJ ніколи не читається телефоном. `AssetConverter` п
 `+X` праворуч, `+Y` вгору, `+Z` вперед. Лицьовий winding — CCW при погляді з
 лицьового боку (після проєкції rasterizer приймає додатну edge-area).
 
-Metadata задається `o room_N`/`g room_N` або коментарем `# microx room N`.
-Матеріал вибирається `usemtl`; відповідність texture id задає
-`# microx material NAME SIGNED_ID` (або суфікс `NAME_ID`). Зміна room/material
-починає окрему mesh section.
+Room metadata також можна задати коментарем `# microx room N`. Матеріал перед
+використанням оголошується як
+`# microx material NAME [texture=SIGNED_ID] [color=RRGGBB]`, де обидва атрибути
+необов'язкові, порядок атрибутів довільний, а колір — RGB888 без `#`.
+Якщо секція посилається на текстуру, `color` є обов'язковим і показується, коли
+саме цю текстуру неможливо знайти або прочитати. Відсутність посилання не
+підміняється глобальною «missing texture»: renderer одержує `null` і тому може
+вибрати колір секції. Якщо немає ані `texture`, ані `color`, використовується
+`FF00FF`. Зміна room/material починає окрему mesh section; `v/vt` індекси можуть
+бути додатними або від'ємними, полігон повинен мати щонайменше три кути.
 
-### 2.1. `MXM2`, binary mesh version 2 (big-endian)
-
-`magic:u32=MXM2`, `version:u16=2`, `sectionCount:u16`, далі для кожної секції:
-`room:u16`, `texture:i16`, `vertexCount:u16`, `triangleCount:u16`, масиви
-`xyz:i32[vertexCount*3]` Q16.16, `uv:i32[vertexCount*2]` Q16.16 та
-`indices:u16[triangleCount*3]`. Runtime приймає рівно v2, непорожні секції,
-валідні індекси, не більше 4096 секцій і відсутність trailing bytes.
-
-### 2.2. `MXT2`, indexed texture version 2 (big-endian)
+### 2.1. `MXT2`, indexed texture version 2 (big-endian)
 
 `magic:u32=MXT2`, `version:u16=2`, `textureCount:u16`; кожна текстура містить
 `width:u16`, `height:u16`, `paletteCount:u16`, `palette:RGB888[paletteCount]`,
@@ -401,7 +403,7 @@ Metadata задається `o room_N`/`g room_N` або коментарем `#
 `16 + paletteCount*4 + width*height` байтів; converter відхиляє atlas понад
 96 KiB, loader — некоректні palette indices, версію, counts і trailing data.
 
-### 2.3. `MXL2`, текстовий формат рівня
+### 2.2. `MXL2`, текстовий формат рівня
 
 Кожна локація має єдиний структурований UTF-8 файл
 `res/levels/<location>/level.txt`. Перші два непорожні записи — `MXL2` і
@@ -415,9 +417,9 @@ bounds, room/portal references, двосторонні reverse links, capacity, 
 
 Запускайте емулятор лише з `dist/micro-x-engine.jar`, створеного Ant launch
 **Micro X Engine - package**. Ціль `package` завжди виконує `convert-assets`,
-додає `geometry.mesh` і `textures.tex` для кожної локації та перевіряє весь JAR;
-`res/levels/*/geometry.txt` є лише editable source і не може бути classpath
-ресурсом runtime.
+валідує та додає `geometry.txt` разом із `textures.tex` для кожної локації, а
+потім перевіряє весь JAR. Конвертер не створює і пакет не містить
+`geometry.mesh`.
 
 ## 3. Формальний бюджет renderer-а
 
