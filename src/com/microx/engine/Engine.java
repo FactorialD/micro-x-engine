@@ -276,6 +276,7 @@ public final class Engine implements Runnable {
             pause();
     }
     public void shutdown() {
+        canvas.shutdownPreviewTicker();
         Thread old;
         synchronized (this) {
             state = SHUTDOWN;
