@@ -3,16 +3,19 @@ import javax.microedition.lcdui.*;
 import javax.microedition.lcdui.game.GameCanvas;
 
 import com.microx.engine.ui.*;
+import com.microx.engine.render.TestScene;
 public final class GameCanvas3D extends GameCanvas {
     private final Engine engine;
     public final UIStateMachine ui = new UIStateMachine();
     public final UISettings settings = new UISettings();
     private final UIView view = new UIView();
+    private final TestScene testScene = new TestScene();
     private boolean started;
     public GameCanvas3D(Engine e, boolean d) {
         super(false);
         engine = e;
         settings.debug = d;
+        ui.setDebugMenu(d);
         e.attach(this);
         setFullScreenMode(true);
     }
@@ -86,6 +89,10 @@ public final class GameCanvas3D extends GameCanvas {
             engine.uiAction(ui.state(), ui.selection(), false);
         else if (action == UIStateMachine.ACTION_LIST_ALT)
             engine.uiAction(ui.state(), ui.selection(), true);
+        else if (action == UIStateMachine.ACTION_TEST_OPEN) {
+            if (!testScene.open(ui.selection()))
+                ui.error();
+        }
     }
     public boolean gameplayBlocked() {
         return ui.modal();
@@ -95,7 +102,9 @@ public final class GameCanvas3D extends GameCanvas {
     }
     public void renderFrame() {
         Graphics g = getGraphics();
-        if (engine.level != null) {
+        if (ui.state() == UIStateMachine.TEST_VIEW) {
+            testScene.paint(g, getWidth(), getHeight(), System.currentTimeMillis());
+        } else if (engine.level != null) {
             engine.renderer.render(g, engine.player, engine.level.world, engine.level.entities);
             engine.stats.submittedTriangles = engine.renderer.submittedTriangles();
             engine.stats.clippedTriangles = engine.renderer.clippedTriangles();

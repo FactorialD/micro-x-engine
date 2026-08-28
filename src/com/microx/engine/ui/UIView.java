@@ -7,12 +7,14 @@ import com.microx.engine.world.*;
 public final class UIView {
     private static final String[] TITLES = {"MICRO X", "GAME", "PAUSED", "PDA", "INVENTORY", "MAP",
             "QUESTS", "DIALOGUE", "TRADE", "LOOT", "SETTINGS", "RESOURCE ERROR", "ПРО ГРУ", "SCENE",
-            "ENDING", "ARENA", "CYCLIC QUEST", "FREEPLAY"};
+            "ENDING", "ARENA", "CYCLIC QUEST", "FREEPLAY", "TEST", "TEST VIEW"};
     private static final String[] MAIN = {"NEW GAME", "LOAD GAME", "SETTINGS", "ПРО ГРУ", "EXIT"},
                                   PAUSE = {"RESUME", "SAVE", "LOAD", "SETTINGS", "MAIN MENU"},
                                   PDA = {"INVENTORY", "MAP", "QUESTS", "BACK"},
                                   SETTINGS = {"VOLUME", "RESOLUTION", "DEBUG", "CONTROLS",
-                                          "SENSITIVITY"};
+                                          "SENSITIVITY"},
+                                  TESTS = {"ROTATING CUBE", "ROTATING PYRAMID", "ROTATING CORDON",
+                                          "ROTATING GARBAGE"};
     private static final String[] QUEST_STATE = {"LOCKED", "ACTIVE", "COMPLETE", "FAILED"};
     private final Font font = Font.getFont(Font.FACE_SYSTEM, Font.STYLE_BOLD, Font.SIZE_SMALL);
     private GameplayState gameplay;
@@ -98,11 +100,15 @@ public final class UIView {
         }
     }
     private void drawMenu(Graphics g, UIStateMachine ui, UISettings settings, int w, int h) {
-        String[] items = ui.state() == UIStateMachine.MAIN_MENU ? MAIN
-                : ui.state() == UIStateMachine.PAUSE            ? PAUSE
-                : ui.state() == UIStateMachine.PDA              ? PDA
-                : ui.state() == UIStateMachine.SETTINGS         ? SETTINGS
-                                                                : new String[] {"OK"};
+        String[] items = ui.state() == UIStateMachine.MAIN_MENU
+                ? (ui.debugMenu() ? new String[] {"NEW GAME", "LOAD GAME", "SETTINGS", "ПРО ГРУ",
+                                            "TEST", "EXIT"}
+                                  : MAIN)
+                : ui.state() == UIStateMachine.PAUSE     ? PAUSE
+                : ui.state() == UIStateMachine.PDA       ? PDA
+                : ui.state() == UIStateMachine.SETTINGS  ? SETTINGS
+                : ui.state() == UIStateMachine.TEST_MENU ? TESTS
+                                                         : new String[] {"OK"};
         int gap = Math.max(14, Math.min(24, (h - 48) / Math.max(1, items.length)));
         for (int i = 0; i < items.length; i++) {
             int y = 42 + i * gap;
