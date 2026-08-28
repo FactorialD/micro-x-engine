@@ -1,6 +1,7 @@
 package com.microx.engine.save;
 import java.util.Vector;
 import com.microx.engine.gameplay.ItemCatalog;
+import com.microx.engine.ui.UISettings;
 public final class SaveStoreTest {
     private static final class Memory implements RecordBackend {
         final Vector data = new Vector();
@@ -22,10 +23,23 @@ public final class SaveStoreTest {
             b[b.length - 1] ^= 1;
         }
     }
+    private static final class Failing implements RecordBackend {
+        public int add(byte[] b) throws Exception {
+            throw new Exception("disk full");
+        }
+        public int[] ids() throws Exception {
+            throw new Exception("store unavailable");
+        }
+        public byte[] get(int id) throws Exception {
+            throw new Exception("store unavailable");
+        }
+        public void close() {}
+    }
     public static void main(String[] args) throws Exception {
         if (!ItemCatalog.loadDefault())
             throw new AssertionError("gameplay catalog unavailable");
         codecValidation();
+        unavailableStoresAreIndependent();
         Memory m = new Memory();
         SaveStore store = new SaveStore(m);
         SaveData s = new SaveData();
@@ -78,6 +92,28 @@ public final class SaveStoreTest {
         if (m.data.size() != before + 1)
             throw new AssertionError();
         System.out.println("SaveStoreTest OK");
+    }
+    private static void unavailableStoresAreIndependent() throws Exception {
+        SaveStore unavailableSaves = new SaveStore(new Failing());
+        try {
+            unavailableSaves.save(new SaveData());
+            throw new AssertionError("failed save accepted");
+        } catch (SaveException expected) {
+            if (expected.getMessage().indexOf("disk full") < 0)
+                throw new AssertionError("write cause missing from diagnostic");
+        }
+        Memory settingsRecords = new Memory();
+        SettingsStore settings = new SettingsStore(settingsRecords);
+        UISettings written = new UISettings();
+        written.volume = 37;
+        settings.save(written);
+        UISettings loaded = new UISettings();
+        if (!settings.load(loaded) || loaded.volume != 37)
+            throw new AssertionError("settings depend on failed save backend");
+
+        SettingsStore unavailableSettings = new SettingsStore(new Failing());
+        if (unavailableSettings.load(new UISettings()) || unavailableSettings.diagnostic() == null)
+            throw new AssertionError("settings read failure has no diagnostic");
     }
     private static void codecValidation() throws Exception {
         SaveCodec codec = new SaveCodec();

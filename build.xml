@@ -77,6 +77,7 @@
       <include name="com/microx/engine/save/SaveCodec.java"/>
       <include name="com/microx/engine/save/RecordBackend.java"/>
       <include name="com/microx/engine/save/SaveStore.java"/>
+      <include name="com/microx/engine/save/SettingsStore.java"/>
       <include name="com/microx/engine/save/SaveStoreTest.java"/>
     </javac>
     <java classname="com.microx.engine.math.FixedMathTest" fork="true" failonerror="true">
