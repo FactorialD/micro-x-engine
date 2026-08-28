@@ -12,6 +12,13 @@ public final class GameplayState {
     public final Inventory loot = new Inventory(24, 40);
     public int actorId, containerId, traderActorId;
 
+    public void clearPersistent() {
+        copyPersistentFrom(new GameplayState());
+        trader.clear();
+        loot.clear();
+        actorId = containerId = traderActorId = 0;
+    }
+
     public boolean acceptFindStash() {
         return quests.transition(GameIds.QUEST_FIND_STASH, 0, 1, 0, 0, -1, -1, 0, 1);
     }

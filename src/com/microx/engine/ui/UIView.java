@@ -8,7 +8,7 @@ public final class UIView {
     private static final String[] TITLES = {"MICRO X", "GAME", "PAUSED", "PDA", "INVENTORY", "MAP",
             "QUESTS", "DIALOGUE", "TRADE", "LOOT", "SETTINGS", "LOAD ERROR", "ПРО ГРУ", "SCENE",
             "ENDING", "ARENA", "CYCLIC QUEST", "FREEPLAY"};
-    private static final String[] MAIN = {"NEW GAME", "LOAD", "SETTINGS", "ПРО ГРУ", "EXIT"},
+    private static final String[] MAIN = {"NEW GAME", "LOAD GAME", "SETTINGS", "ПРО ГРУ", "EXIT"},
                                   PAUSE = {"RESUME", "SAVE", "LOAD", "SETTINGS", "MAIN MENU"},
                                   PDA = {"INVENTORY", "MAP", "QUESTS", "BACK"},
                                   SETTINGS = {"VOLUME", "RESOLUTION", "DEBUG", "CONTROLS",

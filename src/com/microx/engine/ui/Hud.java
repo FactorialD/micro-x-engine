@@ -11,7 +11,7 @@ public final class Hud {
                                 PEAK = "PEAK ", RENDERER = "REND ", PERCENT = "REND% ",
                                 LOC = "LOC ", NPC = "NPC ", MUT = " MUT ", ITEM = "ITEM ",
                                 ANOM = " ANOM ", CORPSE = "CORPSE ", ROOMS = " ROOM ",
-                                DROP = " DROP ";
+                                DROP = " DROP ", SOURCE = "SRC ", POS = "POS ", ROOM = " R ";
     private static final String[] WEAPONS = {"PM", "AK-74", "TOZ-34"};
     private final Font font = Font.getFont(Font.FACE_SYSTEM, Font.STYLE_PLAIN, Font.SIZE_SMALL);
     private boolean interaction;
@@ -19,7 +19,7 @@ public final class Hud {
         interaction = value;
     }
     public void paint(Graphics g, Player p, PortalWorld world, Telemetry stats, String location,
-            boolean debug) {
+            String source, boolean debug) {
         int w = g.getClipWidth(), h = g.getClipHeight(), vx = Math.max(0, (w - 240) / 2),
             vy = Math.max(0, (h - 320) / 2);
         g.setFont(font);
@@ -50,11 +50,12 @@ public final class Hud {
         g.drawLine(cx - 5, cy, cx + 5, cy);
         g.drawLine(cx, cy - 5, cx, cy + 5);
         if (debug) {
-            debug(g, stats, location, vx + 3, vy + 58);
+            debug(g, stats, p, world, location, source, vx + 3, vy + 58);
         }
     }
-    private void debug(Graphics g, Telemetry s, String location, int x, int y) {
-        int line = font.getHeight(), width = 114, rows = 13, p;
+    private void debug(Graphics g, Telemetry s, Player player, PortalWorld world, String location,
+            String source, int x, int y) {
+        int line = font.getHeight(), width = 150, rows = 15, p;
         g.setColor(0x101010);
         g.fillRect(x, y, width, rows * line);
         g.setColor(0xffffff);
@@ -97,6 +98,18 @@ public final class Hud {
         y += line;
         p = label(g, LOC, x + 2, y);
         g.drawString(location == null ? "-" : location, p, y, Graphics.TOP | Graphics.LEFT);
+        y += line;
+        p = label(g, SOURCE, x + 2, y);
+        g.drawString(source == null ? "-" : source, p, y, Graphics.TOP | Graphics.LEFT);
+        y += line;
+        p = label(g, POS, x + 2, y);
+        p = value(g, player.x, p, y);
+        p = slash(g, p, y);
+        p = value(g, player.y, p, y);
+        p = slash(g, p, y);
+        p = value(g, player.z, p, y);
+        p = label(g, ROOM, p, y);
+        value(g, world.findRoom(player.x, player.z), p, y);
         y += line;
         p = label(g, NPC, x + 2, y);
         p = value(g, s.npcCount, p, y);

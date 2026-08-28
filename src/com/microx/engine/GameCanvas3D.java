@@ -44,13 +44,13 @@ public final class GameCanvas3D extends GameCanvas {
     }
     private void handleAction() {
         int action = ui.action();
-        if (action == UIStateMachine.ACTION_START && !started) {
-            started = true;
+        if (action == UIStateMachine.ACTION_START) {
             try {
-                if (!engine.start()) {
+                if (!engine.startNewGame()) {
                     started = false;
                     ui.error();
-                }
+                } else
+                    started = true;
             } catch (Throwable failure) {
                 started = false;
                 ui.error();
@@ -89,7 +89,7 @@ public final class GameCanvas3D extends GameCanvas {
             engine.stats.clippedTriangles = engine.renderer.clippedTriangles();
             engine.stats.drawnTriangles = engine.renderer.drawnTriangles();
             engine.hud.paint(g, engine.player, engine.level.world, engine.stats,
-                    engine.locationName(), settings.debug);
+                    engine.locationName(), engine.stateSource(), settings.debug);
         }
         view.bind(engine.gameplay, engine.gameplayTables(), engine.player, engine.level,
                 engine.locationName(), engine.tradeFaction(), engine.repairMode(),

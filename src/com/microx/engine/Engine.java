@@ -33,6 +33,7 @@ public final class Engine implements Runnable {
     private SaveStore saves;
     private SettingsStore settings;
     private String location = "cordon";
+    private String stateSource = "NEW";
     private int actorFaction;
     private boolean repairing;
     private String operationResult;
@@ -54,9 +55,19 @@ public final class Engine implements Runnable {
         }
     }
     public synchronized boolean start() {
+        return startNewGame();
+    }
+    /** Explicit new-game path: never consults the save RecordStore. */
+    public synchronized boolean startNewGame() {
         if (state == SHUTDOWN)
             return false;
         if (thread != null) {
+            persistent = new SaveData();
+            persistent.seed = 0x4d58534d;
+            gameplay.clearPersistent();
+            if (!loadLocation("cordon", 0, false))
+                return false;
+            stateSource = "NEW";
             resume();
             return true;
         }
@@ -70,8 +81,10 @@ public final class Engine implements Runnable {
         arena = new ArenaSystem(tables);
         persistent = new SaveData();
         persistent.seed = 0x4d58534d;
+        gameplay.clearPersistent();
         if (!loadLocation("cordon", 0, false))
             return false;
+        stateSource = "NEW";
         renderer.load();
         state = RUNNING;
         thread = new Thread(this);
@@ -85,10 +98,21 @@ public final class Engine implements Runnable {
             SaveData loaded = saves.load(0);
             if (!loadLocation(loaded.location, loaded.spawn, false))
                 return false;
+            restorePlayer(loaded);
+            boolean validPosition = validPlayerPosition();
+            if (!validPosition) {
+                int spawn = SaveData.validSpawn(loaded.location, loaded.spawn) ? loaded.spawn : 0;
+                if (!level.selectSpawn(spawn) && !level.selectSpawn(0))
+                    return false;
+                player.reset(level.startX, level.startY, level.startZ);
+                player.yaw = level.startYaw;
+            }
             persistent = loaded;
             gameplay.copyPersistentFrom(loaded.gameplay);
-            restorePlayer(loaded);
+            gameplay.equipment.apply(player);
             applyEntityDeltas(loaded);
+            level.world.updateVisibility(player.x, player.z);
+            stateSource = loaded.recovered || !validPosition ? "FALLBACK" : "SAVE";
             return true;
         } catch (SaveException invalid) {
             return false;
@@ -168,8 +192,13 @@ public final class Engine implements Runnable {
         player.combat.magazine = s.magazine;
         for (int i = 0; i < s.reserveAmmo.length; i++) player.reserveAmmo[i] = s.reserveAmmo[i];
         player.ammo = s.magazine;
-        gameplay.equipment.apply(player);
-        level.world.updateVisibility(player.x, player.z);
+    }
+    private boolean validPlayerPosition() {
+        int floor = level.collision.floorHeight(player.x, player.z);
+        return level.world.findRoom(player.x, player.z) >= 0 && floor != Integer.MIN_VALUE
+                && player.y >= floor
+                && level.collision.hasClearance(
+                        player.x, player.y, player.z, Player.STANDING_HEIGHT);
     }
     private boolean loadLocation(String name, int spawn, boolean autosave) {
         LevelLoader candidate = new LevelLoader();
@@ -676,6 +705,9 @@ public final class Engine implements Runnable {
     }
     public String locationName() {
         return location;
+    }
+    public String stateSource() {
+        return stateSource;
     }
     public int state() {
         return state;
