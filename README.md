@@ -30,15 +30,15 @@ fallback: у `build.properties` явно задані `toolchain.jdk.home` і `w
    копіювання чи переміщення його вмісту.
 4. У властивостях **Java ME** проєкту зіставте його конфігурацію з
    зареєстрованим device і переконайтеся, що вибрано **MIDP 2.0 / CLDC 1.1**.
-   До MIDlet compilation unit входить лише `src/`; `tools/src/`, `test/`,
-   `assets-src/` і `sdk/` залишаються окремими host/source-data каталогами.
+   До MIDlet compilation unit входить лише `src/`; `res/` залишається
+   Eclipse resource root, а `tools/src/`, `test/` і `sdk/` — окремими host-каталогами.
 5. Для resource conversion, preverification і створення фінальних JAR/JAD
    запустіть version-controlled конфігурацію **Run → External Tools → External
    Tools Configurations… → Ant Build → Micro X Engine - package**. Вона
-   викликає наявну ціль `package` з `build.xml`; не додавайте `assets-src/` як
-   Eclipse resource folder або безпосередньо до JAR.
+   викликає наявну ціль `package` з `build.xml`; не додавайте вихідні
+   `*.level`, `geometry.txt` або `*.obj` безпосередньо до JAR.
 
-Каталоги `src/`, `assets-src/`, `tools/src/` і `sdk/python/` повинні лишатися
+Каталоги `src/`, `res/`, `tools/src/` і `sdk/python/` повинні лишатися
 на своїх місцях: `build.xml` та `build.properties` посилаються на цю структуру.
 Локальні SDK paths задавайте в Eclipse Installed Device Configurations або як
 локальні Ant properties, а не в `.project`, `.classpath`, `.mtj` чи launch-файлі.
@@ -54,17 +54,17 @@ fallback: у `build.properties` явно задані `toolchain.jdk.home` і `w
 * `validate-package` перевіряє обов'язковий level і відсутність source assets;
 * `desktop-static-test` запускає host-side тести, зокрема аварійний save/fallback.
 
-Редаговані моделі, рівні та службові файли зберігаються лише в `assets-src/`.
+Редаговані моделі, рівні та службові файли зберігаються лише в `res/`.
 Конвертер пише результат у `build/generated-resources/`, а статичні готові
-ресурси беруться з `runtime-resources/`. Жодна з цих цілей не копіює
-`assets-src/` до JAR, тому OBJ, коментарі вихідних рівнів і editor metadata не
-потрапляють у дистрибутив.
+ресурси беруться з `runtime-resources/`. Packaging-перевірка забороняє
+в JAR вихідні `*.obj`, `geometry.txt` і `*.level`, тому коментарі рівнів
+та editor metadata не потрапляють у дистрибутив.
 
 ### Контракт вихідних ресурсів і desktop-редактор
 
 Усі набори даних, які за своєю суттю є масивами ігрових даних, налаштувань,
 конфігурацій, балансних значень або інших однотипних записів, **обов'язково
-зберігаються у відповідних текстових data-файлах у `assets-src/data/` з
+зберігаються у відповідних текстових data-файлах у `res/data/` з
 кодуванням UTF-8 і розширенням `.txt`**. Такі масиви не можна жорстко кодувати
 безпосередньо у вихідному коді гри, якщо їх можна представити як зовнішні
 data-записи.
@@ -79,7 +79,7 @@ gameplay output є згенерованими runtime-файлами: їх не 
 Перевірки запускаються цілями `ant python-sdk-test`, `ant
 check-data-extensions` або разом із host-перевірками через `ant ci`.
 
-Формальний контракт редактора: він відкриває й змінює **лише** `assets-src/`,
+Формальний контракт редактора: він відкриває й змінює **лише** `res/`,
 а generated-файли завжди залишаються read-only. `.level` і gameplay `.txt`
 редагуються структурованими таблицями та типізованими формами, а не єдиним
 raw-text полем. Перед будь-яким записом редактор повністю перевіряє весь проєкт

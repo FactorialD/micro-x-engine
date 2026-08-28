@@ -46,8 +46,8 @@ class Editor(tk.Tk):
   if not selected or not self.guard():return
   try:
    project=Project(selected);load_tables(project) # full converter-contract validation
-   root=project.path('assets-src',existing=True);self.project=project;self.current=None;self.model=None
-   self.tree.delete(*self.tree.get_children());nodes={root:self.tree.insert('','end',text='assets-src',open=True,values=(str(root),))}
+   root=project.path('res',existing=True);self.project=project;self.current=None;self.model=None
+   self.tree.delete(*self.tree.get_children());nodes={root:self.tree.insert('','end',text='res',open=True,values=(str(root),))}
    for p in sorted(root.rglob('*')):nodes[p]=self.tree.insert(nodes.get(p.parent,nodes[root]),'end',text=p.name,values=(str(p),))
    self.status.config(text=str(project.root));self.dirty=False;self.mark()
   except Exception as e:self.error(e)
@@ -62,7 +62,7 @@ class Editor(tk.Tk):
    if p.suffix in ('.mesh','.lvl','.tex','.dat') or 'build/generated-resources' in p.as_posix():raise ValueError('Generated runtime files are read-only')
    content=p.read_text(encoding='utf-8') if p.suffix!='.png' else ''
    if p.suffix=='.level':model=parse_level_text(content);mode='level'
-   elif p.suffix=='.txt' and '/assets-src/data/' in p.as_posix():model=parse_data(content,str(p));mode='data'
+   elif p.suffix=='.txt' and '/res/data/' in p.as_posix():model=parse_data(content,str(p));mode='data'
    elif p.suffix=='.png':model=inspect_png(p);mode='image';self.photo=tk.PhotoImage(file=str(p))
    elif p.suffix=='.obj':model=validate_obj(p);mode='other'
    else:raise ValueError('This source type is read-only')

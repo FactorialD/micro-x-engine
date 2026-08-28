@@ -156,7 +156,7 @@ def modified_utf_size(value:str,label="string"):
  return size+2
 
 def load_tables(project:Project):
- root=project.path("assets-src/data",existing=True); result={}; old=list(root.rglob("*.data"))
+ root=project.path("res/data",existing=True); result={}; old=list(root.rglob("*.data"))
  if old:raise DataError(f"legacy .data file is forbidden: {old[0]}")
  paths={}
  for p in sorted(root.rglob("*.txt")):

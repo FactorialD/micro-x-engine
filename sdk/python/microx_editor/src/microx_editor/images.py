@@ -50,7 +50,7 @@ def inspect_png(path: str | Path) -> dict[str, int]:
     if footprint > 96*1024: raise AssetError("runtime footprint exceeds 96 KiB")
     return {"width":width,"height":height,"colors":colors,"footprint":footprint}
 
-def replace_atlas(project: Project, source: str|Path, destination="assets-src/textures.png") -> dict[str,int]:
+def replace_atlas(project: Project, source: str|Path, destination="res/textures.png") -> dict[str,int]:
     target=project.path(destination)
     if target.name != "textures.png": raise AssetError("AssetConverter only accepts atlas textures.png")
     info=inspect_png(source); data=Path(source).read_bytes()

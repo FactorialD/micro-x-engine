@@ -7,7 +7,7 @@ import tempfile
 class ProjectError(ValueError): pass
 
 class Project:
-    REQUIRED = ("assets-src", "assets-src/levels", "assets-src/data")
+    REQUIRED = ("res", "res/levels", "res/data")
     def __init__(self, root: str | Path):
         self.root = Path(root).expanduser().resolve(strict=True)
         if not self.root.is_dir(): raise ProjectError("Project path is not a directory")
