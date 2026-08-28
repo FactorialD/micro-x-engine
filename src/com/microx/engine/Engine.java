@@ -249,11 +249,19 @@ public final class Engine implements Runnable {
             notifyAll();
             old = thread;
         }
-        if (old != null && old != Thread.currentThread())
-            try {
-                old.join(1000);
-            } catch (InterruptedException ignored) {
+        if (old != null && old != Thread.currentThread()) {
+            long deadline = System.currentTimeMillis() + 1000;
+            while (old.isAlive()) {
+                long remaining = deadline - System.currentTimeMillis();
+                if (remaining <= 0)
+                    break;
+                try {
+                    Thread.sleep(remaining < 20 ? remaining : 20);
+                } catch (InterruptedException ignored) {
+                    break;
+                }
             }
+        }
         renderer.release();
         assets.release();
         audio.release();
