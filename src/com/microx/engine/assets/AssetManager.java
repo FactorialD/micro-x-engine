@@ -133,7 +133,7 @@ public final class AssetManager {
                 throw new IOException("trailing MXM2 data");
             return result;
         } catch (IOException e) {
-            throw new IllegalArgumentException(path + ": invalid MXM2", e);
+            throw new IllegalArgumentException(path + ": invalid MXM2: " + e.toString());
         } finally {
             try {
                 in.close();
@@ -178,7 +178,7 @@ public final class AssetManager {
                 throw new IOException("trailing MXT2 data");
             return result;
         } catch (IOException e) {
-            throw new IllegalArgumentException(path + ": invalid MXT2", e);
+            throw new IllegalArgumentException(path + ": invalid MXT2: " + e.toString());
         } finally {
             try {
                 in.close();
