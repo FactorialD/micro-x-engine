@@ -16,7 +16,7 @@ public final class EntityPool {
                             MUTANT_PSI = 3, MUTANT_AOE = 4;
     public final int[] stableId, x, y, z, type, health, state, roomId, direction, radius, faction,
             timer, target, flags, spriteId, aux, archetype;
-    public final boolean[] active;
+    public final boolean[] active, trader;
     private int count;
     private final int[] kinds = new int[8];
     public EntityPool(int capacity) {
@@ -38,6 +38,7 @@ public final class EntityPool {
         aux = new int[capacity];
         archetype = new int[capacity];
         active = new boolean[capacity];
+        trader = new boolean[capacity];
     }
     public int spawn(int t, int px, int py, int pz, int hp) {
         return spawn(0, t, px, py, pz, hp);
@@ -67,6 +68,7 @@ public final class EntityPool {
                 spriteId[i] = t;
                 aux[i] = 0;
                 archetype[i] = MUTANT_BASIC;
+                trader[i] = false;
                 count++;
                 if (t < kinds.length)
                     kinds[t]++;

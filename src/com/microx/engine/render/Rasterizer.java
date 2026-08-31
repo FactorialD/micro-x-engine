@@ -59,10 +59,7 @@ public final class Rasterizer {
                         && inside(w2, x0, y0, x1, y1)) {
                     long q0 = w0 * 65536L / area, q1 = w1 * 65536L / area, q2 = 65536L - q0 - q1;
                     long z = (q0 * z0 + q1 * z1 + q2 * z2) / 65536L;
-                    int zz = z <= 8192
-                            ? 0
-                            : (z >= 16777216L ? 65534
-                                              : (int) ((z - 8192L) * 65534L / (16777216L - 8192L)));
+                    int zz = encodeDepth(z);
                     int at = py * width + px;
                     if (zz < (depth[at] & 0xffff)) {
                         long iz0 = (1L << 30) / z0, iz1 = (1L << 30) / z1, iz2 = (1L << 30) / z2,
@@ -84,6 +81,12 @@ public final class Rasterizer {
                 }
             }
         return hit;
+    }
+    /** Shared Q16.16 camera-space Z to unsigned depth-buffer encoding. */
+    static int encodeDepth(long z) {
+        return z <= 8192
+                ? 0
+                : (z >= 16777216L ? 65534 : (int) ((z - 8192L) * 65534L / (16777216L - 8192L)));
     }
     private long edge(int ax, int ay, int bx, int by, int px, int py) {
         return (long) (px - ax) * (by - ay) - (long) (py - ay) * (bx - ax);

@@ -75,6 +75,7 @@
       <include name="com/microx/engine/render/RenderCamera.java"/>
       <include name="com/microx/engine/render/VertexTransformer.java"/>
       <include name="com/microx/engine/render/EntityBillboardRenderer.java"/>
+      <include name="com/microx/engine/render/EntityRenderCatalog.java"/>
       <include name="com/microx/engine/render/PipelineIntegrationTest.java"/>
       <include name="javax/microedition/lcdui/Graphics.java"/>
       <include name="com/microx/engine/render/RenderingTest.java"/>

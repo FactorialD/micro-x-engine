@@ -21,6 +21,8 @@ public final class RenderingTest {
         portalOcclusion();
         budget();
         telemetryCounters();
+        proceduralEntityCatalog();
+        scaledPresentationFillsViewport();
         System.out.println("RenderingTest: OK");
     }
     private static void objImport() throws Exception {
@@ -180,6 +182,41 @@ public final class RenderingTest {
         ok(assets.locationTextureCount() == 0 && assets.sharedTextureCount() == 0
                         && assets.residentTextureCount() == 0 && assets.residentSectionCount() == 0,
                 "empty asset telemetry counters");
+    }
+    private static void proceduralEntityCatalog() {
+        EntityPool pool = new EntityPool(8);
+        int human = pool.spawn(EntityPool.HUMAN, 0, 0, Fixed.fromInt(3), 100);
+        pool.faction[human] = com.microx.engine.gameplay.GameIds.FACTION_DUTY;
+        int normal = EntityRenderCatalog.color(pool, human);
+        pool.trader[human] = true;
+        int trader = EntityRenderCatalog.color(pool, human);
+        ok(trader != normal && (trader & 0xff) < (normal & 0xff),
+                "trader is a darker explicit faction color");
+        int mutant = pool.spawn(EntityPool.MUTANT, 0, 0, Fixed.fromInt(3), 100);
+        int basic = EntityRenderCatalog.color(pool, mutant);
+        pool.archetype[mutant] = EntityPool.MUTANT_PSI;
+        ok(EntityRenderCatalog.color(pool, mutant) != basic, "mutant archetype palette");
+        int item = pool.spawn(EntityPool.ITEM, 0, 0, Fixed.fromInt(3), 1);
+        int ordinaryWidth = EntityRenderCatalog.halfWidth(pool, item);
+        pool.aux[item] = com.microx.engine.gameplay.GameIds.ITEM_RIFLE;
+        ok(EntityRenderCatalog.halfWidth(pool, item) > ordinaryWidth
+                        && EntityRenderCatalog.color(pool, item)
+                                == EntityRenderCatalog.UNKNOWN_ITEM,
+                "static item dimensions and stable fallback color");
+    }
+    private static void scaledPresentationFillsViewport() {
+        int[] modes = {0, 1, 2};
+        for (int i = 0; i < modes.length; i++) {
+            FrameCoordinator frame = new FrameCoordinator();
+            frame.configure(65, 49, 2 * 1024 * 1024, modes[i]);
+            javax.microedition.lcdui.Graphics graphics =
+                    new javax.microedition.lcdui.Graphics(65, 49);
+            frame.renderPreview(graphics, null, null, 0, 0, 0, Fixed.ONE, 0);
+            int[] pixels = graphics.pixels();
+            ok(pixels.length == 65 * 49 && pixels[0] == 0x101820
+                            && pixels[pixels.length - 1] == 0x101820,
+                    "resolution mode fills complete output viewport " + modes[i]);
+        }
     }
     private static TextureData texture(int c) {
         return new TextureData(1, 1, new int[] {c}, new byte[] {0});

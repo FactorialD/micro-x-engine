@@ -4,6 +4,7 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.Reader;
 import java.util.Vector;
+import com.microx.engine.gameplay.GameIds;
 
 /** Streaming loader for the authored UTF-8 MXL2 level text. Publishes only complete levels. */
 public final class LevelLoader {
@@ -115,6 +116,9 @@ public final class LevelLoader {
                 e.faction[entity] = in.id();
                 e.spriteId[entity] = in.id();
                 e.aux[entity] = in.id();
+                e.trader[entity] = e.type[entity] == EntityPool.HUMAN
+                        && (e.aux[entity] == GameIds.NPC_SIDOROVICH
+                                || e.aux[entity] == GameIds.NPC_TECHNICIAN);
             }
             if (in.hasNext())
                 return false;
