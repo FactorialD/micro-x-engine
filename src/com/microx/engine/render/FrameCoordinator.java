@@ -9,6 +9,7 @@ import com.microx.engine.world.*;
 public final class FrameCoordinator {
     private int[] rgb;
     private short[] depth;
+    private int[] presentation;
     private int width, height, outputWidth, outputHeight, memoryBudget, resolutionMode;
     private AssetManager assets;
     private final RenderCamera camera = new RenderCamera();
@@ -49,18 +50,29 @@ public final class FrameCoordinator {
             w = (w + 1) / 2;
             h = (h + 1) / 2;
         }
-        if ((long) w * h * 6L + assetBytes + scratchBudget > budget)
+        long presentationBytes =
+                w == outputWidth && h == outputHeight ? 0 : (long) outputWidth * outputHeight * 4L;
+        if ((long) w * h * 6L + presentationBytes + assetBytes + scratchBudget > budget)
             throw new OutOfMemoryError("2 MiB renderer budget exceeded");
-        if (w == width && h == height && rgb != null)
+        if (w == width && h == height && rgb != null
+                && (w == outputWidth && h == outputHeight ? presentation == null
+                                                          : presentation != null
+                                        && presentation.length == outputWidth * outputHeight))
             return;
         try {
             rgb = new int[w * h];
             depth = new short[w * h];
+            presentation = w == outputWidth && h == outputHeight
+                    ? null
+                    : new int[outputWidth * outputHeight];
         } catch (OutOfMemoryError e) {
             w = (w + 1) / 2;
             h = (h + 1) / 2;
             rgb = new int[w * h];
             depth = new short[w * h];
+            presentation = w == outputWidth && h == outputHeight
+                    ? null
+                    : new int[outputWidth * outputHeight];
         }
         width = w;
         height = h;
@@ -84,10 +96,17 @@ public final class FrameCoordinator {
                     if (mesh.room() == room)
                         draw(mesh, assets.texture(mesh.texture()));
                 }
+                if (pool != null)
+                    entities.render(pool, room, camera, clipper, rasterizer, width, height);
             }
+            if (pool != null) {
+                rasterizer.clip(0, 0, width - 1, height - 1);
+                entities.render(pool, -1, camera, clipper, rasterizer, width, height);
+            }
+        } else if (pool != null) {
+            rasterizer.clip(0, 0, width - 1, height - 1);
+            entities.render(pool, -2, camera, clipper, rasterizer, width, height);
         }
-        if (pool != null)
-            entities.render(rgb, depth, width, height, camera, pool);
         present(g);
     }
     void renderPreview(Graphics g, MeshSection[] sections, TextureData[] textures, int centerX,
@@ -118,12 +137,19 @@ public final class FrameCoordinator {
         }
     }
     private void present(Graphics g) {
-        if (width != outputWidth || height != outputHeight) {
-            g.setColor(0);
-            g.fillRect(0, 0, outputWidth, outputHeight);
+        if (width == outputWidth && height == outputHeight) {
+            g.drawRGB(rgb, 0, width, 0, 0, width, height, false);
+            return;
         }
-        g.drawRGB(rgb, 0, width, (outputWidth - width) / 2, (outputHeight - height) / 2, width,
-                height, false);
+        if (presentation == null || presentation.length != outputWidth * outputHeight)
+            presentation = new int[outputWidth * outputHeight];
+        for (int y = 0; y < outputHeight; y++) {
+            int sourceRow = y * height / outputHeight * width;
+            int targetRow = y * outputWidth;
+            for (int x = 0; x < outputWidth; x++)
+                presentation[targetRow + x] = rgb[sourceRow + x * width / outputWidth];
+        }
+        g.drawRGB(presentation, 0, outputWidth, 0, 0, outputWidth, outputHeight, false);
     }
     private void draw(MeshSection mesh, TextureData texture) {
         transformer.transform(mesh, camera);
@@ -177,6 +203,7 @@ public final class FrameCoordinator {
     void releaseBuffers() {
         rgb = null;
         depth = null;
+        presentation = null;
         width = height = 0;
     }
     void release() {
